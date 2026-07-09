@@ -4,10 +4,15 @@ import CareerMap from './components/CareerMap'
 import Header from './components/Header'
 import SubjectsPanel from './components/SubjectsPanel'
 import Advisor from './components/Advisor'
-import AuthButton from './components/AuthButton'
+import WelcomeSetup from './components/WelcomeSetup'
 import { onAuthStateChanged, signInWithPopup } from 'firebase/auth'
 import { auth, googleProvider } from './firebase'
-import { loadUserStatus, saveUserStatus } from './services/firestore'
+import {
+  loadUserStatus,
+  saveUserStatus,
+  loadUserProfile,
+  saveUserProfile,
+} from './services/firestore'
 import Dashboard from './components/Dashboard'
 import { useEffect, useMemo, useState } from 'react'
 import { careers } from './data/careers'
@@ -41,6 +46,8 @@ function App() {
   const [activeCareerId, setActiveCareerId] = useState(DEFAULT_CAREER_ID)
   const [user, setUser] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
+  const [profileLoading, setProfileLoading] = useState(true)
+  const [hasChosenCareer, setHasChosenCareer] = useState(false)
   const activeCareer = careers.find((career) => career.id === activeCareerId)
   const subjects = activeCareer.subjects
   const initialStatus = activeCareer.initialStatus
@@ -78,6 +85,27 @@ function App() {
     })
   }, [])
 
+  useEffect(() => {
+    async function loadProfile() {
+      if (!user) {
+        setProfileLoading(false)
+        return
+      }
+
+      const profile = await loadUserProfile(user.uid)
+
+      if (profile?.activeCareerId) {
+        setActiveCareerId(profile.activeCareerId)
+        setHasChosenCareer(true)
+      } else {
+        setHasChosenCareer(false)
+      }
+
+      setProfileLoading(false)
+    }
+
+    loadProfile()
+  }, [user])
 
   const stats = useMemo(() => summary(subjects, statusMap), [statusMap])
   const toCourse = useMemo(() => availableToCourse(subjects, statusMap), [statusMap])
@@ -149,17 +177,31 @@ if (!user) {
     <main className="app-shell">
       <section className="login-page">
         <div className="login-card">
+          <img
+  	    src="/logo.png"
+  	    alt="Correlativas"
+  	    className="login-logo"
+	  />
+
           <p className="eyebrow">Correlativas</p>
-          <h1>Iniciá sesión para continuar</h1>
+          <h1>Planificá tu carrera universitaria</h1>
+
           <p>
-            Guardá tu avance, materias aprobadas y planificador en la nube.
+            Descubrí qué materias podés cursar, qué finales podés rendir y
+            guardá tu progreso en la nube.
           </p>
+
+          <div className="login-features">
+            <span>📚 Múltiples carreras</span>
+            <span>🗺️ Mapa de correlativas</span>
+            <span>🧠 Planificador inteligente</span>
+          </div>
 
           <button
             className="login-google-btn"
             onClick={() => signInWithPopup(auth, googleProvider)}
           >
-            Iniciar sesión con Google
+            Continuar con Google
           </button>
         </div>
       </section>
@@ -167,10 +209,46 @@ if (!user) {
   )
 }
 
+async function startWithCareer() {
+  if (!user) return
+
+  await saveUserProfile(user.uid, {
+    activeCareerId,
+    updatedAt: new Date(),
+  })
+
+  setHasChosenCareer(true)
+}
+
+
+if (profileLoading) {
   return (
     <main className="app-shell">
-      <Header reset={reset} />
-      <AuthButton />
+      <section className="placeholder-page">
+        <p className="eyebrow">Correlativas</p>
+        <h2>Cargando perfil...</h2>
+      </section>
+    </main>
+  )
+}
+
+if (!hasChosenCareer) {
+  return (
+    <main className="app-shell">
+      <WelcomeSetup
+        careers={careers}
+        activeCareerId={activeCareerId}
+        setActiveCareerId={setActiveCareerId}
+        onContinue={startWithCareer}
+      />
+    </main>
+  )
+}
+
+
+  return (
+    <main className="app-shell">
+      <Header reset={reset} user={user} />
       <CareerSelector
   	careers={careers}
   	activeCareerId={activeCareerId}
