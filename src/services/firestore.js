@@ -23,3 +23,18 @@ export async function saveUserStatus(userId, careerId, statusMap) {
     { merge: true }
   )
 }
+
+export async function loadUserProfile(userId) {
+  const ref = doc(db, 'users', userId)
+  const snap = await getDoc(ref)
+
+  if (!snap.exists()) return null
+
+  return snap.data()
+}
+
+export async function saveUserProfile(userId, data) {
+  const ref = doc(db, 'users', userId)
+
+  await setDoc(ref, data, { merge: true })
+}
