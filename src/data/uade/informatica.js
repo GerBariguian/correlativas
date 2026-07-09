@@ -482,30 +482,7 @@ export const subjects = [
   }
 ];
 
-export const initialStatus = {
-  "3.4.069": "Aprobada",
-  "3.4.164": "Aprobada",
-  "2.1.002": "Aprobada",
-  "3.4.043": "Aprobada",
-  "3.1.050": "Aprobada",
-  "3.4.071": "Aprobada",
-  "3.3.121": "Aprobada",
-  "3.2.178": "Aprobada",
-  "3.4.072": "Aprobada",
-  "3.1.024": "Aprobada",
-  "3.1.051": "Aprobada",
-  "3.4.074": "Aprobada",
-  "3.4.207": "Aprobada",
-  "3.1.052": "Aprobada",
-  "3.1.053": "Aprobada",
-  "3.4.078": "Aprobada",
-  "3.4.209": "Aprobada",
-  "3.1.054": "Regularizada",
-  "3.4.077": "Pendiente",
-  "3.1.049": "Regularizada",
-  "3.1.055": "Regularizada",
-  "3.1.056": "Cursando",
-  "3.4.214": "Cursando",
-  "3.4.213": "Cursando",
-  "3.4.208": "Cursando"
-};
+export const initialStatus = Object.fromEntries(
+  subjects.map((subject) => [subject.code, 'Pendiente'])
+)
+
