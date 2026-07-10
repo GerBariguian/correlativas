@@ -13,6 +13,11 @@ import {
   initialStatus as odontologiaStatus,
 } from './uba/odontologia'
 
+import {
+  subjects as teologiaSubjects,
+  initialStatus as teologiaStatus,
+} from './uca/teologiaSistematica'
+
 export const careers = [
   {
     id: 'uade-informatica',
@@ -41,5 +46,15 @@ export const careers = [
     plan: '2021',
     subjects: odontologiaSubjects,
     initialStatus: odontologiaStatus,
+  },
+
+  {
+    id: 'uca-teologia-sistematica',
+    university: 'UCA',
+    faculty: 'Facultad de Teología',
+    name: 'Licenciatura en Teología Sistemática',
+    plan: 'A confirmar',
+    subjects: teologiaSubjects,
+    initialStatus: teologiaStatus,
   },
 ]
