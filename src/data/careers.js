@@ -18,6 +18,11 @@ import {
   initialStatus as teologiaStatus,
 } from './uca/teologiaSistematica'
 
+import {
+  subjects as actuarioSubjects,
+  initialStatus as actuarioStatus,
+} from './uba/actuario'
+
 export const careers = [
   {
     id: 'uade-informatica',
@@ -57,4 +62,14 @@ export const careers = [
     subjects: teologiaSubjects,
     initialStatus: teologiaStatus,
   },
+
+  {
+    id: 'uba-actuario',
+    university: 'UBA',
+    faculty: 'Facultad de Ciencias Económicas',
+    name: 'Actuario',
+    plan: '2025',
+    subjects: actuarioSubjects,
+    initialStatus: actuarioStatus,
+},
 ]
