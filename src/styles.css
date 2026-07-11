@@ -971,6 +971,7 @@ h1 {
   padding: 10px 14px;
   font-weight: 900;
   cursor: pointer;
+  margin-left: 12px;
 }
 
 .clear-planner-btn:hover {
