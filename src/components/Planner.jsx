@@ -33,6 +33,10 @@ function Planner({ availableSubjects, subjects,  selectedCodes, setSelectedCodes
     )
   }
 
+  function clearSelection() {
+    setSelectedCodes([])
+  }
+
   function suggestBestSemester() {
     const suggested = availableSubjects
       .map((subject) => ({
@@ -55,7 +59,6 @@ function Planner({ availableSubjects, subjects,  selectedCodes, setSelectedCodes
   return (
     <section className="planner-page">
       <div className="planner-header">
-        <p className="eyebrow">Sprint 3</p>
         <h2>Planificador inteligente</h2>
         <p>
           Elegí posibles materias para el próximo cuatrimestre y mirá el impacto
@@ -64,6 +67,11 @@ function Planner({ availableSubjects, subjects,  selectedCodes, setSelectedCodes
         <button className="suggest-btn" onClick={suggestBestSemester}>
   	  ✨ Sugerir mejor cuatrimestre
 	</button>
+        {selectedCodes.length > 0 && (
+          <button className="clear-planner-btn" onClick={clearSelection}>
+            Limpiar selección
+          </button>
+         )}
       </div>
 
       <div className="planner-summary">
