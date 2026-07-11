@@ -955,3 +955,24 @@ h1 {
   color: white;
   border-color: var(--text);
 }
+
+.planner-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.clear-planner-btn {
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.clear-planner-btn:hover {
+  background: #f4f6ff;
+}
