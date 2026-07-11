@@ -58,7 +58,7 @@ function Planner({ availableSubjects, subjects,  selectedCodes, setSelectedCodes
 
   return (
     <section className="planner-page">
-      <div className="planner-header">
+      <div className="planner-top">
         <h2>Planificador inteligente</h2>
         <p>
           Elegí posibles materias para el próximo cuatrimestre y mirá el impacto
@@ -68,8 +68,8 @@ function Planner({ availableSubjects, subjects,  selectedCodes, setSelectedCodes
   	  ✨ Sugerir mejor cuatrimestre
 	</button>
         {selectedCodes.length > 0 && (
-          <button className="clear-planner-btn" onClick={clearSelection}>
-            Limpiar selección
+          <button className="clear-planner-btn" onClick={() => setSelectedCodes([])}>
+            🗑️ Limpiar
           </button>
          )}
       </div>
