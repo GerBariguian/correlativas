@@ -49,6 +49,16 @@ function CareerSelector({
     }
   }
 
+  function changePlan(careerId) {
+    const selectedPlan = availablePlans.find(
+      (career) => career.id === careerId
+    )
+
+    if (selectedPlan) {
+      setActiveCareerId(selectedPlan.id)
+    }
+  }
+
   return (
     <section className="career-selector">
       <div>
