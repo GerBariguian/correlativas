@@ -69,21 +69,21 @@ export const careers = [
   },
 
   {
-    id: 'uba-actuario',
-    university: 'UBA',
-    faculty: 'Facultad de Ciencias Económicas',
-    name: 'Actuario',
-    plan: '2025',
-    subjects: actuarioSubjects,
-    initialStatus: actuarioStatus,
-},
-
-  {
     id: 'utn-industrial-2023',
     university: 'UTN',
     name: 'Ingeniería Industrial',
-    plan: 'Plan I-23 (2023)',
+    faculty: '',
+    plan: 'I-23 (2023)',
     subjects: industrial2023Subjects,
     initialStatus: industrial2023Status,
+  },
+  {
+    id: 'utn-industrial-2007',
+    university: 'UTN',
+    name: 'Ingeniería Industrial',
+    faculty: '',
+    plan: '2007',
+    subjects: industrial2007Subjects,
+    initialStatus: industrial2007Status,
   },
 ]
