@@ -748,8 +748,9 @@ h1 {
 }
 
 .career-selectors {
-  display: flex;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 16px;
   align-items: end;
 }
 
@@ -769,8 +770,7 @@ h1 {
 
 @media (max-width: 760px) {
   .career-selectors {
-    flex-direction: column;
-    align-items: stretch;
+    grid-template-columns: 1fr;
   }
 
   .career-selectors select {
