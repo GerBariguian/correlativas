@@ -753,6 +753,18 @@ h1 {
 .career-selector select {
   width: 100%;
   min-width: 0;
+
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: white;
+
+  padding: 13px 16px;
+
+  font: inherit;
+  font-weight: 800;
+  color: var(--text);
+
+  outline: none;
 }
 
 @media (max-width: 1100px) {
