@@ -1,50 +1,37 @@
 function CareerSelector({
-  careers = [],
+  careers,
   activeCareerId,
   setActiveCareerId,
 }) {
-  if (!careers.length) {
-    return null
-  }
-
-  const activeCareer =
-    careers.find((career) => career.id === activeCareerId) ??
-    careers[0]
-
   const universities = [
-    ...new Set(
-      careers
-        .map((career) => career.university?.trim())
-        .filter(Boolean)
-    ),
+    ...new Set(careers.map((career) => career.university)),
   ]
 
-  const activeUniversity = activeCareer.university?.trim()
+  const activeCareer = careers.find(
+    (career) => career.id === activeCareerId
+  )
+
+  const activeUniversity =
+    activeCareer?.university || universities[0]
 
   const universityCareers = careers.filter(
-    (career) =>
-      career.university?.trim() === activeUniversity
+    (career) => career.university === activeUniversity
   )
 
   const careerNames = [
-    ...new Set(
-      universityCareers
-        .map((career) => career.name?.trim())
-        .filter(Boolean)
-    ),
+    ...new Set(universityCareers.map((career) => career.name)),
   ]
 
-  const activeCareerName = activeCareer.name?.trim()
+  const activeCareerName =
+    activeCareer?.name || careerNames[0]
 
   const availablePlans = universityCareers.filter(
-    (career) =>
-      career.name?.trim() === activeCareerName
+    (career) => career.name === activeCareerName
   )
 
   function changeUniversity(university) {
     const firstCareer = careers.find(
-      (career) =>
-        career.university?.trim() === university
+      (career) => career.university === university
     )
 
     if (firstCareer) {
@@ -52,10 +39,9 @@ function CareerSelector({
     }
   }
 
-  function changeCareer(careerName) {
+  function changeCareerName(careerName) {
     const firstPlan = universityCareers.find(
-      (career) =>
-        career.name?.trim() === careerName
+      (career) => career.name === careerName
     )
 
     if (firstPlan) {
@@ -63,47 +49,33 @@ function CareerSelector({
     }
   }
 
-  function changePlan(careerId) {
-    const selectedPlan = availablePlans.find(
-      (career) => career.id === careerId
-    )
-
-    if (selectedPlan) {
-      setActiveCareerId(selectedPlan.id)
-    }
-  }
-
-  const hasMultiplePlans = availablePlans.length > 1
-
   return (
     <section className="career-selector">
       <div>
         <p className="eyebrow">Plan de estudio</p>
 
-        <h2>{activeCareer.name}</h2>
+        <h2>{activeCareer?.name}</h2>
 
         <span>
-          {[
-            activeCareer.university,
-            activeCareer.faculty,
-            activeCareer.plan
-              ? `Plan ${activeCareer.plan}`
-              : null,
-          ]
-            .filter(Boolean)
-            .join(' · ')}
+          {activeCareer?.university}
+          {activeCareer?.faculty
+            ? ` · ${activeCareer.faculty}`
+            : ''}
+          {activeCareer?.plan
+            ? ` · Plan ${activeCareer.plan}`
+            : ''}
         </span>
       </div>
 
       <div
         className={`career-selectors ${
-          hasMultiplePlans
+          availablePlans.length > 1
             ? 'three-columns'
             : 'two-columns'
         }`}
       >
         <label>
-          Universidad
+          UNIVERSIDAD
 
           <select
             value={activeUniversity}
@@ -123,12 +95,12 @@ function CareerSelector({
         </label>
 
         <label>
-          Carrera
+          CARRERA
 
           <select
             value={activeCareerName}
             onChange={(event) =>
-              changeCareer(event.target.value)
+              changeCareerName(event.target.value)
             }
           >
             {careerNames.map((careerName) => (
@@ -142,21 +114,16 @@ function CareerSelector({
           </select>
         </label>
 
-        {hasMultiplePlans && (
+        {availablePlans.length > 1 && (
           <label>
-            Plan
+            PLAN
 
             <select
-              value={activeCareer.id}
-              onChange={(event) =>
-                changePlan(event.target.value)
-              }
+              value={activeCareerId}
+              onChange={(event) => changePlan(event.target.value)}
             >
               {availablePlans.map((career) => (
-                <option
-                  key={career.id}
-                  value={career.id}
-                >
+                <option key={career.id} value={career.id}>
                   {career.plan}
                 </option>
               ))}
