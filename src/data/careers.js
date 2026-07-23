@@ -64,6 +64,15 @@ export const careers = [
   },
 
   {
+    id: 'uba-actuario',
+    university: 'UBA',
+    name: 'Actuario',
+    plan: 'Único',
+    subjects: actuarioSubjects,
+    initialStatus: actuarioStatus,
+  },
+
+  {
     id: 'uca-teologia-sistematica',
     university: 'UCA',
     faculty: 'Facultad de Teología',
@@ -77,16 +86,14 @@ export const careers = [
     id: 'utn-industrial-2023',
     university: 'UTN',
     name: 'Ingeniería Industrial',
-    faculty: '',
     plan: 'I-23 (2023)',
     subjects: industrial2023Subjects,
     initialStatus: industrial2023Status,
-  },
+  },  
   {
     id: 'utn-industrial-2007',
     university: 'UTN',
     name: 'Ingeniería Industrial',
-    faculty: '',
     plan: '2007',
     subjects: industrial2007Subjects,
     initialStatus: industrial2007Status,
