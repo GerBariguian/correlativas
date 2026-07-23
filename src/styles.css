@@ -734,12 +734,12 @@ h1 {
 }
 
 .career-selectors.two-columns {
-  grid-template-columns: repeat(2, 260px);
+  grid-template-columns: repeat(2, minmax(220px, 260px));
   justify-content: end;
 }
 
 .career-selectors.three-columns {
-  grid-template-columns: repeat(3, 260px);
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
   justify-content: end;
 }
 
