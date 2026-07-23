@@ -749,12 +749,6 @@ h1 {
 .career-selectors label {
 
   min-width: 0;
-
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
 }
 
 .career-selector select {
