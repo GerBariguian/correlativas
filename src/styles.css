@@ -729,9 +729,18 @@ h1 {
 
 .career-selectors {
   display: grid;
-  grid-template-columns: repeat(3, minmax(190px, 230px));
   gap: 14px;
   align-items: end;
+}
+
+.career-selectors.two-columns {
+  grid-template-columns: repeat(2, 260px);
+  justify-content: end;
+}
+
+.career-selectors.three-columns {
+  grid-template-columns: repeat(3, 260px);
+  justify-content: end;
 }
 
 .career-selectors label {
