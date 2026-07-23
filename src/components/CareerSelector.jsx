@@ -67,7 +67,13 @@ function CareerSelector({
         </span>
       </div>
 
-      <div className="career-selectors">
+      <div
+        className={`career-selectors ${
+          availablePlans.length > 1
+            ? 'three-columns'
+            : 'two-columns'
+        }`}
+      >
         <label>
           Universidad
 
@@ -114,7 +120,7 @@ function CareerSelector({
 
             <select
               value={activeCareerId}
-              onChange={(event) => setActiveCareerId(event.target.value)}
+              onChange={(event) => changePlan(event.target.value)}
             >
               {availablePlans.map((career) => (
                 <option key={career.id} value={career.id}>
