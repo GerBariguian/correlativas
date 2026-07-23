@@ -28,6 +28,11 @@ import {
   initialStatus as industrial2023Status,
 } from './utn/industrial2023'
 
+import {
+  subjects as industrial2007Subjects,
+  initialStatus as industrial2007Status,
+} from './utn/industrial2007'
+
 export const careers = [
   {
     id: 'uade-informatica',
