@@ -23,6 +23,11 @@ import {
   initialStatus as actuarioStatus,
 } from './uba/actuario'
 
+import {
+  subjects as industrial2023Subjects,
+  initialStatus as industrial2023Status,
+} from './utn/industrial2023'
+
 export const careers = [
   {
     id: 'uade-informatica',
@@ -72,4 +77,13 @@ export const careers = [
     subjects: actuarioSubjects,
     initialStatus: actuarioStatus,
 },
+
+  {
+    id: 'utn-industrial-2023',
+    university: 'UTN',
+    name: 'Ingeniería Industrial',
+    plan: 'Plan I-23 (2023)',
+    subjects: industrial2023Subjects,
+    initialStatus: industrial2023Status,
+  },
 ]
