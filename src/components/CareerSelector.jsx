@@ -114,15 +114,10 @@ function CareerSelector({
 
             <select
               value={activeCareerId}
-              onChange={(event) =>
-                setActiveCareerId(event.target.value)
-              }
+              onChange={(event) => setActiveCareerId(event.target.value)}
             >
               {availablePlans.map((career) => (
-                <option
-                  key={career.id}
-                  value={career.id}
-                >
+                <option key={career.id} value={career.id}>
                   {career.plan}
                 </option>
               ))}
