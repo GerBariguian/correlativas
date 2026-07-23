@@ -9,23 +9,59 @@ export function getStatus(statusMap, code) {
 }
 
 export function canCourse(subject, statusMap) {
-  return subject.prereqs.every((code) => ['Aprobada', 'Regularizada'].includes(getStatus(statusMap, code)))
+  const regularizedPrereqs = subject.prereqs ?? []
+  const approvedPrereqs = subject.approvedPrereqs ?? []
+
+  const hasRegularizedPrereqs = regularizedPrereqs.every((code) =>
+    isRegularized(statusMap, code)
+  )
+
+  const hasApprovedPrereqs = approvedPrereqs.every((code) =>
+    isApproved(statusMap, code)
+  )
+
+  return hasRegularizedPrereqs && hasApprovedPrereqs
 }
 
-export function canTakeFinal(subject, statusMap) {
-  return subject.prereqs.every((code) => getStatus(statusMap, code) === 'Aprobada')
+export function canTakeFinal(subject, statusMap, subjects = []) {
+  const finalPrereqs = subject.finalPrereqs ?? subject.prereqs ?? []
+
+  const requiresAllSubjects = finalPrereqs.includes('ALL')
+
+  if (requiresAllSubjects) {
+    return subjects
+      .filter((item) => item.code !== subject.code)
+      .filter((item) => !item.elective)
+      .filter((item) => !item.excludeFromAllFinals)
+      .every((item) => isApproved(statusMap, item.code))
+  }
+
+  return finalPrereqs.every((code) => isApproved(statusMap, code))
 }
 
 export function missingForCourse(subject, statusMap) {
-  return subject.prereqs.filter((code) => !['Aprobada', 'Regularizada'].includes(getStatus(statusMap, code)))
+  const missing = missingCoursePrereqs(subject, statusMap)
+
+  return [
+    ...missing.regularized,
+    ...missing.approved,
+  ]
 }
 
-export function missingForFinal(subject, statusMap) {
-  return subject.prereqs.filter((code) => getStatus(statusMap, code) !== 'Aprobada')
+export function missingForFinal(subject, statusMap, subjects = []) {
+  return missingFinalPrereqs(subject, statusMap, subjects)
 }
 
 export function unlocks(subjects, code) {
-  return subjects.filter((subject) => subject.prereqs.includes(code))
+  return subjects.filter((subject) => {
+    const regularizedPrereqs = subject.prereqs ?? []
+    const approvedPrereqs = subject.approvedPrereqs ?? []
+
+    return (
+      regularizedPrereqs.includes(code) ||
+      approvedPrereqs.includes(code)
+    )
+  })
 }
 
 export function directBlockCount(subjects, code) {
@@ -53,7 +89,7 @@ export function availableToCourse(subjects, statusMap) {
 }
 
 export function availableFinals(subjects, statusMap) {
-  return subjects.filter((s) => getStatus(statusMap, s.code) === 'Regularizada' && canTakeFinal(s, statusMap))
+  return subjects.filter((s) => getStatus(statusMap, s.code) === 'Regularizada' && canTakeFinal(s, statusMap, subjects))
 }
 
 export function blockedSubjects(subjects, statusMap) {
@@ -70,7 +106,7 @@ export function recommendations(subjects, statusMap) {
       const isPending = getStatus(statusMap, subject.code) === 'Pendiente'
       const isTaking = getStatus(statusMap, subject.code) === 'Cursando'
       const courseAvailable = canCourse(subject, statusMap)
-      const finalAvailable = canTakeFinal(subject, statusMap)
+      const finalAvailable = canTakeFinal(subject, statusMap, subjects)
 
       let score = unlocksCount * 20
 
@@ -107,4 +143,43 @@ export function recommendations(subjects, statusMap) {
   return candidates
     .sort((a, b) => b.score - a.score)
     .slice(0, 6)
+}
+
+const APPROVED = 'Aprobada'
+const REGULARIZED_STATUSES = ['Regularizada', 'Aprobada']
+
+const isApproved = (statusMap, subjectCode) =>
+  getStatus(statusMap, subjectCode) === APPROVED
+
+const isRegularized = (statusMap, subjectCode) =>
+  REGULARIZED_STATUSES.includes(getStatus(statusMap, subjectCode))
+
+export function missingCoursePrereqs(subject, statusMap) {
+  const missingRegularized = (subject.prereqs ?? []).filter(
+    (code) => !isRegularized(statusMap, code)
+  )
+
+  const missingApproved = (subject.approvedPrereqs ?? []).filter(
+    (code) => !isApproved(statusMap, code)
+  )
+
+  return {
+    regularized: missingRegularized,
+    approved: missingApproved,
+  }
+}
+
+export function missingFinalPrereqs(subject, statusMap, subjects = []) {
+  const finalPrereqs = subject.finalPrereqs ?? subject.prereqs ?? []
+
+  if (finalPrereqs.includes('ALL')) {
+    return subjects
+      .filter((item) => item.code !== subject.code)
+      .filter((item) => !item.elective)
+      .filter((item) => !item.excludeFromAllFinals)
+      .filter((item) => !isApproved(statusMap, item.code))
+      .map((item) => item.code)
+  }
+
+  return finalPrereqs.filter((code) => !isApproved(statusMap, code))
 }
