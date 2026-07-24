@@ -1057,3 +1057,92 @@ h1 {
   font-size: 12px;
   font-weight: 900;
 }
+
+.expandable-card {
+  padding: 0;
+  overflow: hidden;
+  justify-content: flex-start;
+}
+
+.expandable-card-header {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  padding: 24px;
+  cursor: pointer;
+}
+
+.expandable-card-header > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.expandable-card-header strong {
+  display: block;
+  margin: 14px 0 8px;
+  font-size: 54px;
+  letter-spacing: -0.06em;
+}
+
+.expandable-card-header span {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.expandable-card {
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.expandable-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(66, 87, 245, 0.45);
+  box-shadow: 0 22px 55px rgba(66, 87, 245, 0.15);
+}
+
+.expandable-card-details {
+  display: grid;
+  gap: 10px;
+  padding: 0 24px 24px;
+  border-top: 1px solid var(--line);
+}
+
+.mini-subject {
+  padding-top: 14px;
+}
+
+.mini-subject + .mini-subject {
+  border-top: 1px solid var(--line);
+}
+
+.mini-subject span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.mini-subject strong {
+  display: block;
+  margin: 0;
+  font-size: 15px;
+  letter-spacing: 0;
+}
+
+.empty-card-message {
+  margin: 16px 0 0;
+  color: var(--muted);
+}
+
+.card-action {
+  display: block;
+  margin-top: 14px;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 900;
+}
