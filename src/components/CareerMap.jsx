@@ -1,4 +1,5 @@
 import { getStatus, unlocks, getSubjectLevel } from '../logic'
+import ProgressSummary from './ProgressSummary'
 
 
 function CareerMap({
@@ -34,6 +35,8 @@ function CareerMap({
           <p className="eyebrow">Mapa académico</p>
           <h2>Mapa de la carrera</h2>
           <p>Visualizá tu recorrido académico organizado por niveles.</p>
+
+          <ProgressSummary statusMap={statusMap} />
 
           {selectedSubject && (
             <button className="map-to-planner-btn" onClick={addToPlanner}>
