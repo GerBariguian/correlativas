@@ -1005,33 +1005,33 @@ h1 {
 
   padding: 8px 14px;
 
+  background: white;
+  border: 1px solid var(--line);
   border-radius: 999px;
 
-  background: var(--surface);
-  border: 1px solid var(--border);
-
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .summary-item.approved .dot {
-  background: var(--approved);
+  background: #16a34a;
 }
 
 .summary-item.regularized .dot {
-  background: var(--regularized);
+  background: #2563eb;
 }
 
 .summary-item.in-progress .dot {
-  background: var(--in-progress);
+  background: #d97706;
 }
 
 .summary-item.pending .dot {
-  background: var(--pending);
+  background: #9ca3af;
 }
