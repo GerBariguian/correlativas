@@ -36,7 +36,10 @@ function CareerMap({
           <h2>Mapa de la carrera</h2>
           <p>Visualizá tu recorrido académico organizado por niveles.</p>
 
-          <ProgressSummary statusMap={statusMap} />
+          <ProgressSummary
+            subjects={subjects}
+            statusMap={statusMap}
+          />
 
           {selectedSubject && (
             <button className="map-to-planner-btn" onClick={addToPlanner}>

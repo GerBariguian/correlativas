@@ -1,20 +1,24 @@
-function ProgressSummary({ statusMap }) {
-  const values = Object.values(statusMap)
+import { getStatus } from '../logic'
 
-  const approved = values.filter(
-    (status) => status === 'approved'
+function ProgressSummary({ subjects, statusMap }) {
+  const statuses = subjects.map((subject) =>
+    getStatus(statusMap, subject.code).toLowerCase()
+  )
+
+  const approved = statuses.filter(
+    (status) => status === 'aprobada'
   ).length
 
-  const regularized = values.filter(
-    (status) => status === 'regularized'
+  const regularized = statuses.filter(
+    (status) => status === 'regularizada'
   ).length
 
-  const inProgress = values.filter(
-    (status) => status === 'in_progress'
+  const inProgress = statuses.filter(
+    (status) => status === 'cursando'
   ).length
 
-  const pending = values.filter(
-    (status) => status === 'pending'
+  const pending = statuses.filter(
+    (status) => status === 'pendiente'
   ).length
 
   return (
