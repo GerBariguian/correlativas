@@ -989,3 +989,49 @@ h1 {
 .clear-planner-btn:hover {
   background: #f4f6ff;
 }
+
+.progress-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+  margin-bottom: 24px;
+}
+
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 8px 14px;
+
+  border-radius: 999px;
+
+  background: var(--surface);
+  border: 1px solid var(--border);
+
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.summary-item.approved .dot {
+  background: var(--approved);
+}
+
+.summary-item.regularized .dot {
+  background: var(--regularized);
+}
+
+.summary-item.in-progress .dot {
+  background: var(--in-progress);
+}
+
+.summary-item.pending .dot {
+  background: var(--pending);
+}
