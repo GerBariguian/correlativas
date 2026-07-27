@@ -83,8 +83,42 @@ function SubjectCard({ subject, subjects, statusMap, onChange, expanded, setExpa
   </p>
 
   <p>
+    <b>Estado para cursar</b>
+    <br />
+
+    {courseOk ? (
+      '✅ Habilitada'
+    ) : (
+      <>
+        ❌ Bloqueada
+
+        {missingCourse.regularized.length > 0 && (
+          <>
+            <br />
+            Falta cursar o regularizar:{' '}
+            {missingCourse.regularized
+              .map((code) => subjectNameByCode(code, subjects))
+              .join(', ')}
+          </>
+        )}
+
+        {missingCourse.approved.length > 0 && (
+          <>
+            <br />
+            Falta aprobar:{' '}
+            {missingCourse.approved
+              .map((code) => subjectNameByCode(code, subjects))
+              .join(', ')}
+          </>
+        )}
+      </>
+    )}
+  </p>
+
+  <p>
     <b>Para rendir</b>
     <br />
+
     {(subject.finalPrereqs ?? subject.prereqs ?? []).includes('ALL')
       ? 'Todas las demás materias obligatorias'
       : (subject.finalPrereqs ?? subject.prereqs ?? []).length
@@ -93,64 +127,32 @@ function SubjectCard({ subject, subjects, statusMap, onChange, expanded, setExpa
             .join(', ')
         : 'Sin correlativas de final'}
   </p>
+
+  <p>
+    <b>Estado para final</b>
+    <br />
+
+    {finalOk ? (
+      '✅ Puede rendirse'
+    ) : (
+      <>
+        ❌ Falta aprobar:{' '}
+        {missingFinal.length
+          ? missingFinal
+              .map((code) => subjectNameByCode(code, subjects))
+              .join(', ')
+          : 'correlativas'}
+      </>
+    )}
+  </p>
 </div>
 
-    <p>
-      <b>Desbloquea</b>
-      <br />
-      {unlockList.length
-        ? unlockList.map((s) => s.name).join(', ')
-        : 'No desbloquea materias'}
-    </p>
-
-    <p>
-  <b>Estado para cursar</b>
-  <br />
-
-  {courseOk ? (
-    '✅ Habilitada'
-  ) : (
-    <>
-      ❌ Bloqueada
-      {missingCourse.regularized.length > 0 && (
-        <>
-          <br />
-          Falta cursar o regularizar:{' '}
-          {missingCourse.regularized
-            .map((code) => subjectNameByCode(code, subjects))
-            .join(', ')}
-        </>
-      )}
-
-      {missingCourse.approved.length > 0 && (
-        <>
-          <br />
-          Falta aprobar:{' '}
-          {missingCourse.approved
-            .map((code) => subjectNameByCode(code, subjects))
-            .join(', ')}
-        </>
-      )}
-    </>
-  )}
-</p>
-
 <p>
-  <b>Estado para final</b>
+  <b>Desbloquea</b>
   <br />
-
-  {finalOk ? (
-    '✅ Puede rendirse'
-  ) : (
-    <>
-      ❌ Falta aprobar:{' '}
-      {missingFinal.length
-        ? missingFinal
-            .map((code) => subjectNameByCode(code, subjects))
-            .join(', ')
-        : 'correlativas'}
-    </>
-  )}
+  {unlockList.length
+    ? unlockList.map((subject) => subject.name).join(', ')
+    : 'No desbloquea materias'}
 </p>
 
     <button
