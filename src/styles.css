@@ -351,16 +351,6 @@ h1 {
   box-shadow: 0 22px 55px rgba(66, 87, 245, 0.16);
 }
 
-.subject-card h3::after {
-  content: "  ▾";
-  font-size: 14px;
-  color: #4257f5;
-}
-
-.subject-card.open h3::after {
-  content: "  ▴";
-}
-
 .top-nav {
   display: flex;
   gap: 10px;
@@ -1146,4 +1136,17 @@ h1 {
   color: var(--primary);
   font-size: 12px;
   font-weight: 900;
+}
+
+.subject-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.subject-toggle {
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
 }
