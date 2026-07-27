@@ -32,7 +32,13 @@ function SubjectCard({ subject, subjects, statusMap, onChange, expanded, setExpa
           <p className="code">
             {subject.code} · {getSubjectLevel(subject)} · {subject.term}
           </p>
-          <h3>{subject.name}</h3>
+          <div className="subject-title">
+            <h3>{subject.name}</h3>
+
+          <small className="subject-toggle">
+            {isOpen ? '▲ Ocultar detalle' : '▼ Ver detalle'}
+          </small>
+        </div>
           <p className="hours">{subject.hours} hs</p>
         </div>
 
