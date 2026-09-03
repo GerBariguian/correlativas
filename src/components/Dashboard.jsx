@@ -81,7 +81,7 @@ function Dashboard({
         <span>Correlativas aprobadas o regularizadas.</span>
       </article>
 
-      className={`side-card expandable-card dashboard-top-card ${
+      <article className={`side-card expandable-card dashboard-top-card ${
   	showFinals ? 'expanded' : ''
       }`}
       >
