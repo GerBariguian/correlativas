@@ -75,16 +75,15 @@ function Dashboard({
         </div>
       </article>
 
-      <article className="side-card">
+      <article className="side-card dashboard-top-card">
         <p className="card-label">Podés cursar</p>
         <strong>{toCourse.length}</strong>
         <span>Correlativas aprobadas o regularizadas.</span>
       </article>
 
-      <article
-        className={`side-card expandable-card ${
-          showFinals ? 'expanded' : ''
-        }`}
+      className={`side-card expandable-card dashboard-top-card ${
+  	showFinals ? 'expanded' : ''
+      }`}
       >
         <button
           type="button"
