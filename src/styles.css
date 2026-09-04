@@ -1151,3 +1151,273 @@ h1 {
   letter-spacing: 0.02em;
 }
 
+/* =========================================================
+   MODAL DE MATERIA
+   ========================================================= */
+
+.MuiDialog-root .MuiBackdrop-root {
+  background: rgba(18, 24, 43, 0.48);
+  backdrop-filter: blur(6px);
+}
+
+.MuiDialog-root .MuiDialog-paper {
+  width: min(980px, calc(100% - 40px));
+  max-width: 980px;
+  max-height: 88vh;
+  margin: 20px;
+
+  border: 1px solid rgba(226, 231, 242, 0.95);
+  border-radius: 28px;
+
+  background: rgba(255, 255, 255, 0.97);
+
+  box-shadow:
+    0 30px 80px rgba(18, 24, 43, 0.24),
+    0 8px 30px rgba(66, 87, 245, 0.08);
+
+  overflow: hidden;
+}
+
+.subject-modal {
+  padding: 0 !important;
+  color: var(--text);
+}
+
+/* HEADER */
+
+.subject-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+
+  padding: 28px 32px 24px;
+
+  border-bottom: 1px solid var(--line);
+}
+
+.subject-modal-header .code {
+  margin-bottom: 7px;
+
+  color: var(--primary);
+
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.subject-modal-header h2 {
+  margin: 0;
+
+  font-size: clamp(28px, 4vw, 38px);
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+
+.subject-modal-header .MuiIconButton-root {
+  flex-shrink: 0;
+
+  width: 42px;
+  height: 42px;
+
+  border: 1px solid var(--line);
+  background: #f7f8fc;
+  color: var(--muted);
+
+  font-size: 18px;
+
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.subject-modal-header .MuiIconButton-root:hover {
+  background: #eef2ff;
+  color: var(--primary);
+  transform: rotate(4deg);
+}
+
+/* CONTENIDO PRINCIPAL */
+
+.subject-modal-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  min-height: 480px;
+}
+
+.subject-modal-left,
+.subject-modal-right {
+  padding: 30px 32px 34px;
+}
+
+.subject-modal-left {
+  border-right: 1px solid var(--line);
+  background: #fafbff;
+}
+
+.subject-modal-right {
+  background: white;
+}
+
+/* TÍTULOS */
+
+.subject-modal-left > h3:first-child,
+.subject-modal-right > h3:first-child {
+  margin: 0 0 22px;
+
+  font-size: 20px;
+  letter-spacing: -0.025em;
+}
+
+.subject-modal-left p {
+  margin: 0;
+  padding: 14px 0;
+
+  color: var(--muted);
+
+  font-size: 14px;
+  line-height: 1.55;
+
+  border-bottom: 1px solid var(--line);
+}
+
+.subject-modal-left p:first-of-type {
+  padding-top: 0;
+}
+
+.subject-modal-left p strong {
+  color: var(--text);
+  font-weight: 900;
+}
+
+/* INFORMACIÓN DE LA MATERIA */
+
+.subject-modal-right > p {
+  margin: 0 0 28px;
+
+  color: var(--muted);
+
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.subject-modal-right h3:not(:first-child) {
+  margin: 30px 0 16px;
+
+  font-size: 17px;
+  letter-spacing: -0.02em;
+}
+
+.subject-modal-right ul {
+  display: grid;
+  gap: 10px;
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.subject-modal-right li {
+  position: relative;
+
+  padding: 11px 14px 11px 38px;
+
+  border: 1px solid var(--line);
+  border-radius: 14px;
+
+  background: #f8f9ff;
+
+  color: var(--text);
+
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.subject-modal-right li::before {
+  content: "✓";
+
+  position: absolute;
+  left: 14px;
+  top: 10px;
+
+  color: var(--primary);
+
+  font-weight: 950;
+}
+
+.subject-description-empty {
+  padding: 18px;
+
+  border: 1px dashed var(--line);
+  border-radius: 16px;
+
+  background: #f8f9ff;
+}
+
+/* BOTÓN MAPA */
+
+.subject-modal .map-link-btn {
+  width: 100%;
+
+  margin-top: 22px;
+  padding: 12px 16px;
+
+  border: 1px solid rgba(66, 87, 245, 0.2);
+  border-radius: 14px;
+
+  background: #eef2ff;
+  color: var(--primary);
+
+  font-weight: 900;
+
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.subject-modal .map-link-btn:hover {
+  background: #e0e7ff;
+
+  transform: translateY(-2px);
+
+  box-shadow: 0 10px 24px rgba(66, 87, 245, 0.12);
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 760px) {
+  .MuiDialog-root .MuiDialog-paper {
+    width: calc(100% - 24px);
+    max-height: 92vh;
+    margin: 12px;
+
+    border-radius: 22px;
+  }
+
+  .subject-modal-header {
+    padding: 22px 20px 18px;
+  }
+
+  .subject-modal-header h2 {
+    font-size: 27px;
+  }
+
+  .subject-modal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .subject-modal-left,
+  .subject-modal-right {
+    padding: 24px 20px;
+  }
+
+  .subject-modal-left {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+}
