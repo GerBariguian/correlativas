@@ -90,6 +90,17 @@ h1 {
   align-items: start;
 }
 
+.dashboard-top-card {
+  align-self: stretch;
+}
+
+.dashboard-bottom-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
 .progress-card,
 .side-card,
 .advisor,
@@ -327,6 +338,7 @@ h1 {
   .app-shell { padding-top: 32px; }
   .hero { flex-direction: column; }
   .dashboard,
+  .dashboard-bottom-row,
   .subject-grid,
   .rec-grid,
   .stat-grid { grid-template-columns: 1fr; }

@@ -122,6 +122,7 @@ function Dashboard({
         )}
       </article>
 
+      <div className="dashboard-bottom-row">
       <article className="side-card">
         <p className="card-label">Finales pendientes</p>
         <strong>{stats.regularized}</strong>
@@ -137,6 +138,7 @@ function Dashboard({
           Materias pendientes o en curso que más desbloquean.
         </span>
       </article>
+      </div>
     </section>
   )
 }
