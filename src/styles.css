@@ -16,6 +16,8 @@
 .friends-page [role="alert"] { color: var(--red); }
 .planning-sharing label { font-weight: 700; }
 .planning-sharing input { margin-right: 8px; }
+.planning-controls > .top-nav { margin: 16px 0 0; }
+.planning-controls > .reset { max-width: 100%; white-space: normal; }
 .planning-comparison { margin-top: 24px; }
 .planning-comparison .map-subject small { display: block; margin-top: 8px; }
 .planning-comparison .comparison-both { border: 2px solid var(--green); background: #eaf8ed; }

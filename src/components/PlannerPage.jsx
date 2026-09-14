@@ -12,7 +12,7 @@ export default function PlannerPage({ user, career, statusMap, ...plannerProps }
   const mine = derivePlanningSnapshot(career, statusMap, null, null)
   const friendName = friends.profiles[selectedId]?.name || 'tu amigo'
   return <section>
-    <div className="side-card">
+    <div className="side-card planning-controls">
       <label className="friend-search">Planificar con:
         <select value={selectedId} onChange={(event) => { setSelectedId(event.target.value); if (event.target.value) setView('comparison') }}>
           <option value="">+ Agregar amigo</option>
@@ -20,7 +20,7 @@ export default function PlannerPage({ user, career, statusMap, ...plannerProps }
           {friends.ids.map((uid) => <option key={uid} value={uid}>{friends.profiles[uid]?.name || uid}</option>)}
         </select>
       </label>
-      {selectedId && <button className="reset" onClick={() => { setSelectedId(''); setView('selection') }}>Quitar amigo</button>}
+      {selectedId && <button className="reset" onClick={() => { setSelectedId(''); setView('selection') }}>Quitar de la comparación</button>}
       {friends.state === 'loading' && <p role="status">Cargando amigos...</p>}
       {friends.state === 'ready' && !friends.ids.length && <p>No tenés amigos aceptados para comparar. Podés agregarlos desde Amigos.</p>}
       {(friends.state === 'error' || (selectedId && ['unavailable', 'stale'].includes(comparison.state))) && <button className="reset" onClick={() => setAttempt((n) => n + 1)}>Reintentar conexión</button>}
