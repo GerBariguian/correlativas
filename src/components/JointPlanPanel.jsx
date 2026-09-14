@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { auth } from '../firebase'
 import useJointPlans from '../hooks/useJointPlans'
-import { closeJointPlan, createJointPlan, removeJointSubject, saveJointSubject, updatePlanMembership } from '../services/jointPlans'
+import useJointProfiles from '../hooks/useJointProfiles'
+import { closeJointPlan, createJointPlan, deleteJointPlan, removeJointSubject, updatePlanMembership } from '../services/jointPlans'
+import { fallbackPlanName, invitedBy, planName } from '../jointPlanLogic'
 import { plannedEligibility } from '../planningLogic'
+import JointPlanEditor from './JointPlanEditor'
+import DeleteJointPlan from './DeleteJointPlan'
 
 const eligibilityLabels = { eligible: 'Puede cursarla', 'no-longer-eligible': 'Ya no figura como habilitada', unknown: 'Sin datos actuales', 'not-member': 'Invitación pendiente o participante que salió' }
 
@@ -11,81 +15,89 @@ export default function JointPlanPanel({ user, career, participants, friends, ca
   const [attempt, setAttempt] = useState(0)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const [chosen, setChosen] = useState([])
+  const [newName, setNewName] = useState('')
   const live = useRef(false)
   const pending = useRef(false)
   useEffect(() => { live.current = true; return () => { live.current = false } }, [])
-  const acceptedIds = friends.state === 'ready' ? friends.ids : []
-  const { plans, selected, rows, state } = useJointPlans(user, career.id, acceptedIds, selectedId, attempt)
-  const candidate = career.subjects.find((subject) => subject.code === candidateCode)
-  const invitees = participants.filter((p) => !p.isSelf && p.state === 'ready' && acceptedIds.includes(p.uid))
-  const canCreate = invitees.length > 0 && invitees.length === participants.length - 1
-  const eligible = candidate && selected ? participants.filter((p) => p.state === 'ready'
-    && p.snapshot.availableToCourseCodes.includes(candidate.code) && [selected.ownerId, ...selected.inviteeIds].includes(p.uid)) : []
-  const eligibleIds = eligible.map((p) => p.uid)
-  const choiceKey = JSON.stringify([candidateCode, selectedId, eligibleIds])
-  useEffect(() => { setChosen(eligibleIds) }, [choiceKey])
-  const names = (ids) => ids.map((id) => id === user.uid ? 'Vos' : friends.profiles[id]?.name || id).join(' · ')
-  async function act(action) {
-    if (pending.current) return
+  const { plans, selected, rows, state } = useJointPlans(user, career.id, selectedId, attempt)
+  const profileIds = plans.flatMap((plan) => [plan.ownerId, ...plan.inviteeIds, ...Object.values(plan.invitedBy || {})])
+    .concat((rows || []).flatMap((row) => [row.addedByUid, ...row.proposedParticipantIds]).filter(Boolean))
+  const profiles = useJointProfiles(user, profileIds)
+  const nameOf = (uid) => uid === user.uid ? user.displayName || 'Vos' : profiles[uid]?.name || friends.profiles[uid]?.name || 'Participante'
+  const names = (ids) => ids.map(nameOf).join(' · ')
+  const title = (plan) => plan.name || fallbackPlanName(plan.inviteeIds.map(nameOf))
+  const invitees = participants.filter((p) => !p.isSelf).map((p) => p.uid)
+  const canCreate = invitees.length > 0 && friends.state === 'ready' && invitees.every((uid) => friends.ids.includes(uid))
+  const member = selected?.memberIds.includes(user.uid)
+  const owner = selected?.ownerId === user.uid
+  async function run(action) {
+    if (pending.current || auth.currentUser !== user) return false
     pending.current = true; setBusy(true); setError('')
-    try { await action() }
-    catch { if (live.current && auth.currentUser === user) setError('No se pudo guardar. Revisá la conexión, los permisos y que el plan siga abierto; luego reintentá.') }
-    finally { pending.current = false; if (live.current && auth.currentUser === user) setBusy(false) }
+    try { await action(); return true }
+    catch (failure) {
+      if (live.current && auth.currentUser === user) setError(failure.code ? 'No se pudo guardar. Revisá la conexión y los permisos. Si la eliminación se interrumpió, reintentala desde el plan cerrado.' : failure.message || 'No se pudo completar la operación.')
+      return false
+    } finally { pending.current = false; if (live.current && auth.currentUser === user) setBusy(false) }
   }
   return <section className="joint-plan">
-    <h2>Plan conjunto</h2>
-    <p>Las materias son propuestas del creador. Poder cursar una materia no significa querer cursarla. Unirse al plan permite ver sus propuestas, pero no confirma una intención individual ni una inscripción.</p>
-    <div className="side-card">
-      <p>Crear un plan invitará explícitamente a: {names(participants.filter((p) => !p.isSelf).map((p) => p.uid)) || 'seleccioná amigos arriba'}.</p>
-      <p>Al unirte, los participantes del plan podrán ver tu identificador y las materias en las que el creador te propone participar. No se comparten datos académicos a través del plan.</p>
-      <button className="reset" disabled={busy || !canCreate} onClick={() => act(async () => {
-        const id = await createJointPlan(user.uid, career.id, invitees.map((p) => p.uid))
-        if (live.current && auth.currentUser === user) setSelectedId(id)
+    <h2>Planes conjuntos</h2>
+    <p>Los miembros aceptados pueden proponer materias e invitar a sus amigos. Participar en un plan no crea amistades ni comparte progreso académico.</p>
+    <details className="side-card"><summary>Crear un plan</summary>
+      <p>Invitar a: {names(invitees) || 'seleccioná amigos arriba'}.</p>
+      <label className="friend-search">Nombre opcional<input value={newName} maxLength={80} disabled={busy} onChange={(event) => setNewName(event.target.value)} placeholder={fallbackPlanName(invitees.map(nameOf))} /></label>
+      <button className="reset" disabled={busy || !canCreate} onClick={() => run(async () => {
+        const id = await createJointPlan(user.uid, career.id, invitees, newName.trim() ? planName(newName) : fallbackPlanName(invitees.map(nameOf)))
+        if (live.current && auth.currentUser === user) { setSelectedId(id); setNewName('') }
       })}>Crear plan e invitar</button>
-      {!canCreate && <p>Para crear, seleccioná entre uno y cuatro amigos con datos compartidos compatibles y disponibles.</p>}
-    </div>
-    {state !== 'ready' && <p role="status">{state === 'loading' ? 'Cargando planes...' : 'No se pudieron verificar todos los planes. No se muestran datos sin conexión confirmada.'}</p>}
+      {!canCreate && <p>Seleccioná entre uno y cuatro amigos aceptados. No necesitan compartir progreso para participar.</p>}
+    </details>
+    {state !== 'ready' && <p role="status">{state === 'loading' ? 'Cargando planes...' : 'No se pudieron verificar los planes. Revisá la conexión y reintentá.'}</p>}
     <button className="reset" disabled={busy} onClick={() => setAttempt((n) => n + 1)}>Actualizar planes</button>
     <label className="friend-search">Tus planes e invitaciones
-      <select value={selectedId} onChange={(event) => { setSelectedId(event.target.value); setError('') }}>
+      <select value={selectedId} disabled={busy} onChange={(event) => { setSelectedId(event.target.value); setError('') }}>
         <option value="">Seleccionar plan</option>
         {selectedId && !selected && <option value={selectedId}>Plan sin acceso o no disponible</option>}
-        {plans.map((plan) => <option key={plan.id} value={plan.id}>Plan de {names([plan.ownerId])} · {plan.id.slice(0, 6)}{plan.closed ? ' · Cerrado' : !plan.memberIds.includes(user.uid) ? ' · Invitación' : ''}</option>)}
+        {plans.map((plan) => <option key={plan.id} value={plan.id}>{title(plan)}{plan.deleting ? ' · Eliminación pendiente' : plan.closed ? ' · Cerrado' : !plan.memberIds.includes(user.uid) ? ' · Invitación' : ''}</option>)}
       </select>
     </label>
     {state === 'ready' && !plans.length && <p>Todavía no hay planes ni invitaciones para esta carrera.</p>}
-    {candidate && <p>Materia elegida desde la comparación: {candidate.name}. Elegí un plan propio abierto o creá uno para agregarla.</p>}
+    {candidateCode && !selected && <p>Elegí un plan abierto para agregar la materia seleccionada, o creá uno.</p>}
     {selected && <div className="side-card">
-      <h3>Plan de {names([selected.ownerId])}</h3>
-      <p>Participantes: {names(selected.memberIds)}.</p>
-      <p>Invitaciones pendientes: {names(selected.inviteeIds.filter((id) => !selected.memberIds.includes(id))) || 'Ninguna'}.</p>
-      {selected.closed ? <><p>Este plan está cerrado.</p>{selected.ownerId !== user.uid && <button className="reset" disabled={busy} onClick={() => act(() => updatePlanMembership(user.uid, selected.id, false))}>Salir del plan</button>}</> : <>
-        {selected.ownerId !== user.uid && <div className="friend-actions">
-          {!selected.memberIds.includes(user.uid) && <button className="reset" disabled={busy} onClick={() => act(() => updatePlanMembership(user.uid, selected.id, true))}>Aceptar invitación y unirme</button>}
-          <button className="reset" disabled={busy} onClick={() => act(() => updatePlanMembership(user.uid, selected.id, false))}>{selected.memberIds.includes(user.uid) ? 'Salir del plan' : 'Rechazar invitación'}</button>
+      <h3>{title(selected)}{selected.closed ? ' · Cerrado' : ''}</h3>
+      <p>Creado por {nameOf(selected.ownerId)}.</p>
+      <h4>Participantes</h4>
+      <ul>{[selected.ownerId, ...selected.inviteeIds].map((uid) => <li key={uid}>{nameOf(uid)} · {selected.memberIds.includes(uid) ? 'Miembro' : `Invitación pendiente · Invitado por ${nameOf(invitedBy(selected, uid))}`}</li>)}</ul>
+      {!member && <p>Al aceptar podrás leer y editar las propuestas del plan. Los miembros podrán ver tu identidad social y las materias en las que te incluyan; no se comparte tu progreso.</p>}
+      {selected.deleting ? <p role="status">Eliminación pendiente. El creador puede reintentar para completar la limpieza.</p> : <>
+        {!owner && <div className="friend-actions">
+          {!member && !selected.closed && <button className="reset" disabled={busy} onClick={() => run(() => updatePlanMembership(user.uid, selected.id, true))}>Aceptar invitación y unirme</button>}
+          <button className="reset" disabled={busy} onClick={() => run(async () => {
+            await updatePlanMembership(user.uid, selected.id, false)
+            if (live.current && auth.currentUser === user) setSelectedId('')
+          })}>{member ? 'Salir del plan' : 'Rechazar invitación'}</button>
         </div>}
-        {selected.ownerId === user.uid && <button className="reset" disabled={busy} onClick={() => { if (window.confirm('¿Cerrar este plan? Ya no se podrán editar sus materias ni aceptar invitaciones.')) act(() => closeJointPlan(user.uid, selected.id)) }}>Cerrar plan</button>}
-        {selected.memberIds.includes(user.uid) && <>
-          {candidate && selected.ownerId === user.uid && <fieldset className="joint-proposal" disabled={busy}>
-            <legend>Proponer {candidate.name} para:</legend>
-            {eligible.map((p) => <label key={p.uid}><input type="checkbox" checked={chosen.includes(p.uid)} onChange={(event) => setChosen((ids) => event.target.checked ? [...ids, p.uid] : ids.filter((id) => id !== p.uid))} /> {p.name}</label>)}
-            <p>Solo se ofrecen participantes seleccionados con habilitación conocida. Para incluir otro miembro, agregalo a la comparación.</p>
-            <button className="reset" disabled={chosen.length < 2 || chosen.some((id) => !eligibleIds.includes(id))} onClick={() => act(async () => {
-              await saveJointSubject(user.uid, selected.id, candidate.code, chosen)
-              if (live.current && auth.currentUser === user) onCandidateUsed()
-            })}>Guardar propuesta en el plan</button>
-          </fieldset>}
-          {rows === null ? <p role="status">Esperando acceso confirmado a las materias del plan...</p> : !rows.length ? <p>Sin materias propuestas. Elegí una materia en la capa Habilitadas de Comparar avance.</p> : <ul className="joint-subjects">
+        {member && !selected.closed && <JointPlanEditor key={selected.id} user={user} plan={selected} title={title(selected)} career={career} friends={friends} names={names} candidateCode={candidateCode} onCandidateUsed={() => { if (live.current && auth.currentUser === user) onCandidateUsed() }} run={run} busy={busy} />}
+        {member && <>
+          <h4>Materias</h4>
+          <p>Incluidas como propuesta del plan, sin confirmar intención individual ni inscripción. La habilitación solo se muestra para amigos seleccionados con autorización académica independiente.</p>
+          {rows === null ? <p role="status">Esperando acceso confirmado a las materias...</p> : !rows.length ? <p>No hay materias incluidas todavía.</p> : <ul className="joint-subjects">
             {rows.map((row) => <li key={row.code}>
               <h4>{career.subjects.find((s) => s.code === row.code)?.name || row.code}</h4>
-              <p>Propuesta del creador: {names(row.proposedParticipantIds)}.</p>
-              <ul>{plannedEligibility(row.code, row.proposedParticipantIds, participants, selected.memberIds).map((p) => <li key={p.uid}>{names([p.uid])}: {eligibilityLabels[p.state]}</li>)}</ul>
-              {selected.ownerId === user.uid && <button className="reset" disabled={busy} onClick={() => act(() => removeJointSubject(user.uid, selected.id, row.code))}>Quitar materia del plan</button>}
+              <p>Planeada para: {names(row.proposedParticipantIds)}.</p>
+              <p>Agregada por {nameOf(row.addedByUid || selected.ownerId)}.</p>
+              <ul>{plannedEligibility(row.code, row.proposedParticipantIds, participants, selected.memberIds).map((p) => <li key={p.uid}>{nameOf(p.uid)}: {participants.find((person) => person.uid === p.uid)?.state === 'disabled' ? 'Progreso no compartido' : !friends.ids.includes(p.uid) && p.uid !== user.uid && p.state === 'unknown' ? 'Progreso no compartido con vos' : eligibilityLabels[p.state]}</li>)}</ul>
+              {!selected.closed && <button className="reset" disabled={busy} onClick={() => run(() => removeJointSubject(user.uid, selected.id, row.code))}>Quitar materia del plan</button>}
             </li>)}
           </ul>}
         </>}
       </>}
+      {owner && <details className="progress-danger-zone"><summary>Administrar plan</summary><div className="friend-actions">
+        {!selected.closed ? <button className="reset" disabled={busy} onClick={() => { if (window.confirm('¿Cerrar este plan? Quedará en modo solo lectura para sus miembros.')) run(() => closeJointPlan(user.uid, selected.id)) }}>Cerrar plan</button>
+          : <DeleteJointPlan name={title(selected)} busy={busy} onDelete={() => run(async () => {
+            await deleteJointPlan(user.uid, selected.id)
+            if (live.current && auth.currentUser === user) setSelectedId('')
+          })} />}
+      </div></details>}
     </div>}
     {busy && <p role="status">Guardando en Firebase...</p>}
     {error && <p role="alert">{error}</p>}

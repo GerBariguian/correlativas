@@ -12,6 +12,7 @@ function harness(file, name, dependencies = {}) {
   let cursor = 0
   let effects = []
   const api = { ...dependencies,
+    Fragment: 'fragment',
     useState(initial) {
       const i = cursor++
       if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial
@@ -28,7 +29,7 @@ function harness(file, name, dependencies = {}) {
   }
   vm.createContext(api)
   let code = source(file).replace(/import[\s\S]*?from ['"][^'"]+['"]\s*/g, '').replace(/export default /g, '').replace(/export /g, '')
-  if (file.endsWith('.jsx')) code = transformSync(file, code, { jsx: { runtime: 'classic', pragma: 'h' } }).code
+  if (file.endsWith('.jsx')) code = transformSync(file, code, { jsx: { runtime: 'classic', pragma: 'h', pragmaFrag: 'Fragment' } }).code
   vm.runInContext(code, api)
   return { api, render(...args) { cursor = 0; const value = api[name](...args); const pending = effects; effects = []; pending.forEach((effect) => effect()); return value },
     stop() { slots.forEach((slot) => slot?.cleanup?.()) } }
@@ -64,15 +65,15 @@ test('joint hook discards subjects immediately on leave and stops all listeners 
     subscribeJointPlans: (uid, owner, data) => { const item = { owner, data }; lists.push(item); return () => { item.stopped = true } },
     subscribeJointSubjects: (id, data) => { const item = { data }; rows.push(item); return () => { item.stopped = true } },
   })
-  const args = [user, 'career', ['alice'], 'p', 0]
+  const args = [user, 'career', 'p', 0]
   hook.render(...args)
   lists.find((x) => x.owner === 'bob').data([])
   const plan = { id: 'p', careerId: 'career', ownerId: 'alice', memberIds: ['alice', 'bob'], inviteeIds: ['bob'], closed: false, updatedAt: 1 }
-  lists.find((x) => x.owner === 'alice').data([plan])
+  lists.find((x) => x.owner === 'invitations').data([plan])
   hook.render(...args)
   rows[0].data([{ code: 'A' }])
   assert.equal(hook.render(...args).rows.length, 1)
-  lists.find((x) => x.owner === 'alice').data([])
+  lists.find((x) => x.owner === 'invitations').data([])
   assert.equal(hook.render(...args).rows, null)
   assert.equal(rows[0].stopped, true)
   rows[0].data([{ code: 'late' }])
@@ -110,4 +111,47 @@ test('App reset retains its original transform and is exposed only in the subjec
   assert.match(app, /function reset\(\) \{\s*return persistStatus\(\(\) => initialStatus\)\s*\}/)
   assert.match(app, /<SubjectsPanel\s+key=\{activeCareerId\}\s+reset=\{reset\}/)
   assert.doesNotMatch(source('src/components/Header.jsx'), /Reiniciar|reset=|onClick=\{reset\}/)
+})
+
+test('delete plan requires confirmation, blocks duplicates and keeps the dialog open on failure', async () => {
+  const hook = harness('src/components/DeleteJointPlan.jsx', 'DeleteJointPlan')
+  let calls = 0; let finish; let opened = 0; let closed = 0; let focused = false
+  const tree = hook.render({ name: '2C 2027', busy: false, onDelete: () => { calls++; return new Promise((resolve) => { finish = resolve }) } })
+  const flatten = (node) => !node || typeof node !== 'object' ? [] : [node, ...node.children.flatMap(flatten)]
+  const nodes = flatten(tree)
+  const dialog = nodes.find((node) => node.type === 'dialog')
+  const buttons = nodes.filter((node) => node.type === 'button')
+  dialog.props.ref.current = { showModal: () => opened++, close: () => closed++ }
+  buttons[1].props.ref.current = { focus: () => { focused = true } }
+  buttons[0].props.onClick()
+  assert.equal(calls, 0); assert.equal(opened, 1); assert.equal(focused, true)
+  const failed = buttons[2].props.onClick()
+  buttons[2].props.onClick()
+  assert.equal(calls, 1)
+  finish(false); await failed; assert.equal(closed, 0)
+  const success = buttons[2].props.onClick()
+  let prevented = false
+  dialog.props.onCancel({ preventDefault: () => { prevented = true } })
+  assert.equal(prevented, true)
+  finish(true); await success; assert.equal(closed, 1)
+  assert.ok(nodes.some((node) => node.children.includes('Sí, eliminar plan')))
+})
+
+test('closed membership keeps the subjects subscription, deletion lock clears it', () => {
+  const user = { uid: 'bob' }; const lists = []; const rows = []
+  const hook = harness('src/hooks/useJointPlans.js', 'useJointPlans', { auth: { currentUser: user },
+    subscribeJointPlans: (uid, owner, data) => { lists.push({ owner, data }); return () => {} },
+    subscribeJointSubjects: (id, data) => { const item = { data }; rows.push(item); return () => { item.stopped = true } },
+  })
+  const args = [user, 'career', 'p', 0]
+  hook.render(...args)
+  const plan = { id: 'p', careerId: 'career', ownerId: 'alice', inviteeIds: ['bob'], memberIds: ['alice', 'bob'], closed: true, updatedAt: 1 }
+  lists[0].data([]); lists[1].data([plan])
+  hook.render(...args)
+  rows[0].data([{ code: 'A' }])
+  assert.equal(hook.render(...args).rows.length, 1)
+  lists[1].data([{ ...plan, deleting: true }])
+  assert.equal(hook.render(...args).rows, null)
+  assert.equal(rows[0].stopped, true)
+  hook.stop()
 })

@@ -1,5 +1,7 @@
 # Planificar con amigos — Fase 2
 
+> Para el cliente actual, consultar [Planes colaborativos](planes-colaborativos.md). Ese documento reemplaza los permisos de planes, su cierre/eliminación y los requisitos de índices descritos aquí. La comparación académica y su privacidad siguen vigentes.
+
 Implementación sobre Fase 1, sin dependencias nuevas, Cloud Functions ni cambios de Firebase Spark. No se publicaron reglas ni se hicieron commits, push o deploy.
 
 ## Modelo final

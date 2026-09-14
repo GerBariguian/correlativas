@@ -1515,3 +1515,12 @@ h1 {
   .delete-progress-dialog { padding: 18px; }
   .delete-progress-dialog .friend-actions { flex-direction: column; }
 }
+.joint-editors { display: grid; gap: 12px; margin: 18px 0; }
+.joint-editors summary, .joint-plan > details > summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+.joint-editors .friend-search label { display: grid; gap: 8px; min-width: 0; flex: 1; }
+.joint-editors input:not([type="checkbox"]), .joint-editors select, .joint-plan > details input { box-sizing: border-box; width: 100%; min-width: 0; }
+.joint-editors .joint-proposal label { flex-wrap: wrap; }
+@media (max-width: 600px) {
+  .joint-editors .friend-search { align-items: stretch; }
+  .joint-editors .friend-search button { width: 100%; justify-content: center; }
+}

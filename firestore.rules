@@ -163,12 +163,22 @@ service cloud.firestore {
     match /jointPlans/{planId} {
       function visiblePlan(data) {
         return request.auth.uid == data.ownerId
-          || (request.auth.uid in data.inviteeIds && acceptedPlanningFriend(data.ownerId));
+          || request.auth.uid in data.inviteeIds;
+      }
+      function openMember(data) {
+        return request.auth.uid in data.memberIds && !data.closed && !data.get('deleting', false);
       }
       function validPlan() {
         let data = request.resource.data;
         return data.keys().hasAll(['ownerId', 'careerId', 'inviteeIds', 'memberIds', 'closed', 'createdAt', 'updatedAt'])
-          && data.keys().hasOnly(['ownerId', 'careerId', 'inviteeIds', 'memberIds', 'closed', 'createdAt', 'updatedAt'])
+          && data.keys().hasOnly(['ownerId', 'careerId', 'inviteeIds', 'memberIds', 'closed', 'createdAt', 'updatedAt', 'name', 'invitedBy', 'deleting'])
+          && data.get('name', 'Plan conjunto') is string
+          && data.get('name', 'Plan conjunto').size() >= 1 && data.get('name', 'Plan conjunto').size() <= 80
+          && data.get('name', 'Plan conjunto').matches('.*[^ ].*')
+          && !data.get('name', 'Plan conjunto').matches('.*[\\x00-\\x1F\\x7F].*')
+          && data.get('invitedBy', {}) is map
+          && data.get('invitedBy', {}).keys().hasOnly(data.inviteeIds)
+          && data.get('deleting', false) is bool && (!data.get('deleting', false) || data.closed)
           && data.ownerId is string && data.ownerId.matches('^[A-Za-z0-9_-]+$')
           && data.careerId is string && data.careerId.size() > 0 && data.careerId.size() <= 100
           && data.inviteeIds is list && data.inviteeIds.size() <= 4
@@ -182,24 +192,49 @@ service cloud.firestore {
       }
       function validInvitee(ids, index) {
         return ids.size() <= index || (ids[index] is string
-          && ids[index].matches('^[A-Za-z0-9_-]+$') && acceptedPlanningFriend(ids[index]));
+          && ids[index].matches('^[A-Za-z0-9_-]+$') && acceptedPlanningFriend(ids[index])
+          && request.resource.data.get('invitedBy', {}).get(ids[index], request.auth.uid) == request.auth.uid);
       }
-      // Queries must constrain ownerId, and inviteeIds for another owner's plans.
-      // A friendship between two other members never grants access.
+      // Plan authorization is explicit membership/invitation, independent of friendship.
+      // Queries must constrain ownerId or inviteeIds; no global plan directory.
       allow get, list: if socialUser() && visiblePlan(resource.data);
-      allow delete: if false;
+      // Client drains subjects while locked, then deletes the parent last.
+      allow delete: if socialUser() && resource.data.ownerId == request.auth.uid
+        && resource.data.closed && resource.data.get('deleting', false);
       allow create: if socialUser() && validPlan()
         && request.resource.data.ownerId == request.auth.uid
         && request.resource.data.careerId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.activeCareerId
         && request.resource.data.inviteeIds.size() >= 1
         && request.resource.data.memberIds == [request.auth.uid]
         && request.resource.data.closed == false && request.resource.data.createdAt == request.time
+        && !request.resource.data.get('deleting', false)
         && validInvitee(request.resource.data.inviteeIds, 0) && validInvitee(request.resource.data.inviteeIds, 1)
         && validInvitee(request.resource.data.inviteeIds, 2) && validInvitee(request.resource.data.inviteeIds, 3);
       allow update: if socialUser() && visiblePlan(resource.data) && validPlan()
-        && (closePlan() || changeOwnMembership());
+        && (closePlan() || beginDeletion() || changeOwnMembership() || renamePlan() || inviteMember());
+      function renamePlan() {
+        return openMember(resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'updatedAt']);
+      }
+      function inviteMember() {
+        let before = resource.data;
+        let after = request.resource.data;
+        let added = after.inviteeIds.removeAll(before.inviteeIds);
+        return openMember(before)
+          && after.diff(before).affectedKeys().hasOnly(['inviteeIds', 'invitedBy', 'updatedAt'])
+          && added.size() == 1 && after.inviteeIds.hasAll(before.inviteeIds)
+          && added[0] is string && added[0].matches('^[A-Za-z0-9_-]+$')
+          && acceptedPlanningFriend(added[0])
+          && after.get('invitedBy', {}).get(added[0], '') == request.auth.uid
+          && after.get('invitedBy', {}).diff(before.get('invitedBy', {})).affectedKeys().hasOnly([added[0]]);
+      }
+      function beginDeletion() {
+        return resource.data.ownerId == request.auth.uid && resource.data.closed
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleting', 'updatedAt'])
+          && request.resource.data.get('deleting', false) == true;
+      }
       function closePlan() {
-        return resource.data.ownerId == request.auth.uid
+        return resource.data.ownerId == request.auth.uid && !resource.data.get('deleting', false)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['closed', 'updatedAt'])
           && request.resource.data.closed == true;
       }
@@ -207,30 +242,40 @@ service cloud.firestore {
         let before = resource.data;
         let after = request.resource.data;
         let uid = request.auth.uid;
-        return uid != before.ownerId && uid in before.inviteeIds
-          && after.diff(before).affectedKeys().hasOnly(['memberIds', 'inviteeIds', 'updatedAt'])
+        return uid != before.ownerId && uid in before.inviteeIds && !before.get('deleting', false)
+          && after.diff(before).affectedKeys().hasOnly(['memberIds', 'inviteeIds', 'invitedBy', 'updatedAt'])
           && ((!before.closed && after.inviteeIds == before.inviteeIds
+            && after.get('invitedBy', {}) == before.get('invitedBy', {})
             && after.memberIds.toSet() == before.memberIds.toSet().union([uid].toSet())
             && before.careerId == get(/databases/$(database)/documents/users/$(uid)).data.activeCareerId)
           || (after.memberIds.toSet() == before.memberIds.toSet().difference([uid].toSet())
+            && after.get('invitedBy', {}).diff(before.get('invitedBy', {})).affectedKeys().hasOnly([uid])
             && after.inviteeIds.toSet() == before.inviteeIds.toSet().difference([uid].toSet())));
       }
       match /subjects/{code} {
         function plan() { return get(/databases/$(database)/documents/jointPlans/$(planId)).data; }
-        function editor() { return request.auth.uid == plan().ownerId && !plan().closed; }
+        function editor() { return openMember(plan()); }
         allow get, list: if socialUser() && (request.auth.uid == plan().ownerId
-          || (!plan().closed && request.auth.uid in plan().memberIds
-            && request.auth.uid in plan().inviteeIds && acceptedPlanningFriend(plan().ownerId)));
+          || (!plan().get('deleting', false) && request.auth.uid in plan().memberIds));
         allow create, update: if socialUser() && editor()
-          && request.resource.data.keys().hasAll(['code', 'proposedParticipantIds', 'updatedAt'])
-          && request.resource.data.keys().hasOnly(['code', 'proposedParticipantIds', 'updatedAt'])
+          && request.resource.data.keys().hasAll(['code', 'proposedParticipantIds', 'addedByUid', 'createdAt', 'updatedAt'])
+          && request.resource.data.keys().hasOnly(['code', 'proposedParticipantIds', 'addedByUid', 'createdAt', 'updatedAt'])
+          && validAttribution()
           && request.resource.data.code == code && code.size() > 0 && code.size() <= 100
           && request.resource.data.proposedParticipantIds is list
           && request.resource.data.proposedParticipantIds.size() >= 2 && request.resource.data.proposedParticipantIds.size() <= 5
           && request.resource.data.proposedParticipantIds.toSet().size() == request.resource.data.proposedParticipantIds.size()
           && request.resource.data.proposedParticipantIds.toSet().difference(plan().inviteeIds.toSet()).hasOnly([plan().ownerId])
           && request.resource.data.updatedAt == request.time;
-        allow delete: if socialUser() && editor();
+        function validAttribution() {
+          let data = request.resource.data;
+          return !exists(/databases/$(database)/documents/jointPlans/$(planId)/subjects/$(code))
+            ? data.addedByUid == request.auth.uid && data.createdAt == request.time
+            : data.addedByUid == resource.data.get('addedByUid', plan().ownerId)
+              && data.createdAt == resource.data.get('createdAt', resource.data.updatedAt);
+        }
+        allow delete: if socialUser() && (editor()
+          || (request.auth.uid == plan().ownerId && plan().closed && plan().get('deleting', false)));
       }
     }
 

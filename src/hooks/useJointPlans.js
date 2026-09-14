@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { auth } from '../firebase'
 import { subscribeJointPlans, subscribeJointSubjects } from '../services/jointPlans'
 
-export default function useJointPlans(user, careerId, acceptedIds, selectedId, attempt) {
+export default function useJointPlans(user, careerId, selectedId, attempt) {
   const [lists, setLists] = useState({ key: '', values: {} })
   const [subjects, setSubjects] = useState({ key: '', rows: null })
-  const key = JSON.stringify([user.uid, careerId, acceptedIds, attempt])
-  const owners = [user.uid, ...acceptedIds]
+  const key = JSON.stringify([user.uid, careerId, attempt])
+  const owners = [user.uid, 'invitations']
   useEffect(() => {
     let live = true
     const stops = owners.map((uid) => {
@@ -21,7 +21,7 @@ export default function useJointPlans(user, careerId, acceptedIds, selectedId, a
   const values = lists.key === key ? lists.values : {}
   const plans = owners.flatMap((uid) => values[uid]?.rows || []).filter((plan) => plan.careerId === careerId)
   const selected = plans.find((plan) => plan.id === selectedId)
-  const canRead = selected && !selected.closed && selected.memberIds.includes(user.uid)
+  const canRead = selected && !selected.deleting && selected.memberIds.includes(user.uid)
   const subjectKey = JSON.stringify([key, selectedId, Boolean(canRead), selected?.updatedAt])
   useEffect(() => {
     if (!canRead) return
