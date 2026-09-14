@@ -1,5 +1,20 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
 
+.friends-page { display: grid; gap: 20px; }
+.friends-page h2 { margin: 0 0 12px; }
+.friends-muted, .friend-person-info span, .friend-person-info small { color: var(--muted); }
+.friend-search { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 16px 0; }
+.friend-search label { font-weight: 700; }
+.friend-search input { flex: 1; min-width: 180px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: white; color: var(--text); }
+.friend-person { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; padding: 18px 0; border-top: 1px solid var(--line); }
+.friend-person img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+.friend-person-info { flex: 1; min-width: 180px; overflow-wrap: anywhere; }
+.friend-person-info strong, .friend-person-info span, .friend-person-info small { display: block; margin: 3px 0; }
+.friends-page .friend-person-info strong { font-size: 16px; letter-spacing: normal; margin: 3px 0; }
+.friend-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.friends-page button:disabled { opacity: .55; cursor: wait; }
+.friends-page [role="alert"] { color: var(--red); }
+
 :root {
   --bg: #f4f6ff;
   --text: #12182b;

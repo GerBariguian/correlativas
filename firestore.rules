@@ -1,0 +1,135 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function socialUser() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+
+    // The previous index may already be absent or belong to someone else.
+    // Never require (or authorize) deleting another user's index.
+    function releasedIndex(email, uid) {
+      return email == null
+        || !existsAfter(/databases/$(database)/documents/socialEmails/$(email))
+        || getAfter(/databases/$(database)/documents/socialEmails/$(email)).data.uid != uid;
+    }
+
+    function validPrivateIndex(uid, previousEmail) {
+      let email = request.resource.data.get('socialEmail', null);
+      return socialUser()
+        && email == request.auth.token.email.lower()
+        && getAfter(/databases/$(database)/documents/socialEmails/$(email)).data.uid == uid
+        && (previousEmail == email || releasedIndex(previousEmail, uid));
+    }
+
+    // Academic records remain private, including after accepting a friendship.
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid
+        && (!('socialEmail' in request.resource.data) || validPrivateIndex(uid, null));
+      allow update: if signedIn() && request.auth.uid == uid
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['socialEmail'])
+          || validPrivateIndex(uid, resource.data.get('socialEmail', null)));
+      allow delete: if signedIn() && request.auth.uid == uid
+        && releasedIndex(resource.data.get('socialEmail', null), uid);
+      match /careers/{careerId} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+    }
+
+    match /socialProfiles/{uid} {
+      // Hide legacy documents containing email until their owner migrates them.
+      allow get: if socialUser() && (request.auth.uid == uid
+        || !exists(/databases/$(database)/documents/socialProfiles/$(uid))
+        || (resource.data.keys().hasOnly(['uid', 'name', 'photoURL', 'careerId', 'updatedAt'])));
+      allow list, delete: if false;
+      allow create, update: if socialUser() && request.auth.uid == uid
+        && uid.matches('^[A-Za-z0-9_-]+$')
+        && request.resource.data.keys().hasAll(['uid', 'name', 'photoURL', 'careerId', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['uid', 'name', 'photoURL', 'careerId', 'updatedAt'])
+        && request.resource.data.uid == uid
+        && getAfter(/databases/$(database)/documents/users/$(uid)).data.socialEmail == request.auth.token.email.lower()
+        && (!exists(/databases/$(database)/documents/socialProfiles/$(uid))
+          || get(/databases/$(database)/documents/socialProfiles/$(uid)).data.get('email', null) == request.auth.token.email.lower()
+          || releasedIndex(get(/databases/$(database)/documents/socialProfiles/$(uid)).data.get('email', null), uid))
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 200
+        && request.resource.data.photoURL is string
+        && request.resource.data.photoURL.size() <= 2048
+        && (request.resource.data.photoURL == '' || request.resource.data.photoURL.matches('https://.*'))
+        && request.resource.data.careerId is string
+        && request.resource.data.careerId == get(/databases/$(database)/documents/users/$(uid)).data.activeCareerId
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    // Exact document lookup, never an email directory query.
+    match /socialEmails/{email} {
+      // Owner reads are needed to remove obsolete indexes during migration.
+      // Other users can resolve only the index currently recorded in the private profile.
+      allow get: if socialUser() && (!exists(/databases/$(database)/documents/socialEmails/$(email))
+        || resource.data.uid == request.auth.uid
+        || get(/databases/$(database)/documents/users/$(resource.data.uid)).data.socialEmail == email);
+      allow list: if false;
+      allow delete: if socialUser() && resource.data.uid == request.auth.uid
+        && (!existsAfter(/databases/$(database)/documents/users/$(request.auth.uid))
+          || getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('socialEmail', null) != email);
+      allow create: if validEmailIndex(email);
+      allow update: if validEmailIndex(email) && resource.data.uid == request.auth.uid;
+      function validEmailIndex(email) {
+        return socialUser()
+          && email == request.auth.token.email.lower()
+          && request.resource.data.keys().hasOnly(['uid'])
+          && request.resource.data.uid == request.auth.uid
+          && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.socialEmail == email;
+      }
+    }
+
+    match /friendships/{id} {
+      function participant() {
+        return request.auth.uid in resource.data.participants;
+      }
+      // Transactions must be able to check both possible IDs before creating.
+      // A missing document reveals no relationship fields.
+      allow get: if socialUser()
+        && request.auth.uid in id.split(':')
+        && (!exists(/databases/$(database)/documents/friendships/$(id)) || participant());
+      allow list: if socialUser() && participant();
+      allow delete: if false;
+      allow create: if socialUser() && validRequest();
+      allow update: if socialUser()
+        && resource.data.recipientId == request.auth.uid
+        && resource.data.status == 'pending'
+        && request.resource.data.status in ['accepted', 'rejected']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+        && request.resource.data.updatedAt == request.time;
+
+      function validRequest() {
+        let data = request.resource.data;
+        return data.keys().hasAll(['participants', 'senderId', 'recipientId', 'status', 'createdAt', 'updatedAt'])
+          && data.keys().hasOnly(['participants', 'senderId', 'recipientId', 'status', 'createdAt', 'updatedAt'])
+          && data.senderId == request.auth.uid
+          && data.recipientId is string
+          && data.senderId != data.recipientId
+          && data.participants is list
+          && data.participants.size() == 2
+          && data.participants[0] is string && data.participants[1] is string
+          && data.participants[0].matches('^[A-Za-z0-9_-]+$')
+          && data.participants[1].matches('^[A-Za-z0-9_-]+$')
+          && data.senderId in data.participants && data.recipientId in data.participants
+          && id == data.participants[0] + ':' + data.participants[1]
+          && !existsAfter(/databases/$(database)/documents/friendships/$(data.participants[1] + ':' + data.participants[0]))
+          && exists(/databases/$(database)/documents/socialProfiles/$(data.senderId))
+          && exists(/databases/$(database)/documents/socialProfiles/$(data.recipientId))
+          && data.status == 'pending'
+          && data.createdAt == request.time
+          && data.updatedAt == request.time;
+      }
+    }
+  }
+}

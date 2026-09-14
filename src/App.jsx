@@ -5,6 +5,8 @@ import Header from './components/Header'
 import SubjectsPanel from './components/SubjectsPanel'
 import Advisor from './components/Advisor'
 import WelcomeSetup from './components/WelcomeSetup'
+import FriendsPage from './components/FriendsPage'
+import useSocialProfile from './hooks/useSocialProfile'
 import { onAuthStateChanged, signInWithPopup } from 'firebase/auth'
 import { auth, googleProvider } from './firebase'
 import {
@@ -63,6 +65,7 @@ function App() {
   const activeCareer = careers.find((career) => career.id === activeCareerId)
   const subjects = activeCareer.subjects
   const initialStatus = activeCareer.initialStatus
+  const socialProfile = useSocialProfile(user, activeCareerId, !profileLoading && hasChosenCareer)
 
   function isCurrentSession(token) {
     return Boolean(token) && session.current === token && auth.currentUser?.uid === token.uid
@@ -356,7 +359,17 @@ if (!hasChosenCareer) {
   	>
     	  🧠 Planificador
   	</button>
+        <button
+          className={activePage === 'amigos' ? 'active' : ''}
+          onClick={() => setActivePage('amigos')}
+        >
+          👥 Amigos
+        </button>
       </nav>
+
+      {activePage === 'amigos' && (
+        <FriendsPage key={user.uid} user={user} socialProfile={socialProfile} />
+      )}
 
    {activePage === 'dashboard' && (
      <>
