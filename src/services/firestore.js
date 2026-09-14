@@ -1,5 +1,6 @@
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase'
+import { savePlanningProgress } from './planning'
 
 export async function loadUserStatus(userId, careerId) {
   const ref = doc(db, 'users', userId, 'careers', careerId)
@@ -12,16 +13,7 @@ export async function loadUserStatus(userId, careerId) {
 }
 
 export async function saveUserStatus(userId, careerId, statusMap) {
-  const ref = doc(db, 'users', userId, 'careers', careerId)
-
-  await setDoc(
-    ref,
-    {
-      statusMap,
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  )
+  await savePlanningProgress(userId, careerId, statusMap)
 }
 
 export async function loadUserProfile(userId) {

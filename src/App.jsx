@@ -1,5 +1,5 @@
 import CareerSelector from './components/CareerSelector'
-import Planner from './components/Planner'
+import PlannerPage from './components/PlannerPage'
 import CareerMap from './components/CareerMap'
 import Header from './components/Header'
 import SubjectsPanel from './components/SubjectsPanel'
@@ -368,7 +368,7 @@ if (!hasChosenCareer) {
       </nav>
 
       {activePage === 'amigos' && (
-        <FriendsPage key={user.uid} user={user} socialProfile={socialProfile} />
+        <FriendsPage key={user.uid} user={user} socialProfile={socialProfile} careerId={activeCareerId} />
       )}
 
    {activePage === 'dashboard' && (
@@ -416,7 +416,11 @@ if (!hasChosenCareer) {
 )}
 
 {activePage === 'planificador' && (
-  <Planner
+  <PlannerPage
+    key={`${user.uid}:${activeCareerId}`}
+    user={user}
+    career={activeCareer}
+    statusMap={statusMap}
     availableSubjects={toCourse}
     subjects={subjects}
     selectedCodes={plannerSelectedCodes}

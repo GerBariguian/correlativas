@@ -90,6 +90,61 @@ service cloud.firestore {
       }
     }
 
+    function acceptedPlanningFriend(uid) {
+      let forward = /databases/$(database)/documents/friendships/$(request.auth.uid + ':' + uid);
+      let reverse = /databases/$(database)/documents/friendships/$(uid + ':' + request.auth.uid);
+      return (exists(forward) && get(forward).data.status == 'accepted')
+        || (exists(reverse) && get(reverse).data.status == 'accepted');
+    }
+
+    match /planningSharing/{uid} {
+      allow get: if socialUser() && (request.auth.uid == uid || acceptedPlanningFriend(uid));
+      allow list, delete: if false;
+      allow create, update: if socialUser() && request.auth.uid == uid
+        && request.resource.data.keys().hasAll(['enabled', 'sharedCareerId', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['enabled', 'sharedCareerId', 'updatedAt'])
+        && request.resource.data.enabled is bool
+        && request.resource.data.sharedCareerId is string
+        && request.resource.data.sharedCareerId.size() > 0
+        && request.resource.data.sharedCareerId.size() <= 100
+        && request.resource.data.updatedAt == request.time
+        && (!request.resource.data.enabled
+          || getAfter(/databases/$(database)/documents/planningSnapshots/$(uid)/careers/$(request.resource.data.sharedCareerId)).data.sourceUpdatedAt
+            == getAfter(/databases/$(database)/documents/users/$(uid)/careers/$(request.resource.data.sharedCareerId)).data.updatedAt);
+    }
+
+    match /planningSnapshots/{uid}/careers/{careerId} {
+      function sharedAndCurrent() {
+        let sharing = get(/databases/$(database)/documents/planningSharing/$(uid)).data;
+        return sharing.enabled == true && sharing.sharedCareerId == careerId
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.activeCareerId == careerId
+          && resource.data.sourceUpdatedAt == get(/databases/$(database)/documents/users/$(uid)/careers/$(careerId)).data.updatedAt;
+      }
+      allow get: if socialUser() && (request.auth.uid == uid
+        || (acceptedPlanningFriend(uid) && sharedAndCurrent()));
+      allow list: if false;
+      allow delete: if socialUser() && request.auth.uid == uid;
+      allow create, update: if socialUser() && request.auth.uid == uid
+        && request.resource.data.keys().hasAll(['approvedCodes', 'availableToCourseCodes', 'sourceUpdatedAt', 'updatedAt', 'schemaVersion', 'logicVersion', 'catalogVersion'])
+        && request.resource.data.keys().hasOnly(['approvedCodes', 'availableToCourseCodes', 'sourceUpdatedAt', 'updatedAt', 'schemaVersion', 'logicVersion', 'catalogVersion'])
+        && request.resource.data.approvedCodes is list
+        && request.resource.data.availableToCourseCodes is list
+        && request.resource.data.approvedCodes.size() <= 1000
+        && request.resource.data.availableToCourseCodes.size() <= 1000
+        && request.resource.data.approvedCodes.toSet().size() == request.resource.data.approvedCodes.size()
+        && request.resource.data.availableToCourseCodes.toSet().size() == request.resource.data.availableToCourseCodes.size()
+        && request.resource.data.approvedCodes.toSet().intersection(request.resource.data.availableToCourseCodes.toSet()).size() == 0
+        && request.resource.data.schemaVersion == 1
+        && request.resource.data.logicVersion == '1'
+        && request.resource.data.catalogVersion is string
+        && request.resource.data.catalogVersion.size() <= 150
+        && request.resource.data.sourceUpdatedAt is timestamp
+        && request.resource.data.sourceUpdatedAt == getAfter(/databases/$(database)/documents/users/$(uid)/careers/$(careerId)).data.updatedAt
+        && request.resource.data.updatedAt == request.time
+        && getAfter(/databases/$(database)/documents/planningSharing/$(uid)).data.enabled == true
+        && getAfter(/databases/$(database)/documents/planningSharing/$(uid)).data.sharedCareerId == careerId;
+    }
+
     match /friendships/{id} {
       function participant() {
         return request.auth.uid in resource.data.participants;

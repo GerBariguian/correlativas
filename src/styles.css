@@ -14,6 +14,15 @@
 .friend-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .friends-page button:disabled { opacity: .55; cursor: wait; }
 .friends-page [role="alert"] { color: var(--red); }
+.planning-sharing label { font-weight: 700; }
+.planning-sharing input { margin-right: 8px; }
+.planning-comparison { margin-top: 24px; }
+.planning-comparison .map-subject small { display: block; margin-top: 8px; }
+.planning-comparison .comparison-both { border: 2px solid var(--green); background: #eaf8ed; }
+.planning-comparison .comparison-mine { border: 2px solid var(--blue); background: #eef4ff; }
+.planning-comparison .comparison-friend { border: 2px solid var(--purple); background: #f5efff; }
+.planning-comparison .comparison-neither { border: 1px solid var(--line); background: white; }
+.planning-comparison .side-card { margin-bottom: 20px; }
 
 :root {
   --bg: #f4f6ff;

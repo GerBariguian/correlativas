@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { auth } from '../firebase'
 import { careers } from '../data/careers'
+import ProgressSharingSettings from './ProgressSharingSettings'
 import {
   findUserByEmail, friendsError, loadSocialProfiles,
   respondToFriendRequest, sendFriendRequest, subscribeFriendships,
@@ -21,7 +22,7 @@ function Person({ profile, children }) {
   )
 }
 
-export default function FriendsPage({ user, socialProfile }) {
+export default function FriendsPage({ user, socialProfile, careerId }) {
   const [email, setEmail] = useState('')
   const [result, setResult] = useState(null)
   const [searched, setSearched] = useState(false)
@@ -120,6 +121,7 @@ export default function FriendsPage({ user, socialProfile }) {
 
   return (
     <section className="friends-page">
+      <ProgressSharingSettings user={user} careerId={careerId} />
       <div className="side-card">
         <h2>Amigos</h2>
         <p>Buscá por el email completo de Google que la otra persona usa en Correlativas.</p>
