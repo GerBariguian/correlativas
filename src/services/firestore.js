@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase'
 
 export async function loadUserStatus(userId, careerId) {
@@ -18,7 +18,7 @@ export async function saveUserStatus(userId, careerId, statusMap) {
     ref,
     {
       statusMap,
-      updatedAt: new Date(),
+      updatedAt: serverTimestamp(),
     },
     { merge: true }
   )
@@ -36,5 +36,5 @@ export async function loadUserProfile(userId) {
 export async function saveUserProfile(userId, data) {
   const ref = doc(db, 'users', userId)
 
-  await setDoc(ref, data, { merge: true })
+  await setDoc(ref, { ...data, updatedAt: serverTimestamp() }, { merge: true })
 }

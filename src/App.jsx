@@ -14,7 +14,7 @@ import {
   saveUserProfile,
 } from './services/firestore'
 import Dashboard from './components/Dashboard'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { careers } from './data/careers'
 import {
   availableFinals,
@@ -31,14 +31,12 @@ const DEFAULT_CAREER_ID = careers[0].id
 
 const STORAGE_KEY_PREFIX = 'correlativas-status'
 
-function loadStatus(careerId, initialStatus) {
+// Anonymous legacy keys remain untouched: their owner cannot be determined safely.
+function cacheStatus(uid, careerId, map) {
   try {
-    return (
-      JSON.parse(localStorage.getItem(`${STORAGE_KEY_PREFIX}-${careerId}`)) ||
-      initialStatus
-    )
-  } catch {
-    return initialStatus
+    localStorage.setItem(STORAGE_KEY_PREFIX + '-' + uid + '-' + careerId, JSON.stringify(map))
+  } catch (error) {
+    console.error('No se pudo actualizar la copia local del progreso.', error)
   }
 }
 
@@ -47,30 +45,10 @@ function App() {
   const [user, setUser] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [profileLoading, setProfileLoading] = useState(true)
+  const [statusLoading, setStatusLoading] = useState(true)
+  const [careerRevision, setCareerRevision] = useState(0)
   const [hasChosenCareer, setHasChosenCareer] = useState(false)
-  const activeCareer = careers.find((career) => career.id === activeCareerId)
-  const subjects = activeCareer.subjects
-  const initialStatus = activeCareer.initialStatus
-  useEffect(() => {
-    async function loadStatusForCareer() {
-      if (user) {
-        const cloudStatus = await loadUserStatus(user.uid, activeCareerId)
-
-        setStatusMap(cloudStatus || initialStatus)
-      } else {
-        setStatusMap(loadStatus(activeCareerId, initialStatus))
-      }
-
-      setExpanded(null)
-      setSelectedMapCode(null)
-      setPlannerSelectedCodes([])
-    }
-
-    loadStatusForCareer()
-  }, [activeCareerId, user])
-  const [statusMap, setStatusMap] = useState(() =>
-  loadStatus(DEFAULT_CAREER_ID, careers[0].initialStatus)
-)
+  const [statusMap, setStatusMap] = useState(careers[0].initialStatus)
   const [view, setView] = useState('all')
   const [query, setQuery] = useState('')
   const [year, setYear] = useState('')
@@ -78,40 +56,139 @@ function App() {
   const [activePage, setActivePage] = useState('dashboard')
   const [selectedMapCode, setSelectedMapCode] = useState(null)
   const [plannerSelectedCodes, setPlannerSelectedCodes] = useState([])
+  const session = useRef(null)
+  const progress = useRef(null)
+  const writes = useRef(Promise.resolve())
+  const confirmedCareer = useRef(DEFAULT_CAREER_ID)
+  const activeCareer = careers.find((career) => career.id === activeCareerId)
+  const subjects = activeCareer.subjects
+  const initialStatus = activeCareer.initialStatus
+
+  function isCurrentSession(token) {
+    return Boolean(token) && session.current === token && auth.currentUser?.uid === token.uid
+  }
+
+  // Serialize mutations, including reset, without poisoning the queue on failure.
+  function enqueueWrite(task) {
+    const result = writes.current.then(task)
+    writes.current = result.catch(() => {})
+    return result
+  }
+
+  function reportError(error) {
+    console.error('Error de sincronización con Firestore.', error)
+    window.alert('No se pudo sincronizar con Firebase. Revisá tu conexión y recargá la página para reintentar.')
+  }
+
   useEffect(() => {
-    return onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      session.current = currentUser ? { uid: currentUser.uid } : null
+      progress.current = null
+      confirmedCareer.current = DEFAULT_CAREER_ID
       setUser(currentUser)
+      setHasChosenCareer(false)
+      setProfileLoading(Boolean(currentUser))
+      setStatusLoading(true)
+      setActiveCareerId(DEFAULT_CAREER_ID)
+      setStatusMap(careers[0].initialStatus)
+      setPlannerSelectedCodes([])
       setAuthLoading(false)
     })
+    return () => {
+      unsubscribe()
+      session.current = null
+      progress.current = null
+    }
   }, [])
 
   useEffect(() => {
+    if (!user) return
+    const token = session.current
+    let cancelled = false
     async function loadProfile() {
-      if (!user) {
+      try {
+        await writes.current
+        if (cancelled || !isCurrentSession(token)) return
+        const profile = await loadUserProfile(user.uid)
+        if (cancelled || !isCurrentSession(token)) return
+        const career = careers.find((item) => item.id === profile?.activeCareerId)
+        confirmedCareer.current = career?.id || DEFAULT_CAREER_ID
+        setActiveCareerId(confirmedCareer.current)
+        setHasChosenCareer(Boolean(career))
         setProfileLoading(false)
-        return
+      } catch (error) {
+        // Never treat a failed read as an absent profile.
+        if (!cancelled && isCurrentSession(token)) reportError(error)
       }
-
-      const profile = await loadUserProfile(user.uid)
-
-      if (profile?.activeCareerId) {
-        setActiveCareerId(profile.activeCareerId)
-        setHasChosenCareer(true)
-      } else {
-        setHasChosenCareer(false)
-      }
-
-      setProfileLoading(false)
     }
-
     loadProfile()
+    return () => { cancelled = true }
   }, [user])
 
-  const stats = useMemo(() => summary(subjects, statusMap), [statusMap])
-  const toCourse = useMemo(() => availableToCourse(subjects, statusMap), [statusMap])
-  const finals = useMemo(() => availableFinals(subjects, statusMap), [statusMap])
-  const blocked = useMemo(() => blockedSubjects(subjects, statusMap), [statusMap])
-  const recs = useMemo(() => recommendations(subjects, statusMap), [statusMap])
+  useEffect(() => {
+    progress.current = null
+    if (!user || profileLoading || !hasChosenCareer) return
+    const token = session.current
+    let cancelled = false
+    setStatusLoading(true)
+    setExpanded(null)
+    setSelectedMapCode(null)
+    setPlannerSelectedCodes([])
+    async function loadStatusForCareer() {
+      try {
+        await writes.current
+        if (cancelled || !isCurrentSession(token)) return
+        const cloudStatus = await loadUserStatus(user.uid, activeCareerId)
+        if (cancelled || !isCurrentSession(token) || confirmedCareer.current !== activeCareerId) return
+        const map = cloudStatus ?? initialStatus
+        progress.current = { token, careerId: activeCareerId, map }
+        setStatusMap(map)
+        cacheStatus(user.uid, activeCareerId, map)
+        setStatusLoading(false)
+      } catch (error) {
+        // Keep editing gated rather than overwrite an unreadable cloud record.
+        if (!cancelled && isCurrentSession(token)) reportError(error)
+      }
+    }
+    loadStatusForCareer()
+    return () => {
+      cancelled = true
+      progress.current = null
+    }
+  }, [user, profileLoading, hasChosenCareer, activeCareerId, initialStatus, careerRevision])
+
+  async function changeCareer(careerId, finishSetup = false) {
+    if (!careers.some((career) => career.id === careerId)) return
+    if (!hasChosenCareer && !finishSetup) {
+      setActiveCareerId(careerId)
+      return
+    }
+    const token = session.current
+    if (!isCurrentSession(token)) return
+    try {
+      await enqueueWrite(async () => {
+        if (!isCurrentSession(token)) return
+        await saveUserProfile(token.uid, { activeCareerId: careerId })
+        if (!isCurrentSession(token)) return
+        if (careerId !== confirmedCareer.current) {
+          setCareerRevision((revision) => revision + 1)
+          progress.current = null
+          setStatusLoading(true)
+        }
+        confirmedCareer.current = careerId
+        setActiveCareerId(careerId)
+        if (finishSetup) setHasChosenCareer(true)
+      })
+    } catch (error) {
+      if (isCurrentSession(token)) reportError(error)
+    }
+  }
+
+  const stats = useMemo(() => summary(subjects, statusMap), [subjects, statusMap])
+  const toCourse = useMemo(() => availableToCourse(subjects, statusMap), [subjects, statusMap])
+  const finals = useMemo(() => availableFinals(subjects, statusMap), [subjects, statusMap])
+  const blocked = useMemo(() => blockedSubjects(subjects, statusMap), [subjects, statusMap])
+  const recs = useMemo(() => recommendations(subjects, statusMap), [subjects, statusMap])
   const criticalSubjects = useMemo(() => {
     return subjects
       .map((subject) => ({
@@ -121,30 +198,33 @@ function App() {
       .filter((subject) => getStatus(statusMap, subject.code) !== 'Aprobada')
       .sort((a, b) => b.unlocksCount - a.unlocksCount)
       .slice(0, 5)
-  }, [statusMap])
+  }, [subjects, statusMap])
+
+  async function persistStatus(transform) {
+    const context = progress.current
+    if (!context || !isCurrentSession(context.token)) return
+    try {
+      await enqueueWrite(async () => {
+        if (!isCurrentSession(context.token)) return
+        const nextMap = transform(context.map)
+        await saveUserStatus(context.token.uid, context.careerId, nextMap)
+        context.map = nextMap
+        if (!isCurrentSession(context.token)) return
+        cacheStatus(context.token.uid, context.careerId, nextMap)
+        if (progress.current === context) setStatusMap(nextMap)
+      })
+    } catch (error) {
+      if (isCurrentSession(context.token)) reportError(error)
+    }
+  }
 
   function updateStatus(code, next) {
-    const nextMap = { ...statusMap, [code]: next }
-
-    setStatusMap(nextMap)
-
-    if (user) {
-      saveUserStatus(user.uid, activeCareerId, nextMap)
-    } else {
-      localStorage.setItem(
-        `${STORAGE_KEY_PREFIX}-${activeCareerId}`,
-        JSON.stringify(nextMap)
-      )
-    }
+    return persistStatus((current) => ({ ...current, [code]: next }))
   }
 
   function reset() {
     if (!confirm('¿Seguro que querés reiniciar el progreso?')) return
-    setStatusMap(initialStatus)
-    localStorage.setItem(
-      `${STORAGE_KEY_PREFIX}-${activeCareerId}`,
-      JSON.stringify(initialStatus)
-    )
+    return persistStatus(() => initialStatus)
   }
 
   const shownSubjects = subjects.filter((subject) => {
@@ -209,19 +289,12 @@ if (!user) {
   )
 }
 
-async function startWithCareer() {
-  if (!user) return
-
-  await saveUserProfile(user.uid, {
-    activeCareerId,
-    updatedAt: new Date(),
-  })
-
-  setHasChosenCareer(true)
+function startWithCareer() {
+  return changeCareer(activeCareerId, true)
 }
 
 
-if (profileLoading) {
+if (profileLoading || (hasChosenCareer && statusLoading)) {
   return (
     <main className="app-shell">
       <section className="placeholder-page">
@@ -238,7 +311,7 @@ if (!hasChosenCareer) {
       <WelcomeSetup
         careers={careers}
         activeCareerId={activeCareerId}
-        setActiveCareerId={setActiveCareerId}
+        setActiveCareerId={changeCareer}
         onContinue={startWithCareer}
       />
     </main>
@@ -252,7 +325,7 @@ if (!hasChosenCareer) {
       <CareerSelector
   	careers={careers}
   	activeCareerId={activeCareerId}
-  	setActiveCareerId={setActiveCareerId}
+    setActiveCareerId={changeCareer}
       />
 
       <nav className="top-nav">
