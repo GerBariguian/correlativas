@@ -102,21 +102,24 @@ service cloud.firestore {
       allow list, delete: if false;
       allow create, update: if socialUser() && request.auth.uid == uid
         && request.resource.data.keys().hasAll(['enabled', 'sharedCareerId', 'updatedAt'])
-        && request.resource.data.keys().hasOnly(['enabled', 'sharedCareerId', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['enabled', 'sharedCareerId', 'consentVersion', 'updatedAt'])
+        && request.resource.data.get('consentVersion', 1) in [1, 2]
         && request.resource.data.enabled is bool
         && request.resource.data.sharedCareerId is string
         && request.resource.data.sharedCareerId.size() > 0
         && request.resource.data.sharedCareerId.size() <= 100
         && request.resource.data.updatedAt == request.time
         && (!request.resource.data.enabled
-          || getAfter(/databases/$(database)/documents/planningSnapshots/$(uid)/careers/$(request.resource.data.sharedCareerId)).data.sourceUpdatedAt
-            == getAfter(/databases/$(database)/documents/users/$(uid)/careers/$(request.resource.data.sharedCareerId)).data.updatedAt);
+          || (getAfter(/databases/$(database)/documents/planningSnapshots/$(uid)/careers/$(request.resource.data.sharedCareerId)).data.sourceUpdatedAt
+            == getAfter(/databases/$(database)/documents/users/$(uid)/careers/$(request.resource.data.sharedCareerId)).data.updatedAt
+          && getAfter(/databases/$(database)/documents/planningSnapshots/$(uid)/careers/$(request.resource.data.sharedCareerId)).data.schemaVersion == request.resource.data.get('consentVersion', 1)));
     }
 
     match /planningSnapshots/{uid}/careers/{careerId} {
       function sharedAndCurrent() {
         let sharing = get(/databases/$(database)/documents/planningSharing/$(uid)).data;
         return sharing.enabled == true && sharing.sharedCareerId == careerId
+          && (resource.data.schemaVersion == 1 || sharing.get('consentVersion', 1) == 2)
           && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.activeCareerId == careerId
           && resource.data.sourceUpdatedAt == get(/databases/$(database)/documents/users/$(uid)/careers/$(careerId)).data.updatedAt;
       }
@@ -126,7 +129,7 @@ service cloud.firestore {
       allow delete: if socialUser() && request.auth.uid == uid;
       allow create, update: if socialUser() && request.auth.uid == uid
         && request.resource.data.keys().hasAll(['approvedCodes', 'availableToCourseCodes', 'sourceUpdatedAt', 'updatedAt', 'schemaVersion', 'logicVersion', 'catalogVersion'])
-        && request.resource.data.keys().hasOnly(['approvedCodes', 'availableToCourseCodes', 'sourceUpdatedAt', 'updatedAt', 'schemaVersion', 'logicVersion', 'catalogVersion'])
+        && validSnapshotVersion()
         && request.resource.data.approvedCodes is list
         && request.resource.data.availableToCourseCodes is list
         && request.resource.data.approvedCodes.size() <= 1000
@@ -134,7 +137,6 @@ service cloud.firestore {
         && request.resource.data.approvedCodes.toSet().size() == request.resource.data.approvedCodes.size()
         && request.resource.data.availableToCourseCodes.toSet().size() == request.resource.data.availableToCourseCodes.size()
         && request.resource.data.approvedCodes.toSet().intersection(request.resource.data.availableToCourseCodes.toSet()).size() == 0
-        && request.resource.data.schemaVersion == 1
         && request.resource.data.logicVersion == '1'
         && request.resource.data.catalogVersion is string
         && request.resource.data.catalogVersion.size() <= 150
@@ -143,6 +145,93 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time
         && getAfter(/databases/$(database)/documents/planningSharing/$(uid)).data.enabled == true
         && getAfter(/databases/$(database)/documents/planningSharing/$(uid)).data.sharedCareerId == careerId;
+
+      function validSnapshotVersion() {
+        let data = request.resource.data;
+        return (data.schemaVersion == 1
+          && data.keys().hasOnly(['approvedCodes', 'availableToCourseCodes', 'sourceUpdatedAt', 'updatedAt', 'schemaVersion', 'logicVersion', 'catalogVersion']))
+          || (data.schemaVersion == 2
+            && getAfter(/databases/$(database)/documents/planningSharing/$(uid)).data.get('consentVersion', 1) == 2
+            && data.keys().hasOnly(['approvedCodes', 'availableToCourseCodes', 'pendingFinalCodes', 'sourceUpdatedAt', 'updatedAt', 'schemaVersion', 'logicVersion', 'catalogVersion'])
+            && data.pendingFinalCodes is list && data.pendingFinalCodes.size() <= 1000
+            && data.pendingFinalCodes.toSet().size() == data.pendingFinalCodes.size()
+            && data.pendingFinalCodes.toSet().intersection(data.approvedCodes.toSet()).size() == 0
+            && data.pendingFinalCodes.toSet().intersection(data.availableToCourseCodes.toSet()).size() == 0);
+      }
+    }
+
+    match /jointPlans/{planId} {
+      function visiblePlan(data) {
+        return request.auth.uid == data.ownerId
+          || (request.auth.uid in data.inviteeIds && acceptedPlanningFriend(data.ownerId));
+      }
+      function validPlan() {
+        let data = request.resource.data;
+        return data.keys().hasAll(['ownerId', 'careerId', 'inviteeIds', 'memberIds', 'closed', 'createdAt', 'updatedAt'])
+          && data.keys().hasOnly(['ownerId', 'careerId', 'inviteeIds', 'memberIds', 'closed', 'createdAt', 'updatedAt'])
+          && data.ownerId is string && data.ownerId.matches('^[A-Za-z0-9_-]+$')
+          && data.careerId is string && data.careerId.size() > 0 && data.careerId.size() <= 100
+          && data.inviteeIds is list && data.inviteeIds.size() <= 4
+          && data.inviteeIds.toSet().size() == data.inviteeIds.size()
+          && !(data.ownerId in data.inviteeIds)
+          && data.memberIds is list && data.memberIds.size() >= 1 && data.memberIds.size() <= 5
+          && data.memberIds.toSet().size() == data.memberIds.size()
+          && data.ownerId in data.memberIds
+          && data.memberIds.toSet().difference(data.inviteeIds.toSet()).hasOnly([data.ownerId])
+          && data.closed is bool && data.createdAt is timestamp && data.updatedAt == request.time;
+      }
+      function validInvitee(ids, index) {
+        return ids.size() <= index || (ids[index] is string
+          && ids[index].matches('^[A-Za-z0-9_-]+$') && acceptedPlanningFriend(ids[index]));
+      }
+      // Queries must constrain ownerId, and inviteeIds for another owner's plans.
+      // A friendship between two other members never grants access.
+      allow get, list: if socialUser() && visiblePlan(resource.data);
+      allow delete: if false;
+      allow create: if socialUser() && validPlan()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.careerId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.activeCareerId
+        && request.resource.data.inviteeIds.size() >= 1
+        && request.resource.data.memberIds == [request.auth.uid]
+        && request.resource.data.closed == false && request.resource.data.createdAt == request.time
+        && validInvitee(request.resource.data.inviteeIds, 0) && validInvitee(request.resource.data.inviteeIds, 1)
+        && validInvitee(request.resource.data.inviteeIds, 2) && validInvitee(request.resource.data.inviteeIds, 3);
+      allow update: if socialUser() && visiblePlan(resource.data) && validPlan()
+        && (closePlan() || changeOwnMembership());
+      function closePlan() {
+        return resource.data.ownerId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['closed', 'updatedAt'])
+          && request.resource.data.closed == true;
+      }
+      function changeOwnMembership() {
+        let before = resource.data;
+        let after = request.resource.data;
+        let uid = request.auth.uid;
+        return uid != before.ownerId && uid in before.inviteeIds
+          && after.diff(before).affectedKeys().hasOnly(['memberIds', 'inviteeIds', 'updatedAt'])
+          && ((!before.closed && after.inviteeIds == before.inviteeIds
+            && after.memberIds.toSet() == before.memberIds.toSet().union([uid].toSet())
+            && before.careerId == get(/databases/$(database)/documents/users/$(uid)).data.activeCareerId)
+          || (after.memberIds.toSet() == before.memberIds.toSet().difference([uid].toSet())
+            && after.inviteeIds.toSet() == before.inviteeIds.toSet().difference([uid].toSet())));
+      }
+      match /subjects/{code} {
+        function plan() { return get(/databases/$(database)/documents/jointPlans/$(planId)).data; }
+        function editor() { return request.auth.uid == plan().ownerId && !plan().closed; }
+        allow get, list: if socialUser() && (request.auth.uid == plan().ownerId
+          || (!plan().closed && request.auth.uid in plan().memberIds
+            && request.auth.uid in plan().inviteeIds && acceptedPlanningFriend(plan().ownerId)));
+        allow create, update: if socialUser() && editor()
+          && request.resource.data.keys().hasAll(['code', 'proposedParticipantIds', 'updatedAt'])
+          && request.resource.data.keys().hasOnly(['code', 'proposedParticipantIds', 'updatedAt'])
+          && request.resource.data.code == code && code.size() > 0 && code.size() <= 100
+          && request.resource.data.proposedParticipantIds is list
+          && request.resource.data.proposedParticipantIds.size() >= 2 && request.resource.data.proposedParticipantIds.size() <= 5
+          && request.resource.data.proposedParticipantIds.toSet().size() == request.resource.data.proposedParticipantIds.size()
+          && request.resource.data.proposedParticipantIds.toSet().difference(plan().inviteeIds.toSet()).hasOnly([plan().ownerId])
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if socialUser() && editor();
+      }
     }
 
     match /friendships/{id} {

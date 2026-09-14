@@ -1,5 +1,7 @@
 # Planificar con amigos — fase 1
 
+> Documento histórico de Fase 1. Para el cliente actual, consentimiento de finales, planes conjuntos, índices y publicación manual, usar [Fase 2](planificar-con-amigos-fase-2.md). Las instrucciones de publicación y el alcance que siguen corresponden a la versión anterior.
+
 Implementación para Firebase Spark, sin funciones, dependencias nuevas ni despliegue automático.
 
 ## Publicación manual obligatoria

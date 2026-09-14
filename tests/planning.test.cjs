@@ -199,3 +199,122 @@ test('permissions errors and offline snapshots clear the comparison instead of b
   assert.equal(states.at(-1).state, 'unavailable')
   assert.equal(listeners[1].stopped, true)
 })
+
+test('finals include every regularized course, even without prerequisites for taking its final', () => {
+  const { api, career, clone } = setup()
+  const result = api.derivePlanningSnapshot(career, { A: 'Pendiente', B: 'Regularizada', C: 'Aprobada', D: 'Cursando' }, 1, 1, true)
+  assert.deepEqual(clone(result.pendingFinalCodes), ['B'])
+  assert.equal(api.canTakeFinal(career.subjects[1], { A: 'Pendiente' }), false)
+  assert.equal(result.schemaVersion, 2)
+  assert.equal(api.snapshotCompatible(result, career), true)
+  assert.equal('statusMap' in result, false)
+  assert.equal('takingCodes' in result, false)
+  for (const pendingFinalCodes of [['B', 'B'], ['X'], ['A'], ['C'], ['D', {}], null]) {
+    assert.equal(api.snapshotCompatible({ ...result, pendingFinalCodes }, career), false)
+  }
+})
+
+test('legacy consent is never automatically expanded when progress changes', async () => {
+  const { api, records } = setup()
+  records.set('planningSharing/alice', { enabled: true, sharedCareerId: 'career' })
+  await api.savePlanningProgress('alice', 'career', { A: 'Regularizada' })
+  assert.equal(records.get('planningSnapshots/alice/careers/career').schemaVersion, 1)
+  assert.equal('pendingFinalCodes' in records.get('planningSnapshots/alice/careers/career'), false)
+  await api.setPlanningSharing('alice', 'career', true)
+  assert.equal(records.get('planningSharing/alice').consentVersion, 2)
+  assert.deepEqual(records.get('planningSnapshots/alice/careers/career').pendingFinalCodes, ['A'])
+  await api.savePlanningProgress('alice', 'career', { A: 'Aprobada', B: 'Regularizada' })
+  assert.deepEqual(records.get('planningSnapshots/alice/careers/career').pendingFinalCodes, ['B'])
+})
+
+test('schema two cannot be consumed under legacy consent; schema one must not contain finals', () => {
+  const { api, career, listeners, emit } = setup()
+  const snapshot = api.derivePlanningSnapshot(career, { A: 'Regularizada' }, 1, 1, true)
+  assert.equal(api.snapshotCompatible({ ...snapshot, schemaVersion: 1 }, career), false)
+  const states = []
+  api.subscribePlanningComparison('bob', career, (value) => states.push(value))
+  emit(listeners[0], { enabled: true, sharedCareerId: 'career' })
+  emit(listeners[1], snapshot)
+  assert.equal(states.at(-1).state, 'stale')
+  emit(listeners[0], { enabled: true, sharedCareerId: 'career', consentVersion: 2 })
+  emit(listeners[2], snapshot)
+  assert.equal(states.at(-1).state, 'ready')
+})
+
+test('multi comparison preserves all selected people and computes subsets separately in each layer', () => {
+  const { api, career } = setup()
+  const person = (uid, approvedCodes, availableToCourseCodes, pendingFinalCodes) => ({ uid, isSelf: uid === 'a', state: 'ready', snapshot: { approvedCodes, availableToCourseCodes, pendingFinalCodes } })
+  const people = [person('a', ['A', 'B'], ['C'], ['D']), person('b', ['A'], ['B', 'C'], ['D']), person('c', ['A'], ['C', 'D'], ['B'])]
+  const approved = api.compareParticipants(career.subjects, people, 'approved')
+  assert.equal(approved[0].all, true)
+  assert.equal(approved[0].total, 3)
+  assert.equal(approved[1].category, 'mine')
+  const finals = api.compareParticipants(career.subjects, people, 'finals')
+  assert.equal(finals[3].category, 'subset')
+  assert.equal(finals[3].matches.length, 2)
+  assert.equal(finals[1].category, 'friend')
+  assert.equal(api.compareParticipants(career.subjects, people, 'available')[2].all, true)
+  assert.equal(api.compareParticipants(career.subjects, people.slice(0, 2), 'finals')[3].all, true)
+  for (const state of ['loading', 'disabled', 'stale', 'incompatible', 'unavailable']) {
+    const row = api.compareParticipants(career.subjects, [...people, { uid: 'd', state }], 'approved')[0]
+    assert.equal(row.all, false)
+    assert.equal(row.total, 4)
+    assert.equal(row.missing.length, 1)
+    assert.equal(row.matches.length, 3)
+  }
+  const legacy = { ...people[2], snapshot: { approvedCodes: ['A'], availableToCourseCodes: ['C'] } }
+  assert.equal(api.compareParticipants(career.subjects, [people[0], legacy], 'finals')[3].missing.length, 1)
+  assert.equal(api.compareParticipants(career.subjects, [people[0], legacy], 'approved')[0].all, true)
+})
+
+test('selection allows at most four distinct accepted friends', () => {
+  const { api, clone } = setup()
+  const accepted = ['a', 'b', 'c', 'd', 'e']
+  let ids = []
+  for (const id of ['outsider', 'a', 'a', 'b', 'c', 'd', 'e']) ids = api.addComparisonFriend(ids, id, accepted)
+  assert.deepEqual(clone(ids), ['a', 'b', 'c', 'd'])
+})
+
+test('a stored proposal survives changed eligibility, missing data and departed participants', () => {
+  const { api, clone } = setup()
+  const ids = ['a', 'b', 'c', 'd']
+  const people = [{ uid: 'a', state: 'ready', snapshot: { availableToCourseCodes: ['A'] } }, { uid: 'b', state: 'ready', snapshot: { availableToCourseCodes: [] } }, { uid: 'c', state: 'disabled' }]
+  const result = api.plannedEligibility('A', ids, people, ['a', 'b', 'c'])
+  assert.deepEqual(clone(result.map((p) => p.state)), ['eligible', 'no-longer-eligible', 'unknown', 'not-member'])
+  assert.deepEqual(ids, ['a', 'b', 'c', 'd'])
+})
+
+test('reset updates only the chosen career and its consented snapshot', async () => {
+  const { api, career, records } = setup()
+  records.set('users/alice/careers/other', { statusMap: { A: 'Aprobada' }, updatedAt: 100 })
+  records.set('jointPlans/p', { subjects: ['A'] })
+  records.set('friendships/alice:bob', { status: 'accepted' })
+  await api.setPlanningSharing('alice', 'career', true)
+  await api.savePlanningProgress('alice', 'career', { A: 'Regularizada' })
+  const preserved = ['users/alice/careers/other', 'jointPlans/p', 'friendships/alice:bob', 'planningSharing/alice'].map((key) => JSON.stringify(records.get(key)))
+  await api.savePlanningProgress('alice', 'career', career.initialStatus)
+  assert.deepEqual(records.get('users/alice/careers/career').statusMap, career.initialStatus)
+  assert.deepEqual(records.get('planningSnapshots/alice/careers/career').pendingFinalCodes, [])
+  assert.deepEqual(['users/alice/careers/other', 'jointPlans/p', 'friendships/alice:bob', 'planningSharing/alice'].map((key) => JSON.stringify(records.get(key))), preserved)
+})
+
+test('late consent events cannot reopen subscriptions after cleanup', () => {
+  const { api, career, listeners, emit } = setup()
+  const states = []
+  const stop = api.subscribePlanningComparison('bob', career, (value) => states.push(value))
+  stop()
+  emit(listeners[0], { enabled: true, sharedCareerId: career.id, consentVersion: 2 })
+  listeners[0].error({ code: 'permission-denied' })
+  assert.equal(listeners.length, 1)
+  assert.equal(states.length, 0)
+})
+
+test('a new session for the same uid cannot finish old progress or consent writes', async () => {
+  for (const method of ['savePlanningProgress', 'setPlanningSharing']) {
+    const { api, auth, records } = setup()
+    const request = api[method]('alice', 'career', method === 'setPlanningSharing' ? true : {})
+    auth.currentUser = { uid: 'alice' }
+    await assert.rejects(request)
+    assert.equal(records.size, 0)
+  }
+})

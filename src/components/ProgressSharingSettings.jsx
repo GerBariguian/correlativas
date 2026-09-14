@@ -39,12 +39,13 @@ export default function ProgressSharingSettings({ user, careerId }) {
     <h2>Privacidad del progreso</h2>
     <label><input type="checkbox" checked={Boolean(sharing?.enabled)} disabled={!sharing || busy}
       onChange={(event) => change(event.target.checked, sharing?.enabled ? sharing.sharedCareerId : careerId)} /> Compartir mi progreso con amigos</label>
-    <p>Tus amigos podrán ver qué materias aprobaste y cuáles tenés habilitadas para cursar. No se comparten materias cursando, regularizadas ni otros estados.</p>
+    <p>Al activar esta opción, tus amigos podrán ver materias aprobadas, materias habilitadas para cursar y finales pendientes (materias regularizadas aún no aprobadas). No se comparten materias cursando, la lista general de pendientes ni correlativas faltantes.</p>
     <p>Se comparte con todos tus amigos aceptados, incluidos los que agregues después. No necesitás compartir para ver a un amigo que comparte con vos.</p>
     {sharing?.enabled && <>
+      {sharing.consentVersion !== 2 && <p>Tu permiso anterior solo incluye aprobadas y habilitadas. Los finales pendientes no se compartirán hasta que lo autorices con el botón siguiente.</p>}
       <p>Compartís: {sharedCareer?.university} · {sharedCareer?.name} · Plan {sharedCareer?.plan}.</p>
-      <button className="reset" disabled={busy} onClick={() => change(true, careerId)}>
-        {sharing.sharedCareerId === careerId ? 'Actualizar datos compartidos' : 'Compartir la carrera seleccionada'}
+      <button className="reset" disabled={busy} onClick={() => change(true, sharing.consentVersion !== 2 ? sharing.sharedCareerId : careerId)}>
+        {sharing.consentVersion !== 2 ? 'Autorizar compartir también finales pendientes' : sharing.sharedCareerId === careerId ? 'Actualizar datos compartidos' : 'Compartir la carrera seleccionada'}
       </button>
     </>}
     {busy && <p role="status">Guardando en Firebase...</p>}

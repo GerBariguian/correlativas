@@ -1,6 +1,7 @@
 import { Lock, Search } from 'lucide-react'
 import SubjectCard from './SubjectCard'
 import { getSubjectLevel } from '../logic'
+import DeleteCareerProgress from './DeleteCareerProgress'
 
 
 function SubjectsPanel({
@@ -18,6 +19,8 @@ function SubjectsPanel({
   setExpanded,
   setActivePage,
   setSelectedMapCode,
+  reset,
+  careerName,
 }) {
 
 const levels = [...new Set(subjects.map(getSubjectLevel))]
@@ -88,6 +91,7 @@ const levels = [...new Set(subjects.map(getSubjectLevel))]
           </div>
         )}
       </div>
+      <DeleteCareerProgress reset={reset} careerName={careerName} />
     </section>
   )
 }

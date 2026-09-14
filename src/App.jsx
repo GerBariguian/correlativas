@@ -226,7 +226,6 @@ function App() {
   }
 
   function reset() {
-    if (!confirm('¿Seguro que querés reiniciar el progreso?')) return
     return persistStatus(() => initialStatus)
   }
 
@@ -324,7 +323,7 @@ if (!hasChosenCareer) {
 
   return (
     <main className="app-shell">
-      <Header reset={reset} user={user} />
+      <Header user={user} />
       <CareerSelector
   	careers={careers}
   	activeCareerId={activeCareerId}
@@ -387,6 +386,9 @@ if (!hasChosenCareer) {
 
 {activePage === 'materias' && (
       <SubjectsPanel
+        key={activeCareerId}
+        reset={reset}
+        careerName={`${activeCareer.name} · Plan ${activeCareer.plan}`}
   	view={view}
   	setView={setView}
   	query={query}
