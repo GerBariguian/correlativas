@@ -6,6 +6,106 @@ const vm = require('node:vm')
 const { transformSync } = require('rolldown/utils')
 const source = (file) => fs.readFileSync(path.join(__dirname, '..', file), 'utf8')
 
+function presentation() {
+  const context = vm.createContext({})
+  for (const file of ['src/planningLogic.js', 'src/planningPresentation.js']) {
+    vm.runInContext(source(file).replace(/import[\s\S]*?from ['"][^'"]+['"]\s*/g, '').replace(/export /g, ''), context)
+  }
+  return context
+}
+const flatten = (node) => !node || typeof node !== 'object' ? [] : [node, ...(node.children || []).flatMap(flatten)]
+
+test('subject picker preserves unknown people in all/subset grouping and searches names or codes', () => {
+  const p = presentation()
+  const subjects = [{ code: 'A', name: 'Álgebra' }, { code: 'B', name: 'Redes' }]
+  const ready = (uid) => ({ uid, state: 'ready', snapshot: { availableToCourseCodes: ['A'] } })
+  const groups = p.groupCourseChoices(subjects, [ready('a'), ready('b'), { uid: 'c', state: 'disabled' }])
+  assert.equal(groups[0].rows.length, 0)
+  assert.equal(groups[1].rows[0].total, 3)
+  assert.equal(groups[1].rows[0].missing.length, 1)
+  assert.equal(groups[2].rows[0].subject.code, 'B')
+  assert.equal(p.groupCourseChoices(subjects, [ready('a'), ready('b')])[0].rows.length, 1)
+  assert.equal(p.groupCourseChoices(subjects, [], 'redes')[2].rows[0].subject.code, 'B')
+  for (const [layer, verb] of [['approved', 'aprobaron'], ['available', 'pueden cursarla'], ['finals', 'tienen final pendiente']]) {
+    assert.equal(p.comparisonLabel(groups[1].rows[0], layer), `2/3 ${verb}`)
+  }
+})
+
+test('review distinguishes invitations, departed people and missing academic information', () => {
+  const p = presentation()
+  const plan = { ownerId: 'a', inviteeIds: ['b'], memberIds: ['a'] }
+  const results = p.coursePeople(plan, 'A', ['a', 'b', 'c'], [
+    { uid: 'a', state: 'ready', snapshot: { availableToCourseCodes: [] } },
+    { uid: 'b', state: 'disabled' },
+    { uid: 'c', state: 'ready', snapshot: { availableToCourseCodes: ['A'] } },
+  ])
+  assert.equal(results[0].known, true)
+  assert.equal(results[0].eligible, false)
+  assert.equal(results[1].membership, 'Invitación pendiente')
+  assert.equal(results[1].known, false)
+  assert.equal(results[2].membership, 'Ya no participa')
+  assert.equal(results[2].eligible, false)
+  assert.deepEqual(Array.from(p.initialPlannedIds(plan, null, ['a', 'b', 'c', 'a'])), ['a', 'b'])
+  assert.deepEqual(Array.from(p.initialPlannedIds(plan, { proposedParticipantIds: ['b', 'c'] }, ['a'])), ['b'])
+})
+
+test('shared add dialog reviews first, prevents loading overwrites and saves only on explicit confirmation', async () => {
+  const p = presentation(); const user = { uid: 'a' }; const calls = []
+  const auth = { currentUser: user }
+  const hook = harness('src/components/AddPlanSubjectDialog.jsx', 'AddPlanSubjectDialog', {
+    auth, groupCourseChoices: p.groupCourseChoices, initialPlannedIds: p.initialPlannedIds,
+    PlanningDialog: 'dialog', AcademicSummary: 'summary', saveJointSubject: async (...args) => calls.push(args),
+  })
+  let saved = 0
+  const plan = { id: 'p', ownerId: 'a', inviteeIds: ['b'], memberIds: ['a', 'b'] }
+  const props = { user, career: { subjects: [{ code: 'A', name: 'Álgebra' }] }, request: { code: 'A', matchingIds: ['a', 'b', 'outside'] },
+    plans: [plan], plan, titleOf: () => 'Mi plan', nameOf: (uid) => uid, people: [], rows: null, rowsState: 'loading', onSaved: () => saved++, onClose: () => {},
+  }
+  hook.render(props)
+  const render = () => flatten(hook.render(props))
+  const saveButton = (nodes) => nodes.find((n) => n.type === 'button' && n.children.includes('Agregar al plan'))
+  assert.equal(saveButton(render()).props.disabled, true)
+  await saveButton(render()).props.onClick()
+  assert.equal(calls.length, 0)
+  props.rows = []; props.rowsState = 'ready'; render()
+  const nodes = render()
+  assert.equal(nodes.filter((n) => n.type === 'input' && n.props.checked).length, 2)
+  assert.equal(calls.length, 0)
+  await saveButton(nodes).props.onClick()
+  assert.equal(calls.length, 1); assert.equal(saved, 1)
+  assert.deepEqual(Array.from(calls[0][3]), ['a', 'b'])
+  const other = { id: 'other', ownerId: 'a', inviteeIds: ['c'], memberIds: ['a', 'c'] }
+  props.plan = other; props.plans = [plan, other]; render()
+  assert.equal(render().filter((n) => n.type === 'input' && n.props.checked).length, 1)
+  assert.equal(saveButton(render()).props.disabled, true)
+  assert.equal(calls.length, 1, 'changing destination never writes or carries outsiders')
+  props.plan = plan; render()
+  auth.currentUser = null
+  await saveButton(render()).props.onClick()
+  assert.equal(calls.length, 1)
+  hook.stop()
+})
+
+test('plan academic context never reads a nonfriend and releases listeners when its context changes', () => {
+  const user = { uid: 'a' }; const listeners = []
+  const hook = harness('src/hooks/usePlanAcademicContext.js', 'usePlanAcademicContext', {
+    auth: { currentUser: user }, subscribePlanningComparison: (uid, career, callback) => {
+      const item = { uid, callback }; listeners.push(item); return () => { item.stopped = true }
+    },
+  })
+  const career = { id: 'c' }; const mine = [{ uid: 'a', state: 'ready' }]
+  let result = hook.render(user, career, ['a', 'b', 'c'], ['b'], mine, 0)
+  assert.deepEqual(listeners.map((l) => l.uid), ['b'])
+  assert.equal(result[2].state, 'unrelated')
+  listeners[0].callback({ state: 'ready', snapshot: {} })
+  assert.equal(hook.render(user, career, ['a', 'b', 'c'], ['b'], mine, 0)[1].state, 'ready')
+  result = hook.render(user, career, ['a', 'c'], [], mine, 0)
+  assert.equal(listeners[0].stopped, true)
+  listeners[0].callback({ state: 'ready' })
+  assert.equal(result.length, 2)
+  hook.stop()
+})
+
 // Minimal hook scheduler: invokes the actual hooks and checks stale callback/cleanup behavior.
 function harness(file, name, dependencies = {}) {
   const slots = []

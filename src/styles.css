@@ -1524,3 +1524,90 @@ h1 {
   .joint-editors .friend-search { align-items: stretch; }
   .joint-editors .friend-search button { width: 100%; justify-content: center; }
 }
+/* Planning presentation: scoped so Dashboard, Materias and global controls stay unchanged. */
+.planning-ui { min-width: 0; }
+.planning-ui .planning-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 660px; gap: 8px; }
+.planning-ui .planning-tabs button { min-height: 44px; padding: 10px 12px; }
+.planning-ui .planning-section-head, .planning-ui .planning-dialog-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 18px; }
+.planning-ui .planning-section-head h2, .planning-ui .planning-dialog-head h2 { margin: 0; font-size: 28px; letter-spacing: -.035em; }
+.planning-ui .planning-plan-head { padding: 24px; border: 1px solid var(--line); border-radius: 24px; background: var(--card); box-shadow: 0 8px 25px rgb(18 24 43 / 5%); margin-bottom: 20px; }
+.planning-ui .planning-primary, .planning-ui .planning-secondary, .planning-ui .planning-link, .planning-ui .planning-icon { font: inherit; cursor: pointer; min-height: 44px; border-radius: 12px; }
+.planning-ui .planning-primary { background: var(--text); color: white; border: 1px solid var(--text); padding: 12px 18px; font-weight: 700; }
+.planning-ui .planning-secondary { background: white; color: var(--text); border: 1px solid var(--line); padding: 10px 16px; font-weight: 600; }
+.planning-ui .planning-link { background: transparent; color: var(--primary); border: 0; padding: 8px 4px; text-align: left; }
+.planning-ui .planning-icon { background: transparent; color: var(--text); border: 0; min-width: 44px; font-size: 24px; padding: 0; flex-shrink: 0; }
+.planning-ui .planning-danger { color: #991b1b; }
+.planning-ui button:disabled { opacity: .5; cursor: not-allowed; }
+.planning-ui :is(button, select, input, summary):focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
+.planning-ui .planning-field { display: grid; gap: 8px; font-size: 14px; min-width: 0; margin-bottom: 16px; }
+.planning-ui .planning-field :is(input, select), .planning-ui .planning-add-friend select { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; color: var(--text); background: white; }
+.planning-ui .planning-section-head .planning-field { flex: 1; max-width: 420px; margin: 0; }
+.planning-ui .planning-muted { color: var(--muted); font-size: 14px; line-height: 1.5; }
+.planning-ui .planning-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.planning-ui .planning-friend-picker { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+.planning-ui .planning-chip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: 16px; background: white; padding: 4px 4px 4px 12px; min-height: 44px; max-width: 100%; }
+.planning-ui .planning-chip small { display: block; color: var(--muted); font-size: 12px; }
+.planning-ui .planning-add-friend { max-width: 240px; }
+.planning-ui .planning-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+.planning-ui .planning-comparison { margin-top: 20px; }
+.planning-ui .planning-comparison .top-nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 620px; gap: 8px; }
+.planning-ui .planning-comparison .top-nav button { padding: 10px; min-height: 44px; box-shadow: none; }
+.planning-ui .comparison-legend { color: var(--muted); font-size: 13px; }
+.planning-ui .comparison-legend { display: flex; flex-wrap: wrap; gap: 12px 20px; margin-bottom: 16px; }
+.planning-ui .comparison-filter { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.planning-ui .comparison-filter input { flex-shrink: 0; margin: 0; }
+.planning-ui .comparison-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.planning-ui .comparison-legend i { display: inline-block; width: 14px; height: 14px; border: 1px solid var(--line); border-radius: 4px; }
+.planning-ui .comparison-legend .comparison-both { background: #eaf8ed; border-color: var(--green); }
+.planning-ui .comparison-subset, .planning-ui .comparison-mine, .planning-ui .comparison-friend { border-color: #aab7f7; background: #f1f4ff; }
+.planning-ui .comparison-incomplete { border-style: dashed; }
+.planning-ui .planning-roster summary { display: flex; align-items: center; gap: 10px; cursor: pointer; min-height: 44px; font-size: 14px; }
+.planning-ui .planning-avatar-row { display: flex; flex-shrink: 0; }
+.planning-ui .planning-avatar { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; border: 2px solid white; background: #e9edff; color: var(--primary); font-size: 13px; font-weight: 700; margin-right: -5px; }
+.planning-ui .planning-roster ul { padding-left: 20px; font-size: 14px; line-height: 1.8; }
+.planning-ui .planning-options { position: relative; font-size: 14px; flex-shrink: 0; }
+.planning-ui .planning-options summary { cursor: pointer; min-height: 44px; padding: 12px; border-radius: 12px; border: 1px solid var(--line); }
+.planning-ui .planning-options > div { position: absolute; right: 0; z-index: 4; display: grid; gap: 4px; padding: 8px; width: 240px; background: white; border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+.planning-ui .planning-options > div > button { text-align: left; min-height: 44px; border: 0; background: white; padding: 10px; border-radius: 8px; cursor: pointer; box-shadow: none; font-weight: 500; }
+.planning-ui .planning-plan-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px; }
+.planning-ui .planning-course-card { padding: 20px; border: 1px solid var(--line); border-radius: 20px; background: var(--card); min-width: 0; overflow-wrap: anywhere; }
+.planning-ui .planning-course-card h3 { margin: 0 0 10px; font-size: 18px; }
+.planning-ui .planning-course-card p { margin: 8px 0; font-size: 14px; line-height: 1.5; }
+.planning-ui .planning-course-detail { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 8px; }
+.planning-ui .planning-badge { display: inline-block; margin: 0 6px 4px 0; padding: 5px 8px; border-radius: 8px; background: #eef2ff; font-size: 12px; }
+.planning-ui .planning-warning { color: #885315; font-size: 14px; }
+.planning-ui .planning-person-detail { padding: 0; list-style: none; }
+.planning-ui .planning-person-detail li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.planning-ui .planning-person-detail small { display: block; color: var(--muted); }
+.planning-ui .planning-empty, .planning-ui .planning-invitation { padding: 24px; background: white; border: 1px dashed var(--line); border-radius: 20px; }
+.planning-ui .planning-picker-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+.planning-ui .planning-choice { display: block; width: 100%; text-align: left; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: white; margin-bottom: 8px; cursor: pointer; }
+.planning-ui .planning-choice strong { display: block; font-size: 15px; margin: 0 0 8px; letter-spacing: normal; }
+.planning-ui .planning-choice small { display: block; color: var(--muted); }
+.planning-ui .planning-choice.selected { border: 2px solid var(--primary); background: #f1f4ff; }
+.planning-ui .planning-picker-list h3 { font-size: 14px; margin: 20px 0 12px; }
+.planning-ui .planning-review { padding: 16px; background: #f7f8fc; border-radius: 16px; min-width: 0; }
+.planning-ui .planning-review { position: sticky; top: 0; overflow-wrap: anywhere; }
+.planning-ui .planning-review h3 { font-size: 16px; margin-top: 0; }
+.planning-ui fieldset { min-width: 0; border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin: 12px 0; }
+.planning-ui .planning-check { display: flex; gap: 10px; align-items: center; min-height: 44px; font-size: 14px; }
+.planning-ui .planning-check input { width: 18px; height: 18px; flex-shrink: 0; }
+.planning-dialog .MuiDialog-paper { border-radius: 24px; }
+.planning-dialog .planning-dialog-content { padding: 24px; }
+.planning-ui .planning-dialog-footer { display: flex; justify-content: flex-end; gap: 12px; position: sticky; bottom: -24px; background: white; border-top: 1px solid var(--line); padding: 16px 0; margin-top: 20px; }
+@media (max-width: 1100px) {
+  .planning-ui .planning-plan-cards { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .planning-ui .planning-section-head { align-items: flex-start; flex-wrap: wrap; }
+  .planning-ui .planning-section-head h2 { font-size: 24px; }
+  .planning-ui .planning-plan-head { padding: 18px; }
+  .planning-ui .planning-picker-layout { grid-template-columns: 1fr; }
+  .planning-ui .planning-review { order: -1; position: static; }
+  .planning-ui .planning-tabs button, .planning-ui .planning-comparison .top-nav button { font-size: 13px; border-radius: 12px; }
+  .planning-dialog .MuiDialog-paper { margin: 0; width: 100%; max-width: none; height: 100dvh; max-height: 100%; border-radius: 0; }
+  .planning-dialog .planning-dialog-content { padding: 18px; }
+  .planning-ui .planning-dialog-footer { bottom: -18px; padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+  .planning-ui .planning-course-card { padding: 16px; }
+  .planning-ui .planning-options > div { right: auto; left: 0; }
+}

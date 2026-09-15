@@ -26,10 +26,11 @@ export default function useJointPlans(user, careerId, selectedId, attempt) {
   useEffect(() => {
     if (!canRead) return
     let live = true
-    const update = (rows) => { if (live && auth.currentUser === user) setSubjects({ key: subjectKey, rows }) }
-    const stop = subscribeJointSubjects(selectedId, update, () => update(null))
+    const update = (rows, state = rows ? 'ready' : 'error') => { if (live && auth.currentUser === user) setSubjects({ key: subjectKey, rows, state }) }
+    const stop = subscribeJointSubjects(selectedId, update, () => update(null, 'error'))
     return () => { live = false; stop() }
   }, [user, subjectKey])
   return { plans, selected, rows: canRead && subjects.key === subjectKey ? subjects.rows : null,
+    rowsState: !canRead ? 'unavailable' : subjects.key === subjectKey ? subjects.state : 'loading',
     state: owners.some((uid) => !values[uid]) ? 'loading' : owners.some((uid) => values[uid].state !== 'ready') ? 'unavailable' : 'ready' }
 }

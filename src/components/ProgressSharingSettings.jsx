@@ -44,12 +44,12 @@ export default function ProgressSharingSettings({ user, careerId }) {
     {sharing?.enabled && <>
       {sharing.consentVersion !== 2 && <p>Tu permiso anterior solo incluye aprobadas y habilitadas. Los finales pendientes no se compartirán hasta que lo autorices con el botón siguiente.</p>}
       <p>Compartís: {sharedCareer?.university} · {sharedCareer?.name} · Plan {sharedCareer?.plan}.</p>
-      <button className="reset" disabled={busy} onClick={() => change(true, sharing.consentVersion !== 2 ? sharing.sharedCareerId : careerId)}>
+      {sharing.consentVersion === 2 && sharing.sharedCareerId === careerId ? <details><summary>Ayuda con la información compartida</summary><p>Si tus amigos no ven información actualizada, podés volver a cargarla.</p><button className="reset" disabled={busy} onClick={() => change(true, careerId)}>Actualizar datos compartidos</button></details> : <button className="reset" disabled={busy} onClick={() => change(true, sharing.consentVersion !== 2 ? sharing.sharedCareerId : careerId)}>
         {sharing.consentVersion !== 2 ? 'Autorizar compartir también finales pendientes' : sharing.sharedCareerId === careerId ? 'Actualizar datos compartidos' : 'Compartir la carrera seleccionada'}
-      </button>
+      </button>}
     </>}
-    {busy && <p role="status">Guardando en Firebase...</p>}
-    {!sharing && !error && <p role="status">Esperando conexión con Firebase para verificar el consentimiento...</p>}
+    {busy && <p role="status">Guardando...</p>}
+    {!sharing && !error && <p role="status">Comprobando tu configuración de privacidad...</p>}
     {error && <div role="alert"><p>{error}</p><button className="reset" disabled={busy} onClick={() => setAttempt((n) => n + 1)}>Reintentar</button></div>}
   </section>
 }
