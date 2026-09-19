@@ -116,6 +116,13 @@ service cloud.firestore {
     }
 
     match /planningSnapshots/{uid}/careers/{careerId} {
+      function validCodes(codes) {
+        // Round-trip equality rejects non-strings and embedded separators.
+        // Empty lists are valid; every nonempty token has the same bounded grammar.
+        return codes is list && (codes.size() == 0
+          || (codes.join('|').split('[|]') == codes
+            && codes.join('|').matches('^[A-Za-z0-9._-]{1,32}([|][A-Za-z0-9._-]{1,32})*$')));
+      }
       function sharedAndCurrent() {
         let sharing = get(/databases/$(database)/documents/planningSharing/$(uid)).data;
         return sharing.enabled == true && sharing.sharedCareerId == careerId
@@ -130,8 +137,8 @@ service cloud.firestore {
       allow create, update: if socialUser() && request.auth.uid == uid
         && request.resource.data.keys().hasAll(['approvedCodes', 'availableToCourseCodes', 'sourceUpdatedAt', 'updatedAt', 'schemaVersion', 'logicVersion', 'catalogVersion'])
         && validSnapshotVersion()
-        && request.resource.data.approvedCodes is list
-        && request.resource.data.availableToCourseCodes is list
+        && validCodes(request.resource.data.approvedCodes)
+        && validCodes(request.resource.data.availableToCourseCodes)
         && request.resource.data.approvedCodes.size() <= 1000
         && request.resource.data.availableToCourseCodes.size() <= 1000
         && request.resource.data.approvedCodes.toSet().size() == request.resource.data.approvedCodes.size()
@@ -153,11 +160,22 @@ service cloud.firestore {
           || (data.schemaVersion == 2
             && getAfter(/databases/$(database)/documents/planningSharing/$(uid)).data.get('consentVersion', 1) == 2
             && data.keys().hasOnly(['approvedCodes', 'availableToCourseCodes', 'pendingFinalCodes', 'sourceUpdatedAt', 'updatedAt', 'schemaVersion', 'logicVersion', 'catalogVersion'])
-            && data.pendingFinalCodes is list && data.pendingFinalCodes.size() <= 1000
+            && validCodes(data.pendingFinalCodes) && data.pendingFinalCodes.size() <= 1000
             && data.pendingFinalCodes.toSet().size() == data.pendingFinalCodes.size()
             && data.pendingFinalCodes.toSet().intersection(data.approvedCodes.toSet()).size() == 0
             && data.pendingFinalCodes.toSet().intersection(data.availableToCourseCodes.toSet()).size() == 0);
       }
+    }
+
+    match /jointPlanTombstones/{planId} {
+      allow read, update, delete: if false;
+      allow create: if socialUser()
+        && request.resource.data.keys().hasOnly(['deletedAt'])
+        && request.resource.data.deletedAt == request.time
+        && get(/databases/$(database)/documents/jointPlans/$(planId)).data.ownerId == request.auth.uid
+        && get(/databases/$(database)/documents/jointPlans/$(planId)).data.closed == true
+        && get(/databases/$(database)/documents/jointPlans/$(planId)).data.get('deleting', false) == true
+        && !existsAfter(/databases/$(database)/documents/jointPlans/$(planId));
     }
 
     match /jointPlans/{planId} {
@@ -198,10 +216,13 @@ service cloud.firestore {
       // Plan authorization is explicit membership/invitation, independent of friendship.
       // Queries must constrain ownerId or inviteeIds; no global plan directory.
       allow get, list: if socialUser() && visiblePlan(resource.data);
-      // Client drains subjects while locked, then deletes the parent last.
+      // Client drains subjects while locked, then reserves the ID and deletes atomically.
       allow delete: if socialUser() && resource.data.ownerId == request.auth.uid
-        && resource.data.closed && resource.data.get('deleting', false);
+        && resource.data.closed && resource.data.get('deleting', false)
+        && !exists(/databases/$(database)/documents/jointPlanTombstones/$(planId))
+        && existsAfter(/databases/$(database)/documents/jointPlanTombstones/$(planId));
       allow create: if socialUser() && validPlan()
+        && !exists(/databases/$(database)/documents/jointPlanTombstones/$(planId))
         && request.resource.data.ownerId == request.auth.uid
         && request.resource.data.careerId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.activeCareerId
         && request.resource.data.inviteeIds.size() >= 1

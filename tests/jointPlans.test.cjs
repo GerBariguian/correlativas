@@ -15,6 +15,7 @@ function setup() {
   let fail = false
   let batchNumber = 0
   let failBatch = 0
+  let failFinalization = false
   let queue = Promise.resolve()
   const clone = (value) => value === undefined ? undefined : JSON.parse(JSON.stringify(value))
   const accepted = (a, b) => relationships.has([a, b].sort().join(':'))
@@ -67,18 +68,24 @@ function setup() {
         update: (ref, data) => writes.push(['set', ref, { ...clone(records.get(ref)), ...clone(data) }]),
         delete: (ref) => writes.push(['delete', ref]),
       })
-      if (fail) throw new Error('unavailable')
+      if (fail || (failFinalization && writes.some(([, ref]) => ref.startsWith('jointPlanTombstones/')))) throw new Error('unavailable')
       for (const [op, ref, data] of writes) {
         const uid = auth.currentUser?.uid
         const before = records.get(ref)
         const plan = records.get(ref.split('/').slice(0, 2).join('/'))
-        if (ref.includes('/subjects/')) {
+        if (ref.startsWith('jointPlanTombstones/')) {
+          const parent = `jointPlans/${ref.split('/')[1]}`
+          assert.equal(before, undefined)
+          assert.deepEqual(Object.keys(data), ['deletedAt'])
+          assert.ok(writes.some(([operation, target]) => operation === 'delete' && target === parent))
+        } else if (ref.includes('/subjects/')) {
           if (!plan?.memberIds.includes(uid) || plan.closed || plan.deleting) throw new Error('permission-denied')
         } else if (!before) {
           if (data.ownerId !== uid || data.inviteeIds.some((id) => !accepted(uid, id))) throw new Error('permission-denied')
         } else {
           if (!canRead(before, uid)) throw new Error('permission-denied')
           if (op === 'delete') {
+            assert.ok(writes.some(([operation, target]) => operation === 'set' && target === `jointPlanTombstones/${ref.split('/')[1]}`))
             if (before.ownerId !== uid || !before.closed || !before.deleting) throw new Error('permission-denied')
             assert.equal([...records.keys()].some((key) => key.startsWith(`${ref}/`)), false, 'parent must be deleted last')
           }
@@ -98,7 +105,8 @@ function setup() {
   for (const name of ['src/jointPlanLogic.js', 'src/services/jointPlans.js']) {
     vm.runInContext(source(name).replace(/import[\s\S]*?from ['"][^'"]+['"]\s*/g, '').replace(/export /g, ''), api)
   }
-  return { api, auth, records, relationships, listeners, canRead, clone, fail: (value) => { fail = value }, failBatch: (value) => { failBatch = value } }
+  return { api, auth, records, relationships, listeners, canRead, clone, fail: (value) => { fail = value },
+    failBatch: (value) => { failBatch = value }, failFinalization: (value) => { failFinalization = value } }
 }
 
 test('explicit creation starts with only the creator joined; no academic fields', async () => {
@@ -221,7 +229,7 @@ test('rule source preserves private progress, field allowlists and guards joint 
   assert.doesNotMatch(rules, /acceptedPlanningFriend\(plan\(\).ownerId\)/)
   assert.match(rules, /hasOnly\(\['code', 'proposedParticipantIds', 'addedByUid', 'createdAt', 'updatedAt'\]\)/)
   assert.match(rules, /after\.diff\(before\).affectedKeys\(\).hasOnly\(\['memberIds', 'inviteeIds', 'invitedBy', 'updatedAt'\]\)/)
-  const academic = rules.slice(rules.indexOf('match /planningSnapshots'), rules.indexOf('match /jointPlans'))
+  const academic = rules.slice(rules.indexOf('match /planningSnapshots'), rules.indexOf('match /jointPlanTombstones'))
   assert.match(academic, /acceptedPlanningFriend\(uid\)/)
   assert.doesNotMatch(academic, /memberIds|jointPlans/)
   assert.match(rules, /allow list: if false;/)
@@ -334,6 +342,7 @@ test('owner deletion drains all subject pages before deleting the parent, preser
   await api.deleteJointPlan('alice', id)
   assert.equal([...records.keys()].some((key) => key.startsWith(`jointPlans/${id}`)), false)
   assert.equal(records.has('users/alice/careers/other'), true)
+  assert.deepEqual(Object.keys(records.get(`jointPlanTombstones/${id}`)), ['deletedAt'])
 })
 
 test('interrupted deletion retains a locked parent and resumes without orphan documents', async () => {
@@ -344,11 +353,29 @@ test('interrupted deletion retains a locked parent and resumes without orphan do
   failBatch(2)
   await assert.rejects(api.deleteJointPlan('alice', id))
   assert.equal(records.get(`jointPlans/${id}`).deleting, true)
+  assert.equal(records.has(`jointPlanTombstones/${id}`), false)
   assert.equal([...records.keys()].filter((key) => key.includes('/subjects/')).length, 101)
   await assert.rejects(api.saveJointSubject('alice', id, 'A', ['alice', 'bob']))
   failBatch(0)
   await api.deleteJointPlan('alice', id)
-  assert.equal(records.size, 0)
+  assert.equal(records.size, 1)
+  assert.ok(records.has(`jointPlanTombstones/${id}`))
+})
+
+test('failed finalization keeps the locked parent without a tombstone and can be retried', async () => {
+  const { api, records, failFinalization } = setup()
+  const id = await api.createJointPlan('alice', 'career', ['bob'])
+  records.set(`jointPlans/${id}/subjects/A`, { code: 'A' })
+  await api.closeJointPlan('alice', id)
+  failFinalization(true)
+  await assert.rejects(api.deleteJointPlan('alice', id), /unavailable/)
+  assert.equal(records.get(`jointPlans/${id}`).deleting, true)
+  assert.equal(records.has(`jointPlans/${id}/subjects/A`), false)
+  assert.equal(records.has(`jointPlanTombstones/${id}`), false)
+  failFinalization(false)
+  await api.deleteJointPlan('alice', id)
+  assert.equal(records.has(`jointPlans/${id}`), false)
+  assert.deepEqual(Object.keys(records.get(`jointPlanTombstones/${id}`)), ['deletedAt'])
 })
 
 test('legacy plans and courses can be read, renamed and edited without erasing existing memberships', async () => {

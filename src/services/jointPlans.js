@@ -105,7 +105,7 @@ export function subscribeJointPlans(uid, ownerId, onData, onError) {
       : snapshot.docs.map((item) => ({ ...item.data(), id: item.id }))), onError)
 }
 
-// Lock -> drain the known subcollection -> delete parent last. A failed drain is resumable.
+// Lock -> drain -> atomically reserve the ID and delete parent. A failed drain is resumable.
 export async function deleteJointPlan(uid, id) {
   const check = session(uid)
   const ref = doc(db, 'jointPlans', id)
@@ -129,6 +129,7 @@ export async function deleteJointPlan(uid, id) {
     check()
     if (!snapshot.exists()) return
     if (snapshot.data().ownerId !== uid || !snapshot.data().closed || !snapshot.data().deleting) throw new Error('El plan no está bloqueado para eliminar.')
+    tx.set(doc(db, 'jointPlanTombstones', id), { deletedAt: serverTimestamp() })
     tx.delete(ref)
   })
 }
