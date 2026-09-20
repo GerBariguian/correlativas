@@ -1,4 +1,6 @@
 import CareerSelector from './components/CareerSelector'
+import CareerProjectionPage from './components/CareerProjectionPage'
+import { Route } from 'lucide-react'
 import PlannerPage from './components/PlannerPage'
 import CareerMap from './components/CareerMap'
 import Header from './components/Header'
@@ -364,7 +366,14 @@ if (!hasChosenCareer) {
         >
           👥 Amigos
         </button>
+        <button className={activePage === 'projection' ? 'active' : ''} onClick={() => setActivePage('projection')}>
+          <Route size={18} aria-hidden="true" /> Proyectar carrera
+        </button>
       </nav>
+
+      {activePage === 'projection' && (
+        <CareerProjectionPage key={`${user.uid}:${activeCareerId}`} career={activeCareer} statusMap={statusMap} />
+      )}
 
       {activePage === 'amigos' && (
         <FriendsPage key={user.uid} user={user} socialProfile={socialProfile} careerId={activeCareerId} />
