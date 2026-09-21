@@ -1,5 +1,9 @@
 # Motor de proyección — v1.10.0, etapa 1
 
+La etapa posterior de [planificación de finales](career-projection-finals.md)
+habilita su editor y persistencia v2. Las secciones de UI de etapas anteriores
+describen su alcance histórico; el contrato de eventos de este documento está actualizado.
+
 La persistencia posterior de decisiones está documentada en
 [Persistencia privada](career-projection-persistence.md). El motor continúa puro;
 las referencias históricas a escenarios solo en memoria describen etapas previas.
@@ -65,9 +69,9 @@ El comando de edición lo rechaza y las selecciones manuales dirigidas a él son
 entrada inválida. La UI muestra «En curso» y no ofrece botones de edición.
 Sin Cursando iniciales, el primer período permanece planificable.
 
-Un evento imposible se informa y detiene el recorrido con `invalid-event`.
-Los eventos válidos del mismo cierre quedan identificados en el resultado parcial.
-No se realizan reintentos automáticos de finales rechazados.
+Un final imposible conserva su intención y recibe diagnóstico individual; no
+detiene el recorrido ni otros eventos. No se reintenta automáticamente en otro
+período. Los eventos elegibles suponen aprobación solo dentro de la simulación.
 
 ## Grafo y ranking
 
@@ -117,8 +121,8 @@ Una duración inválida o una anual con inicio 2C es error de metadata, no se ig
 
 ## Salida y terminación
 
-`outcome`: complete, finals-pending, blocked, horizon, capacity-conflict,
-invalid-event o invalid. Incluye errors, periods, copia final statusMap, blockers,
+`outcome`: complete, finals-pending, blocked, horizon, capacity-conflict o invalid.
+Incluye errors, periods, copia final statusMap, blockers,
 eligiblePending, continuations, eventDiagnostics y summary. Un input inválido
 conserva el mapa original y no genera períodos.
 Cada período identifica started, continuing, completedCourses, approvedFinals,
@@ -130,20 +134,24 @@ rejectedFinals, ranking y su estado hipotético de cierre.
 solicitado, identificada por `eventIndex`, `code` y `period`:
 
 - `applied`: aprobación aplicada al cierre solicitado (`APPROVED_AT_PLANNED_CLOSE`).
-- `blocked`: cierre evaluado sin poder rendir (`FINAL_NOT_AVAILABLE`), con
+- `blocked`: cierre evaluado sin poder rendir (`NOT_REGULARIZED` o `FINAL_REQUIREMENTS`), con
   `subjectStatus` y `missingApproved`. La materia debe estar Regularizada además
-  de satisfacer los requisitos de aprobación. También se incluye en `errors`.
+  de satisfacer los requisitos de aprobación. No se convierte en error fatal.
 - `not-reached`: no se evaluó ese cierre. `OUTSIDE_HORIZON` indica un evento fuera
   del horizonte configurado; `STOPPED_*` identifica otra terminación anticipada
-  (por ejemplo `STOPPED_INVALID_EVENT`, `STOPPED_CAPACITY_CONFLICT` o
+  (por ejemplo `STOPPED_CAPACITY_CONFLICT` o
   `STOPPED_COMPLETE`). No afirma que el final estuviera académicamente bloqueado.
 - `invalid`: la entrada global no permite simular (`INVALID_INPUT`); `errors`
   detalla la validación fallida. Todos los eventos quedan sin ejecución. Si
   `finalEvents` no es un array, se informa el error de lista y no hay entradas.
+- `invalid` individual: `UNKNOWN_FINAL_CODE`, `NON_CALENDAR_ACTIVITY` o
+  `BEFORE_START`; no impide simular los demás eventos válidos.
+- `obsolete`: materia Aprobada en el progreso real (`ALREADY_APPROVED_REAL`).
+  Se conserva sin ejecución; una reversión real reevalúa la misma intención.
 
 La UI debe consultar esta lista, no deducir ejecución exitosa de `errors: []`.
-No se mueven eventos, no se reintentan ni se inventan aprobaciones. Un rechazo
-detiene la simulación como antes; los eventos posteriores quedan `not-reached`.
+No se mueven eventos ni se reintentan. Solo los eventos elegibles simulan una
+aprobación; nunca escriben el progreso real. Un rechazo permite continuar.
 
 ### Clasificación de cursadas (etapa 1.2)
 

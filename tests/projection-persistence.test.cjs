@@ -43,12 +43,42 @@ test('persistence round-trip preserves manual empty periods and excludes all der
   const data={ schemaVersion:1,careerId:'career',revisionToken:'abcdefghijklmnop',scenario:s,updatedAt:{toMillis:()=>1} }
   assert.deepEqual(plain(context.decodeProjection(data,'career').scenario),s)
   for (const field of ['statusMap','timeline','sharing','result']) assert.throws(()=>context.decodeProjection({...data,[field]:{}},'career'))
-  assert.throws(()=>context.decodeProjection({...data,schemaVersion:2},'career'), /INCOMPATIBLE/)
+  assert.throws(()=>context.decodeProjection({...data,schemaVersion:3},'career'), /INCOMPATIBLE/)
   assert.throws(()=>context.decodeProjection(data,'other'))
   assert.throws(()=>context.normalizeProjectionScenario({...s,finalEvents:[{code:'A'}]}))
   assert.throws(()=>context.normalizeProjectionScenario({...s,manualPeriods:[{period:s.startPeriod,codes:['A','A']}]}))
   // Removed catalog codes and past placements remain decisions; the engine diagnoses them.
   assert.equal(context.normalizeProjectionScenario({...s,manualPeriods:[{period:{year:2020,term:'1C'},codes:['REMOVED']}]}).manualPeriods.length,1)
+})
+
+test('v2 final codec round-trip is canonical, rejects duplicates/formats, and v1 remains readable without migration writes', async () => {
+  const s=scenario(); s.finalEvents=[{code:'B',period:{year:2028,term:'2C'}},{code:'A._-9',period:{year:1,term:'1C'}}]
+  const wire=context.encodeProjectionScenario(s)
+  assert.deepEqual(plain(wire.finalEvents),['A._-9@0001:1C','B@2028:2C'])
+  const doc={schemaVersion:2,careerId:'c',revisionToken:'revision-token-123',updatedAt:{toMillis:()=>1},scenario:wire}
+  assert.deepEqual(plain(context.decodeProjection(doc,'c').scenario),plain(context.normalizeProjectionScenario(s)))
+  const decoded=context.decodeProjection(doc,'c'); const f=fixture(decoded); await f.controller.load(); assert.equal(f.count(),0)
+  f.controller.change({...s,finalEvents:[...s.finalEvents].reverse()}); await f.advance(); assert.equal(f.count(),0)
+  for(const value of ['A@0000:1C','A@2027:3C','A@27:1C','A@2027:1C|B@2027:2C',{},null])
+    assert.throws(()=>context.decodeProjection({...doc,scenario:{...wire,finalEvents:[value]}},'c'))
+  assert.throws(()=>context.decodeProjection({...doc,scenario:{...wire,finalEvents:['A@2027:1C','A@2028:2C']}},'c'))
+  assert.throws(()=>context.decodeProjection({...doc,schemaVersion:1},'c'))
+})
+
+test('final intentions autosave, reload, conflict and reset through the existing coordinator without persisting results', async () => {
+  const f=fixture(); await f.controller.load(); f.controller.change(scenario()); await tick()
+  const next=scenario(); next.finalEvents=[{code:'A',period:{year:2027,term:'2C'}}]
+  f.controller.change(next); await f.advance()
+  assert.deepEqual(f.remote().scenario.finalEvents,next.finalEvents)
+  const reloaded=context.createProjectionController(f.repo,()=>{},f.clock); await reloaded.load()
+  assert.deepEqual(plain(reloaded.getState().scenario.finalEvents),next.finalEvents)
+  assert.equal(f.count(),2)
+  const changed=plain(next); changed.finalEvents[0].period.year=2028
+  reloaded.change(changed); await f.advance()
+  f.controller.change({...next,finalEvents:[]}); await f.advance()
+  assert.equal(f.controller.getState().phase,'conflict')
+  assert.equal(f.remote().scenario.finalEvents[0].period.year,2028)
+  await reloaded.reset(); assert.equal(f.remote(),null)
 })
 
 test('default timer adapter preserves browser global receiver for scheduling and cancellation', async () => {
@@ -240,8 +270,18 @@ test('actual repository uses exact private path, transaction revision and sessio
   vm.runInContext(clean(read('src/services/careerProjections.js')),api)
   const repo=api.projectionRepository('a','career'),other=api.projectionRepository('a','other')
   assert.equal(await repo.load(),null)
-  const rev=await repo.save(scenario(),null)
+  const legacy={schemaVersion:1,careerId:'career',revisionToken:'legacy-token-123456',scenario:scenario(),updatedAt:{toMillis:()=>1}}
+  store.set('users/a/careerProjections/career',legacy)
+  const controller=context.createProjectionController(repo)
+  await controller.load()
+  assert.equal(store.get('users/a/careerProjections/career'),legacy)
+  assert.equal(token,0)
+  const withFinal=scenario(); withFinal.finalEvents=[{code:'A',period:{year:2027,term:'2C'}}]
+  const rev=await repo.save(withFinal,legacy.revisionToken)
   assert.equal(store.size,1); assert.ok(store.has('users/a/careerProjections/career'))
+  assert.equal(store.get('users/a/careerProjections/career').schemaVersion,2)
+  assert.deepEqual(plain(store.get('users/a/careerProjections/career').scenario.finalEvents),['A@2027:2C'])
+  assert.deepEqual(plain((await repo.load()).scenario.finalEvents),withFinal.finalEvents)
   await assert.rejects(repo.save(scenario(7),null),/CONFLICT/)
   await other.save(scenario(9),null); assert.equal(store.size,2)
   assert.equal((await repo.load()).scenario.initialCapacity,4)

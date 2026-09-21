@@ -69,6 +69,10 @@
 .projection-picker li button { flex-shrink: 0; }
 .projection-page .projection-finals { display: block; padding: 16px 22px; }
 .projection-finals > summary { font-weight: 700; }
+.projection-finals label { display: grid; gap: 6px; min-width: 0; }
+.projection-finals select { width: 100%; min-width: 0; }
+.projection-finals .projection-action { justify-self: start; }
+.projection-period-finals { margin-top: 8px; font-size: .9rem; color: var(--muted); }
 .projection-setup { margin-top: 12px; }
 .projection-load-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .projection-load-controls input[type="number"] { width: 82px; text-align: center; appearance: textfield; -moz-appearance: textfield; }

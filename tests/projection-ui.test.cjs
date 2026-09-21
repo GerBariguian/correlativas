@@ -25,8 +25,10 @@ function harness(input, confirm = () => false) {
   for (const file of ['src/logic.js', 'src/projectionLogic.js']) vm.runInContext(clean(source(file)), api)
   const engine = api.projectCareer
   api.projectCareer = input => { calls++; return engine(input) }
-  vm.runInContext(transformSync('page.jsx', clean(source('src/components/CareerProjectionPage.jsx')),
-    { jsx: { runtime: 'classic', pragma: 'h', pragmaFrag: 'Fragment' } }).code, api)
+  for (const file of ['src/components/FinalPlanningPanel.jsx', 'src/components/CareerProjectionPage.jsx']) {
+    vm.runInContext(transformSync(file, clean(source(file)),
+      { jsx: { runtime: 'classic', pragma: 'h', pragmaFrag: 'Fragment' } }).code, api)
+  }
   const render = () => { cursor = 0; return api.CareerProjectionPage(input) }
   const nodes = node => node && typeof node === 'object' ? [node, ...(node.children || []).flatMap(nodes)] : []
   const text = node => node && typeof node === 'object' ? (node.children || []).map(text).join(' ').replace(/\s+/g, ' ').trim() : typeof node === 'string' || typeof node === 'number' ? String(node) : ''
@@ -67,6 +69,80 @@ function persistedInput(subjects, statusMap = {}, scenario = null) {
   return { input, changes, resets }
 }
 const savedScenario = () => ({ startPeriod: { year: 2027, term: '1C' }, initialCapacity: 4, maxPeriods: 40, capacities: [], manualPeriods: [], finalEvents: [] })
+const editFinal = (h, name) => h.nodes(h.render()).find(n => n.props['aria-label'] === `Planificar final de ${name}`).props.onClick()
+const finalSelect = (h, name) => h.nodes(h.render()).find(n => n.props['aria-label'] === `Período del final de ${name}`)
+
+test('real pending final editor saves only intention and hypothetical approval unlocks next-period course', () => {
+  const s=savedScenario(); s.maxPeriods=4
+  const {input,changes}=persistedInput([subject('A'),subject('B',{approvedPrereqs:['A']})],Object.freeze({A:'Regularizada'}),s)
+  const h=harness(input); assert.match(h.text(h.render()),/Final pendiente real/)
+  editFinal(h,'Materia A'); const select=finalSelect(h,'Materia A')
+  assert.equal(select.children.find(n=>n?.props?.value==='2027:1C').props.disabled,false)
+  select.props.onChange({target:{value:'2027:1C'}})
+  assert.equal(changes.length,1); assert.equal(changes[0].finalEvents[0].code,'A')
+  const text=h.text(h.render())
+  assert.match(text,/Final planificado/); assert.match(text,/Finales planificados: 1/)
+  assert.match(text,/Aprobación supuesta/); assert.equal(input.statusMap.A,'Regularizada')
+  assert.match(text,/2C 2027/)
+  finalSelect(h,'Materia A').props.onChange({target:{value:''}})
+  assert.equal(changes.length,2); assert.equal(changes[1].finalEvents.length,0)
+})
+
+test('future annual final selector disables first close, enables second and labels academic completion conditionally', () => {
+  const s=savedScenario(); s.maxPeriods=4
+  const {input,changes}=persistedInput([subject('AN',{durationPeriods:2,allowedStartTerms:['1C']})],Object.freeze({}),s)
+  const h=harness(input); assert.match(h.text(h.render()),/Final futuro/)
+  editFinal(h,'Materia AN'); const select=finalSelect(h,'Materia AN')
+  assert.equal(select.children.find(n=>n?.props?.value==='2027:1C').props.disabled,true)
+  assert.equal(select.children.find(n=>n?.props?.value==='2027:2C').props.disabled,false)
+  select.props.onChange({target:{value:'2027:1C'}}); assert.equal(changes.length,0)
+  select.props.onChange({target:{value:'2027:2C'}})
+  const text=h.text(h.render())
+  assert.match(text,/Finalización académica estimada: 2C 2027, si aprobás los finales planificados/)
+  assert.doesNotMatch(text,/¡Carrera completada!|Carrera ya completada|Al cierre: Aprobada/)
+  assert.ok(h.nodes(h.render()).some(n=>n.props['aria-label']==='Planificar final de Materia AN'))
+})
+
+test('actual approval and reversal reevaluate preserved final without invoking autosave', () => {
+  const s=savedScenario(); s.finalEvents=[{code:'A',period:s.startPeriod}]
+  const {input,changes}=persistedInput([subject('A')],{A:'Regularizada'},s),h=harness(input)
+  assert.match(h.text(h.render()),/Final planificado/)
+  input.statusMap=Object.freeze({A:'Aprobada'})
+  assert.match(h.text(h.render()),/Ya aprobado en tu progreso/)
+  assert.match(h.text(h.render()),/Intención inactiva/)
+  assert.match(h.text(h.render()),/¡Carrera completada!/)
+  input.statusMap=Object.freeze({A:'Regularizada'})
+  assert.match(h.text(h.render()),/Final planificado/)
+  assert.equal(changes.length,0); assert.equal(input.persistence.scenario.finalEvents.length,1)
+})
+
+test('general finals editor retains removed, out-of-horizon and blocked events with explicit removal', () => {
+  const s=savedScenario(); s.maxPeriods=2
+  s.finalEvents=[{code:'GONE',period:s.startPeriod},{code:'A',period:{year:2030,term:'1C'}},{code:'B',period:s.startPeriod}]
+  const {input,changes}=persistedInput([subject('A'),subject('B',{finalPrereqs:['A']})],{A:'Regularizada',B:'Regularizada'},s)
+  const h=harness(input),text=h.text(h.render())
+  assert.match(text,/Requiere revisión/); assert.match(text,/ya no está en el catálogo/)
+  assert.match(text,/fuera del horizonte/); assert.match(text,/Falta aprobar: Materia A/)
+  editFinal(h,'GONE'); finalSelect(h,'GONE').props.onChange({target:{value:''}})
+  assert.equal(changes.length,1); assert.equal(changes[0].finalEvents.length,2)
+})
+
+test('moving a projected course leaves its final in place with review diagnostic', () => {
+  const s=savedScenario(); s.finalEvents=[{code:'A',period:s.startPeriod}]
+  const {input,changes}=persistedInput([subject('A')],{},s),h=harness(input)
+  h.edit('Quitar','A','1C 2027')
+  assert.equal(changes.length,1); assert.equal(changes[0].finalEvents[0].period.year,2027)
+  assert.match(h.text(h.render()),/Requiere revisión/)
+  assert.match(h.text(h.render()),/Todavía no estaría regularizada/)
+})
+
+test('non-calendar activity never appears as a new final candidate or receives a fictional completion', () => {
+  const s=savedScenario()
+  const {input}=persistedInput([subject('A'),subject('PPS',{projectionKind:'activity'})],{},s),h=harness(input)
+  const tree=h.render()
+  assert.ok(!h.nodes(tree).some(n=>n.props['aria-label']==='Planificar final de Materia PPS'))
+  assert.match(h.text(tree),/Finalización pendiente de finales y acreditaciones/)
+})
 test('persisted UI keeps initial drafts local, generates once, and never autosaves on render or academic recalculation', () => {
   const {input,changes} = persistedInput([subject('A'),subject('B')])
   const h = harness(input); h.start(2027); h.load(3); h.render()

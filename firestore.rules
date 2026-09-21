@@ -43,13 +43,23 @@ service cloud.firestore {
       match /careerProjections/{careerId} {
         allow get, delete: if signedIn() && request.auth.uid == uid;
         allow list: if false;
-        allow create, update: if signedIn() && request.auth.uid == uid && validProjection();
+        allow create: if signedIn() && request.auth.uid == uid && validProjection();
+        allow update: if signedIn() && request.auth.uid == uid && validProjection()
+          && request.resource.data.schemaVersion >= resource.data.schemaVersion;
+        function validFinalEvents(events, version) {
+          return events is list && events.size() <= 1000 && (events.size() == 0
+            || (version == 2
+              && events.join('|').split('[|]') == events
+              && events.join('|').matches('^[A-Za-z0-9._-]{1,32}@[0-9]{4}:(1C|2C)([|][A-Za-z0-9._-]{1,32}@[0-9]{4}:(1C|2C))*$')
+              && !events.join('|').matches('.*@0000:.*')
+              && events.join('|').replace('@[0-9]{4}:(1C|2C)', '').split('[|]').toSet().size() == events.size()));
+        }
         function validProjection() {
           let d = request.resource.data;
           let s = d.scenario;
           return d.keys().hasAll(['schemaVersion', 'careerId', 'revisionToken', 'scenario', 'updatedAt'])
             && d.keys().hasOnly(['schemaVersion', 'careerId', 'revisionToken', 'scenario', 'updatedAt'])
-            && d.schemaVersion == 1 && d.careerId == careerId
+            && d.schemaVersion is int && d.schemaVersion in [1, 2] && d.careerId == careerId
             && careerId.size() > 0 && careerId.size() <= 100
             && d.revisionToken is string && d.revisionToken.matches('^[A-Za-z0-9_-]{16,100}$')
             && d.updatedAt == request.time
@@ -64,7 +74,7 @@ service cloud.firestore {
             && s.maxPeriods is int && s.maxPeriods >= 1 && s.maxPeriods <= 40
             && s.capacities is list && s.capacities.size() <= 40
             && s.manualPeriods is list && s.manualPeriods.size() <= 40
-            && s.finalEvents is list && s.finalEvents.size() == 0;
+            && validFinalEvents(s.finalEvents, d.schemaVersion);
         }
       }
     }

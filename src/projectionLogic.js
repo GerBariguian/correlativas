@@ -120,11 +120,11 @@ export function validateProjectionInputs({ career, statusMap, scenario } = {}) {
     if (scenario[field] !== undefined && !Array.isArray(scenario[field])) { fail('INVALID_SCENARIO_LIST', field); continue }
     const seen = new Set()
     for (const item of scenario[field] ?? []) {
-      if (!item || !validPeriod(item.period) || comparePeriods(item.period, scenario.startPeriod) < 0) { fail('INVALID_EVENT_PERIOD', field); continue }
+      if (!item || !validPeriod(item.period) || (field === 'capacities' && comparePeriods(item.period, scenario.startPeriod) < 0)) { fail('INVALID_EVENT_PERIOD', field); continue }
       const key = field === 'capacities' ? periodIndex(item.period) : item.code
       if (seen.has(key)) fail('DUPLICATE_SCENARIO_ENTRY', field)
       seen.add(key)
-      if (field === 'capacities' ? !validCapacity(item.capacity) : !codes.has(item.code)) fail('INVALID_SCENARIO_ENTRY', field)
+      if (field === 'capacities' ? !validCapacity(item.capacity) : typeof item.code !== 'string' || !item.code) fail('INVALID_SCENARIO_ENTRY', field)
     }
   }
   if (scenario.manualPeriods !== undefined && !Array.isArray(scenario.manualPeriods)) fail('INVALID_MANUAL_PERIODS')
@@ -189,7 +189,7 @@ export function applyPlannedEvents(subjects, statusMap, events, period) {
   for (const event of events.filter(e => comparePeriods(e.period, period) === 0)) {
     const subject = subjects.find(s => s.code === event.code)
     if (!subject || !isCourse(subject) || getStatus(statusMap, event.code) !== 'Regularizada' || !canTakeFinal(subject, statusMap, subjects)) {
-      rejected.push({ code: event.code, period: { ...event.period }, reason: 'FINAL_NOT_AVAILABLE',
+      rejected.push({ code: event.code, period: { ...event.period }, reason: getStatus(statusMap, event.code) !== 'Regularizada' ? 'NOT_REGULARIZED' : 'FINAL_REQUIREMENTS',
         subjectStatus: getStatus(statusMap, event.code), missingApproved: subject ? missingFinalPrereqs(subject, statusMap, subjects) : [] })
     } else { next[event.code] = 'Aprobada'; applied.push(event.code) }
   }
@@ -224,6 +224,14 @@ export function projectCareer(input) {
     blockers: [], eligiblePending: [], continuations: [], placementDiagnostics: placementDiagnostics.map(d => ({ ...d, status: 'invalid', reason: 'INVALID_INPUT' })),
     eventDiagnostics: eventDiagnostics.map(e => ({ ...e, status: 'invalid', reason: 'INVALID_INPUT' })) }
   const { subjects } = career, graph = buildRequirementGraph(subjects), periods = [], active = new Map()
+  for (const diagnostic of eventDiagnostics) {
+    const subject = subjects.find(s => s.code === diagnostic.code)
+    const reason = !subject ? 'UNKNOWN_FINAL_CODE' : !isCourse(subject) ? 'NON_CALENDAR_ACTIVITY'
+      : getStatus(input.statusMap, subject.code) === 'Aprobada' ? 'ALREADY_APPROVED_REAL'
+        : comparePeriods(diagnostic.period, scenario.startPeriod) < 0 ? 'BEFORE_START' : null
+    if (reason) Object.assign(diagnostic, { status: reason === 'ALREADY_APPROVED_REAL' ? 'obsolete' : 'invalid', reason })
+  }
+  const activeFinalEvents = eventDiagnostics.filter(e => e.status === 'not-reached').map(e => ({ code: e.code, period: e.period }))
   const capacityAt = period => scenario.capacities?.find(c => comparePeriods(c.period, period) === 0)?.capacity ?? scenario.initialCapacity
   const manualAt = period => scenario.manualPeriods?.find(m => comparePeriods(m.period, period) === 0)
   const reserved = new Set(placementDiagnostics.map(d => d.code))
@@ -275,8 +283,8 @@ export function projectCareer(input) {
     for (const [code, end] of active) if (end === periodIndex(period)) {
       next[code] = 'Regularizada'; completedCourses.push(code); active.delete(code)
     }
-    const finals = applyPlannedEvents(subjects, next, scenario.finalEvents ?? [], period)
-    for (const diagnostic of eventDiagnostics.filter(e => comparePeriods(e.period, period) === 0)) {
+    const finals = applyPlannedEvents(subjects, next, activeFinalEvents, period)
+    for (const diagnostic of eventDiagnostics.filter(e => e.status === 'not-reached' && comparePeriods(e.period, period) === 0)) {
       const rejection = finals.rejected.find(e => e.code === diagnostic.code)
       Object.assign(diagnostic, rejection ? { ...rejection, status: 'blocked' }
         : { status: 'applied', reason: 'APPROVED_AT_PLANNED_CLOSE', missingApproved: [] })
@@ -287,10 +295,9 @@ export function projectCareer(input) {
       blockers: periodBlockers,
       addCandidates: readOnly ? [] : ranked.filter(c => !started.includes(c.code) && !temporalReason(subjects.find(s => s.code === c.code))).map(c => c.code),
       statusMap: { ...statusMap } })
-    if (finals.rejected.length) { outcome = 'invalid-event'; errors.push(...finals.rejected); break }
     const summary = summarizeProjection(subjects, statusMap, periods)
     if (summary.academicComplete) { outcome = 'complete'; break }
-    const futureFinal = (scenario.finalEvents ?? []).some(e => comparePeriods(e.period, period) > 0)
+    const futureFinal = activeFinalEvents.some(e => comparePeriods(e.period, period) > 0)
       || placementDiagnostics.some(e => comparePeriods(e.period, period) > 0)
     if (summary.coursesComplete && !futureFinal) { outcome = 'finals-pending'; break }
     if (!started.length && !completedCourses.length && !finals.applied.length && !active.size && !futureFinal) {
@@ -323,6 +330,50 @@ export function projectCareer(input) {
     expectedCompletion: { year: Math.floor(end / 2), term: end % 2 ? '2C' : '1C' } }))
   return { outcome, errors, periods, statusMap, blockers, eligiblePending, continuations, eventDiagnostics, placementDiagnostics,
     summary: summarizeProjection(subjects, statusMap, periods) }
+}
+
+// Editor data is derived here, never by duplicating academic rules in React.
+export function getFinalPlanningRows(input, result = projectCareer(input)) {
+  const { career, statusMap, scenario } = input
+  const events = scenario.finalEvents ?? []
+  const completed = new Set(result.periods.flatMap(p => p.completedCourses))
+  const relevant = new Set(events.map(e => e.code))
+  for (const subject of career.subjects) if (isCourse(subject)
+    && (getStatus(statusMap, subject.code) === 'Regularizada' || completed.has(subject.code))) relevant.add(subject.code)
+  return [...relevant].sort(compareCode).map(code => {
+    const subject = career.subjects.find(s => s.code === code)
+    return { code, name: subject?.name ?? code,
+      origin: getStatus(statusMap, code) === 'Aprobada' ? 'approved-real'
+        : getStatus(statusMap, code) === 'Regularizada' ? 'pending-real' : 'future',
+      event: events.find(e => e.code === code) ?? null,
+      diagnostic: result.eventDiagnostics.find(e => e.code === code) ?? null,
+      plannable: Boolean(subject && isCourse(subject) && getStatus(statusMap, code) !== 'Aprobada'),
+      missingApproved: subject ? missingFinalPrereqs(subject, result.statusMap, career.subjects) : [],
+    }
+  })
+}
+
+export function getFinalPeriodOptions(input, code) {
+  const options = []
+  if (!validPeriod(input.scenario?.startPeriod)) return options
+  for (let i = 0; i < (input.scenario.maxPeriods ?? 40); i++) {
+    const period = advancePeriod(input.scenario.startPeriod, i)
+    const scenario = { ...input.scenario, finalEvents: [
+      ...(input.scenario.finalEvents ?? []).filter(e => e.code !== code), { code, period },
+    ] }
+    const result = projectCareer({ ...input, scenario })
+    const diagnostic = result.eventDiagnostics.find(e => e.code === code)
+    options.push({ period, eligible: diagnostic?.status === 'applied', diagnostic })
+  }
+  return options
+}
+
+export function editPlannedFinal(input, code, period) {
+  const events = (input.scenario.finalEvents ?? []).filter(e => e.code !== code)
+  if (period === null) return { ...input.scenario, finalEvents: events }
+  const scenario = { ...input.scenario, finalEvents: [...events, { code, period: { ...period } }].sort((a, b) => compareCode(a.code, b.code)) }
+  const diagnostic = projectCareer({ ...input, scenario }).eventDiagnostics.find(e => e.code === code)
+  return diagnostic?.status === 'applied' ? scenario : input.scenario
 }
 
 // UI commands edit a scenario, never academic progress. Choices come from the

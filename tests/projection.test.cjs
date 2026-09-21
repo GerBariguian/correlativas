@@ -15,6 +15,78 @@ const s = (code, extra = {}) => ({ code, name: code, prereqs: [], ...extra })
 const input = (subjects, statusMap = {}, extra = {}) => ({ career: { id: 'test', plan: '1', subjects }, statusMap,
   scenario: { startPeriod: p(2027), initialCapacity: 1, ...extra } })
 const event = (code, year, term = '1C') => ({ code, period: p(year, term) })
+
+for (const career of require('./projection-catalogs.cjs')()) {
+  test(`final planner regression with real catalog: ${career.id}`, () => {
+    const data={career,statusMap:career.initialStatus,scenario:{startPeriod:p(2027),initialCapacity:4,maxPeriods:40,finalEvents:[]}}
+    const before=JSON.stringify(data), base=project(data)
+    const rows=plain(context.getFinalPlanningRows(data,base))
+    assert.ok(rows.length>0)
+    const row=rows.find(r=>r.plannable && !r.missingApproved.length)
+    assert.ok(row, 'at least one projected exam with satisfied prerequisites')
+    const option=plain(context.getFinalPeriodOptions(data,row.code)).find(o=>o.eligible)
+    assert.ok(option)
+    const scenario=plain(context.editPlannedFinal(data,row.code,option.period))
+    const result=project({...data,scenario})
+    assert.deepEqual(result.errors,[])
+    assert.equal(result.eventDiagnostics[0].status,'applied')
+    assert.equal(JSON.stringify(data),before)
+  })
+}
+
+test('blocked final does not stop independent finals or later courses and never retries itself', () => {
+  const data = input([s('A'), s('B', { finalPrereqs:['A'] }), s('C'), s('D',{approvedPrereqs:['C']})],
+    {A:'Regularizada',B:'Regularizada',C:'Regularizada'}, {finalEvents:[event('B',2027),event('C',2027),event('A',2027,'2C')]})
+  const before=JSON.stringify(data), r=project(data)
+  assert.deepEqual(r.eventDiagnostics.map(e=>e.status),['blocked','applied','applied'])
+  assert.ok(r.periods[1].started.includes('D')); assert.equal(r.statusMap.B,'Regularizada')
+  assert.equal(JSON.stringify(data),before)
+})
+test('real approval makes an event inactive and reversal reevaluates the same preserved intent', () => {
+  const data=input([s('A')],{A:'Aprobada'},{finalEvents:[event('A',2027)]})
+  assert.equal(project(data).eventDiagnostics[0].status,'obsolete')
+  data.statusMap={A:'Regularizada'}
+  assert.equal(project(data).eventDiagnostics[0].status,'applied')
+  assert.equal(data.statusMap.A,'Regularizada'); assert.equal(data.scenario.finalEvents.length,1)
+})
+test('removed codes, activities and past events receive individual diagnostics without invalidating other finals', () => {
+  const data=input([s('A'),s('B'),s('PPS',{projectionKind:'activity'})],{A:'Regularizada'},
+    {finalEvents:[event('GONE',2027),event('PPS',2027),event('B',2026),event('A',2027)]})
+  const r=project(data)
+  assert.deepEqual(r.errors,[])
+  assert.deepEqual(r.eventDiagnostics.map(e=>e.reason),['UNKNOWN_FINAL_CODE','NON_CALENDAR_ACTIVITY','BEFORE_START','APPROVED_AT_PLANNED_CLOSE'])
+  assert.equal(r.summary.estimatedAcademicEnd,null)
+})
+test('annual final options use second close even with start restriction; planning commands reject early exams', () => {
+  const data=input([s('AN',{durationPeriods:2,allowedStartTerms:['1C']})],{}, {maxPeriods:4})
+  const options=plain(context.getFinalPeriodOptions(data,'AN'))
+  assert.deepEqual(options.map(o=>o.eligible),[false,true,true,true])
+  assert.equal(context.editPlannedFinal(data,'AN',p(2027)),data.scenario)
+  data.scenario=plain(context.editPlannedFinal(data,'AN',p(2027,'2C')))
+  const result=project(data)
+  assert.equal(result.eventDiagnostics[0].status,'applied')
+  assert.equal(plain(context.getFinalPlanningRows(data,result))[0].origin,'future')
+  assert.equal(plain(context.getFinalPlanningRows(data,result))[0].event.code,'AN')
+})
+test('course movement and capacity changes preserve but invalidate a previously eligible exam', () => {
+  const data=input([s('A')],{}, {finalEvents:[event('A',2027)]})
+  assert.equal(project(data).eventDiagnostics[0].status,'applied')
+  data.scenario.manualPeriods=[{period:p(2027),codes:[]},{period:p(2028),codes:['A']}]
+  const moved=project(data)
+  assert.equal(moved.eventDiagnostics[0].reason,'NOT_REGULARIZED')
+  assert.equal(moved.statusMap.A,'Regularizada')
+  delete data.scenario.manualPeriods; data.scenario.capacities=[{period:p(2027),capacity:0}]
+  assert.equal(project(data).eventDiagnostics[0].reason,'NOT_REGULARIZED')
+})
+test('many independent finals share a close without consuming capacity or depending on array order', () => {
+  const subjects=Array.from({length:20},(_,i)=>s(`S${i}`))
+  const status=Object.fromEntries(subjects.map(s=>[s.code,'Regularizada']))
+  const finals=subjects.map(s=>event(s.code,2027))
+  for(const events of [finals,[...finals].reverse()]) {
+    const r=project(input(subjects,status,{initialCapacity:0,finalEvents:events}))
+    assert.equal(r.periods[0].approvedFinals.length,20); assert.equal(r.periods[0].started.length,0)
+  }
+})
 test('period helpers advance and compare across years, reject invalid input', () => {
   assert.deepEqual(plain(context.advancePeriod(p(2027, '2C'))), p(2028))
   assert.equal(context.comparePeriods(p(2027), p(2027, '2C')), -1)
@@ -51,8 +123,8 @@ test('final can follow its own completed cursada at close, with valid requiremen
 test('same-close final chains are rejected independent of event array order', () => {
   for (const finalEvents of [[event('A', 2027), event('B', 2027)], [event('B', 2027), event('A', 2027)]]) {
     const result = project(input([s('A'), s('B', { prereqs: ['A'] })], { A: 'Regularizada', B: 'Regularizada' }, { finalEvents }))
-    assert.equal(result.outcome, 'invalid-event'); assert.equal(result.statusMap.B, 'Regularizada')
-    assert.deepEqual(result.errors[0].missingApproved, ['A'])
+    assert.equal(result.outcome, 'finals-pending'); assert.equal(result.statusMap.B, 'Regularizada')
+    assert.deepEqual(result.eventDiagnostics.find(e => e.code === 'B').missingApproved, ['A'])
   }
 })
 test('capacities vary by structured period and zero capacity can wait for a future slot', () => {
@@ -83,8 +155,8 @@ test('ALL expands with existing exclusions and own-course requirement remains', 
   const result = project(input(subjects, { A: 'Aprobada', P: 'Regularizada' }, { initialCapacity: 0, finalEvents: [event('P', 2027)] }))
   assert.equal(result.statusMap.P, 'Aprobada')
   const blocked = project(input(subjects, { A: 'Regularizada', P: 'Regularizada' }, { finalEvents: [event('P', 2027)] }))
-  assert.equal(blocked.outcome, 'invalid-event')
-  assert.deepEqual(blocked.errors[0].missingApproved, ['A'])
+  assert.equal(blocked.outcome, 'finals-pending')
+  assert.deepEqual(blocked.eventDiagnostics[0].missingApproved, ['A'])
 })
 test('empty periods reach a relevant future exam instead of premature termination', () => {
   const result = project(input([s('A'), s('B', { approvedPrereqs: ['A'] })], { A: 'Regularizada' },
@@ -95,7 +167,7 @@ test('empty periods reach a relevant future exam instead of premature terminatio
 test('definitive block, invalid final and maximum horizon terminate', () => {
   const subjects = [s('A'), s('B', { approvedPrereqs: ['A'] })]
   assert.equal(project(input(subjects, { A: 'Regularizada' })).periods.length, 1)
-  assert.equal(project(input(subjects, { A: 'Regularizada' }, { finalEvents: [event('B', 2030)] })).outcome, 'invalid-event')
+  assert.equal(project(input(subjects, { A: 'Regularizada' }, { finalEvents: [event('B', 2030)] })).eventDiagnostics[0].status, 'blocked')
   const result = project(input(subjects, { A: 'Regularizada' }, { maxPeriods: 2, finalEvents: [event('A', 2029)] }))
   assert.equal(result.outcome, 'horizon'); assert.equal(result.periods.length, 2)
 })
@@ -213,9 +285,9 @@ test('future blocked event is evaluated at its requested close with missing appr
     { finalEvents: [event('B', 2027, '2C')] }))
   assert.equal(result.periods.length, 2)
   assert.deepEqual(result.eventDiagnostics, [{ eventIndex: 0, code: 'B', period: p(2027, '2C'),
-    status: 'blocked', reason: 'FINAL_NOT_AVAILABLE', subjectStatus: 'Regularizada', missingApproved: ['A'] }])
+    status: 'blocked', reason: 'FINAL_REQUIREMENTS', subjectStatus: 'Regularizada', missingApproved: ['A'] }])
   assert.equal(result.statusMap.B, 'Regularizada')
-  assert.equal(result.errors.length, 1)
+  assert.equal(result.errors.length, 0)
 })
 
 test('every event is diagnosed, including applied, horizon, invalid input and early stop', () => {
@@ -228,10 +300,10 @@ test('every event is diagnosed, including applied, horizon, invalid input and ea
   assert.deepEqual(invalid.eventDiagnostics.map(e => e.status), ['invalid', 'invalid'])
   const stopped = project(input([s('A'), s('B', { prereqs: ['A'] })], { A: 'Regularizada', B: 'Regularizada' },
     { finalEvents: [event('B', 2027), event('A', 2028)] }))
-  assert.deepEqual(stopped.eventDiagnostics.map(e => e.status), ['blocked', 'not-reached'])
-  assert.equal(stopped.eventDiagnostics[1].reason, 'STOPPED_INVALID_EVENT')
+  assert.deepEqual(stopped.eventDiagnostics.map(e => e.status), ['blocked', 'applied'])
+  assert.equal(stopped.statusMap.B, 'Regularizada')
   const complete = project(input([s('A')], { A: 'Aprobada' }, { finalEvents: [event('A', 2028)] }))
-  assert.equal(complete.eventDiagnostics[0].reason, 'STOPPED_COMPLETE')
+  assert.equal(complete.eventDiagnostics[0].reason, 'ALREADY_APPROVED_REAL')
   const conflict = project(input([s('A')], { A: 'Cursando' }, { initialCapacity: 0, finalEvents: [event('A', 2027)] }))
   assert.equal(conflict.eventDiagnostics[0].status, 'applied')
 })

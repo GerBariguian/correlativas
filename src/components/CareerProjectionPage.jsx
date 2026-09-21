@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { projectCareer, getProjectionDuration, editProjectionPeriod } from '../projectionLogic'
+import FinalPlanningPanel from './FinalPlanningPanel'
 
 const periodLabel = p => p ? `${p.term} ${p.year}` : null
 const diagnosticText = {
@@ -32,18 +33,19 @@ const outcomeText = {
   'invalid-event': 'Una aprobación planificada no pudo realizarse.',
 }
 
-function ProjectionSummary({ summary, count }) {
+function ProjectionSummary({ summary, count, realComplete }) {
   return <section className="side-card projection-overview" aria-label="Resumen de proyección" aria-live="polite">
     <h3>Fin estimado de cursadas</h3>
     <strong>{periodLabel(summary.estimatedCourseEnd) || (summary.coursesComplete ? 'Cursadas ya completadas' : 'Sin determinar')}</strong>
-    <p>{summary.estimatedAcademicEnd ? `Finalización estimada: ${periodLabel(summary.estimatedAcademicEnd)}`
-      : summary.academicComplete ? 'Carrera ya completada' : summary.pendingActivities.length ? 'Finalización pendiente de finales y acreditaciones' : 'Finalización pendiente de planificar finales'}</p>
+    <p>{realComplete ? 'Carrera ya completada' : summary.estimatedAcademicEnd ? `Finalización académica estimada: ${periodLabel(summary.estimatedAcademicEnd)}, si aprobás los finales planificados.`
+      : summary.pendingActivities.length ? 'Finalización pendiente de finales y acreditaciones' : 'Finalización pendiente de planificar finales'}</p>
     <small className="projection-muted">Estimación basada en la planificación actual. · {count} cuatrimestres</small>
   </section>
 }
 
 function ProjectionSemester({ career, entry, result, onEdit }) {
   const nameOf = code => career.subjects.find(s => s.code === code)?.name || code
+  const finals = result.eventDiagnostics.filter(e => periodLabel(e.period) === periodLabel(entry.period))
   return <article className="side-card projection-semester">
     <header className="projection-period-heading"><h3>{periodLabel(entry.period)}{entry.readOnly && ' · En curso'}</h3><span>{entry.started.length + entry.continuing.length} materias{entry.readOnly && ' reales'}</span></header>
     <ul className="projection-subjects">{[...entry.continuing, ...entry.started].map(code => {
@@ -53,7 +55,7 @@ function ProjectionSemester({ career, entry, result, onEdit }) {
       const unlocks = entry.ranking.find(r => r.code === code)?.effectiveUnlocks.length ?? 0
       return <li key={code}><div className="projection-subject-row">
         <details><summary>{nameOf(code)} {annual && <small className="projection-badge">{continuing ? 'Anual · continuación' : 'Anual · inicio'}</small>}{initial && <small className="projection-badge">Cursando</small>}</summary>
-          <div className="projection-detail"><small>{code} · Al cierre: {entry.statusMap[code]}</small>
+          <div className="projection-detail"><small>{code} · Al cierre: {entry.statusMap[code] === 'Aprobada' ? 'Aprobación supuesta, solo en la simulación' : entry.statusMap[code]}</small>
             {annual && <p>Una misma materia ocupa ambos cuatrimestres. Para quitarla, editá su inicio.{initial && ' Ya está en curso: se estima su cierre en este primer período.'}</p>}
             {unlocks > 0 && <p>Su regularización habilita {unlocks} materias según el estado de inicio.</p>}
           </div>
@@ -62,6 +64,10 @@ function ProjectionSemester({ career, entry, result, onEdit }) {
       </div></li>
     })}</ul>
     {!entry.started.length && !entry.continuing.length && <p className="projection-muted">Sin materias planificadas.</p>}
+    {finals.length > 0 && <details className="projection-period-finals"><summary>Finales planificados: {finals.length}</summary>
+      <ul>{finals.map(e => <li key={e.code}>{nameOf(e.code)} · {e.status === 'applied' ? 'Aprobación supuesta al cierre' : e.status === 'obsolete' ? 'Ya aprobado en tu progreso' : 'Requiere revisión'}</li>)}</ul>
+      <small>Los períodos se editan en la sección Finales.</small>
+    </details>}
     {!entry.readOnly && <details className="projection-picker" key={entry.started.join('|')}><summary>+ Agregar materia</summary>
       <>
         {!entry.addCandidates.length && <p>No hay otras materias habilitadas para comenzar en este período.</p>}
@@ -74,17 +80,6 @@ function ProjectionSemester({ career, entry, result, onEdit }) {
       </>
     </details>}
   </article>
-}
-
-function PendingFinalsPanel({ finals, titleOf }) {
-  return <details className="side-card projection-finals"><summary>Finales pendientes ({finals.length}) <span className="projection-muted">· Ver finales</span></summary>
-    <p className="projection-muted">Al cierre simulado. Regularizada no significa Aprobada. En esta etapa no se programan finales.</p>
-    {!finals.length && <p>No hay finales de materias regularizadas pendientes en este estado.</p>}
-    <ul className="projection-subjects">{finals.map(final => <li key={final.code}><strong>{titleOf(final.code)}</strong>
-      <span>{final.available ? 'Final habilitado' : 'Final bloqueado'}</span>
-      {!final.available && <small>Falta aprobar: {final.missingApproved.map(titleOf).join(', ')}.</small>}
-    </li>)}</ul>
-  </details>
 }
 
 export default function CareerProjectionPage({ career, statusMap, persistence }) {
@@ -105,6 +100,7 @@ export default function CareerProjectionPage({ career, statusMap, persistence })
   }
   const evaluatedScenario = scenario ?? localScenario
   const result = useMemo(() => evaluatedScenario ? projectCareer({ career, statusMap, scenario: evaluatedScenario }) : null, [career, statusMap, evaluatedScenario])
+  const realComplete = career.subjects.every(subject => statusMap[subject.code] === 'Aprobada')
   function configure(patch) {
     if (!scenario) return
     const next = { ...scenario, ...patch }
@@ -182,7 +178,7 @@ export default function CareerProjectionPage({ career, statusMap, persistence })
           <button type="button" onClick={() => setScenario(s => ({ ...s, manualPeriods: s.manualPeriods.filter(item => periodLabel(item.period) !== periodLabel(m.period)) }))}>Liberar selección de {periodLabel(m.period)}</button></div>)}
       </section>}
       {!generationFailed && <>
-      {result.summary && <ProjectionSummary summary={result.summary} count={result.periods.length} />}
+      {result.summary && <ProjectionSummary summary={result.summary} count={result.periods.length} realComplete={realComplete} />}
       {affected.length > 0 && <section className="side-card" role="status"><h3>Decisiones que necesitan revisión</h3><ul>{affected.map(d => <li key={d.code}>
         <strong>{titleOf(d.code)} · {periodLabel(d.period)}</strong>
         <p>{d.reason === 'ACADEMIC_REQUIREMENTS' ? 'Ya no cumple los requisitos al comienzo de ese cuatrimestre.'
@@ -193,13 +189,12 @@ export default function CareerProjectionPage({ career, statusMap, persistence })
           {d.approved?.length > 0 && ` Falta aprobar: ${d.approved.map(titleOf).join(', ')}.`}</p>
         <button type="button" className="projection-action" onClick={() => setScenario(s => ({ ...s, manualPeriods: s.manualPeriods.map(m => ({ ...m, codes: m.codes.filter(c => c !== d.code) })) }))}>Liberar decisión de {titleOf(d.code)}</button>
       </li>)}</ul></section>}
-      {result.summary?.academicComplete && <p className="side-card">¡Carrera completada! No hay cursadas por proyectar.</p>}
+      {realComplete && <p className="side-card">¡Carrera completada! No hay cursadas por proyectar.</p>}
       <div className="projection-timeline">{result.periods.map(entry => <ProjectionSemester key={periodLabel(entry.period)} career={career} entry={entry} result={result} onEdit={edit} />)}</div>
       {result.blockers.length > 0 && <details className="side-card"><summary>Materias con requisitos pendientes ({result.blockers.length})</summary><p>No podés cursarlas todavía.</p><ul>{result.blockers.map(s => <li key={s.code}><strong>{titleOf(s.code)}</strong>
         {s.regularized.length > 0 && <p>Falta regularizar: {s.regularized.map(titleOf).join(', ')}.</p>}
         {s.approved.length > 0 && <p>Falta aprobar: {s.approved.map(titleOf).join(', ')}.</p>}
       </li>)}</ul></details>}
-      {result.summary && !result.summary.academicComplete && <PendingFinalsPanel finals={result.summary.pendingFinals} titleOf={titleOf} />}
       {result.summary?.pendingActivities.length > 0 && <details className="side-card"><summary>Actividades pendientes de acreditar ({result.summary.pendingActivities.length})</summary>
         <p>No se asigna una fecha ni se acredita automáticamente esta actividad.</p>
         <ul>{result.summary.pendingActivities.map(a => <li key={a.code}><strong>{titleOf(a.code)}</strong><p>{a.eligible ? 'Requisitos de inicio satisfechos' : 'Requisitos de inicio pendientes'} · {a.status}</p>
@@ -208,6 +203,7 @@ export default function CareerProjectionPage({ career, statusMap, persistence })
         </li>)}</ul>
       </details>}
       </>}
+      {scenario && (!generationFailed || scenario.finalEvents.length > 0) && <FinalPlanningPanel career={career} statusMap={statusMap} scenario={scenario} result={result} onChange={setScenario} />}
     </>}
     </fieldset>
   </div>

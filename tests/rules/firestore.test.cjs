@@ -22,6 +22,43 @@ const projection = (careerId = CAREER) => ({ schemaVersion: 1, careerId, revisio
   scenario: { startPeriod: { year: 2027, term: '1C' }, initialCapacity: 4, maxPeriods: 40, capacities: [], manualPeriods: [], finalEvents: [] } })
 
 describe('Private personal career projections', () => {
+  test('ALLOW v1 read and migration to v2, canonical finals and reset; DENY downgrade', async () => {
+    const client=db(), path=projectionPath(), data=projection()
+    await allow(put(client,path,data)); await allow(read(client,path))
+    data.schemaVersion=2; data.scenario.finalEvents=['A@2027:1C','B._-9@0001:2C','C@9999:2C']
+    await allow(put(client,path,data))
+    assert.deepEqual((await read(client,path)).data().scenario.finalEvents,data.scenario.finalEvents)
+    await deny(put(client,path,projection()))
+    await allow(remove(client,path))
+  })
+  test('ALLOW up to 1000 unique canonical events including one shared period; DENY excess and late malformed entries', async () => {
+    const data=projection(); data.schemaVersion=2
+    data.scenario.finalEvents=Array.from({length:1000},(_,i)=>`CODE-${i}@2027:1C`)
+    await allow(put(db(),projectionPath(),data))
+    data.scenario.finalEvents.push('EXTRA@2027:1C'); await deny(put(db(),projectionPath(),data))
+    data.scenario.finalEvents.pop(); data.scenario.finalEvents[999]={code:'MAP',period:{year:2027,term:'1C'}}
+    await deny(put(db(),projectionPath(),data))
+  })
+  for (const [name, events] of [
+    ['object',[{code:'A',period:{year:2027,term:'1C'}}]], ['number',[12]], ['null',[null]], ['bool',[true]],
+    ['empty string',['']], ['missing code',['@2027:1C']], ['overlong code',[`${'A'.repeat(33)}@2027:1C`]],
+    ['separator injection',['A@2027:1C|B@2027:2C']], ['newline',['A@2027:1C\n']], ['space',[' A@2027:1C']],
+    ['zero year',['A@0000:1C']], ['short year',['A@27:1C']], ['long year',['A@10000:1C']],
+    ['invalid term',['A@2027:3C']], ['lower term',['A@2027:1c']], ['suffix',['A@2027:1C:approved']],
+    ['same code same period',['A@2027:1C','A@2027:1C']], ['same code different period',['A@2027:1C','A@2028:2C']],
+    ['invalid late year',['A@2027:1C','B@0000:2C']], ['derived map',[{statusMap:{A:'Aprobada'}}]],
+  ]) test(`DENY v2 canonical final format: ${name}`, async () => {
+    const data=projection(); data.schemaVersion=2; data.scenario.finalEvents=events
+    await deny(put(db(),projectionPath(),data))
+  })
+  test('DENY v1 nonempty canonical strings and v2 forbidden document/scenario fields', async () => {
+    const data=projection(); data.scenario.finalEvents=['A@2027:1C']
+    await deny(put(db(),projectionPath(),data)); data.schemaVersion=2
+    for(const field of ['statusMap','approvedFinals','timeline','sharing','unknown']) {
+      await deny(put(db(),projectionPath(),{...data,[field]:{}}))
+      await deny(put(db(),projectionPath(),{...data,scenario:{...data.scenario,[field]:{}}}))
+    }
+  })
   test('ALLOW owner exact get/create/update/delete and independent careers, DENY list', async () => {
     const client = db(), path = projectionPath()
     await allow(read(client, path))
@@ -33,14 +70,16 @@ describe('Private personal career projections', () => {
     await allow(remove(client, path))
     assert.equal((await allow(read(client, projectionPath('german', 'other')))).exists(), true)
   })
-  for (const relationship of ['none', 'friend', 'sharing', 'plan member', 'anonymous']) {
-    test(`DENY personal projection access: ${relationship}`, async () => {
+  for (const version of [1,2]) for (const relationship of ['none', 'friend', 'sharing', 'plan member', 'anonymous']) {
+    test(`DENY personal projection v${version} access: ${relationship}`, async () => {
       if (relationship === 'friend' || relationship === 'sharing') await sharedFixture()
       if (relationship === 'plan member') await planFixture()
-      await allow(put(db(), projectionPath(), projection()))
+      const data=projection(); data.schemaVersion=version
+      if(version===2) data.scenario.finalEvents=['A@2027:1C']
+      await allow(put(db(), projectionPath(), data))
       const other = db(relationship === 'anonymous' ? null : 'juan')
       await deny(read(other, projectionPath()))
-      await deny(put(other, projectionPath(), projection()))
+      await deny(put(other, projectionPath(), data))
       await deny(change(other, projectionPath(), { revisionToken: 'revision-token-654321' }))
       await deny(remove(other, projectionPath()))
     })
@@ -53,7 +92,7 @@ describe('Private personal career projections', () => {
     })
   }
   test('DENY unsupported schema, wrong career, revision, timestamp and invalid scenario bounds', async () => {
-    for (const patch of [{ schemaVersion: 2 }, { careerId: 'other' }, { revisionToken: '' }, { updatedAt: TIME }]) {
+    for (const patch of [{ schemaVersion: 3 }, { careerId: 'other' }, { revisionToken: '' }, { updatedAt: TIME }]) {
       await deny(put(db(), projectionPath(), { ...projection(), ...patch }))
     }
     for (const patch of [{ finalEvents: [{ code: 'A', period: { year: 2027, term: '1C' } }] },

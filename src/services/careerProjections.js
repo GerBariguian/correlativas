@@ -1,6 +1,6 @@
 import { doc, getDocFromServer, runTransaction, serverTimestamp } from 'firebase/firestore'
 import { auth, db } from '../firebase'
-import { decodeProjection, normalizeProjectionScenario } from '../projectionPersistenceLogic'
+import { decodeProjection, encodeProjectionScenario } from '../projectionPersistenceLogic'
 
 export function projectionRepository(uid, careerId) {
   const user = auth.currentUser
@@ -14,7 +14,7 @@ export function projectionRepository(uid, careerId) {
       return snap.exists() ? decodeProjection(snap.data(), careerId) : null
     },
     async save(scenario, expected, isLive = () => true) {
-      const normalized = normalizeProjectionScenario(scenario)
+      const normalized = encodeProjectionScenario(scenario)
       const revisionToken = crypto.randomUUID()
       await runTransaction(db, async tx => {
         check()
@@ -22,7 +22,7 @@ export function projectionRepository(uid, careerId) {
         check()
         if (!isLive()) throw new Error('PROJECTION_SESSION_CHANGED')
         if ((snap.exists() ? snap.data().revisionToken : null) !== expected) throw new Error('PROJECTION_CONFLICT')
-        tx.set(ref, { schemaVersion: 1, careerId, revisionToken, scenario: normalized, updatedAt: serverTimestamp() })
+        tx.set(ref, { schemaVersion: 2, careerId, revisionToken, scenario: normalized, updatedAt: serverTimestamp() })
       })
       check()
       return revisionToken
