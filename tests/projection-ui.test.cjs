@@ -32,9 +32,9 @@ function harness(input) {
   const text = node => node && typeof node === 'object' ? (node.children || []).map(text).join(' ').replace(/\s+/g, ' ').trim() : typeof node === 'string' || typeof node === 'number' ? String(node) : ''
   const generate = () => nodes(render()).find(n => n.type === 'form').props.onSubmit({ preventDefault() {} })
   return { render, nodes, text, generate, calls: () => calls,
-    load(value) { nodes(render()).find(n => n.props.type === 'radio' && n.props.value === value).props.onChange() },
+    load(value) { nodes(render()).find(n => n.props.id === 'projection-load').props.onChange({ target: { value: String(value) } }) },
     start(year, term = '1C') {
-      nodes(render()).find(n => n.props.type === 'number').props.onChange({ target: { value: String(year) } })
+      nodes(render()).find(n => n.props.type === 'number' && n.props.id !== 'projection-load').props.onChange({ target: { value: String(year) } })
       nodes(render()).find(n => n.type === 'select').props.onChange({ target: { value: term } })
     },
     edit(action, code, period) {
@@ -48,7 +48,7 @@ test('setup waits for explicit generation, defaults to four and displays estimat
   const h = harness(props([subject('A')]))
   const initial = h.render()
   assert.match(h.text(initial), /¿Con qué carga querés comenzar/)
-  assert.equal(h.nodes(initial).find(n => n.props.type === 'radio' && n.props.checked).props.value, 4)
+  assert.equal(h.nodes(initial).find(n => n.props.id === 'projection-load').props.value, 4)
   assert.equal(h.calls(), 0)
   h.start(2030); h.generate()
   const text = h.text(h.render())
@@ -85,7 +85,7 @@ test('academic blockers and pending finals distinguish regularization from appro
 })
 
 test('annual project shows same code at start and continuation, with simulated completion', () => {
-  const input = props([subject('3.4.100', { year: 5 })])
+  const input = props([subject('3.4.100', { year: 5, durationPeriods: 2, allowedStartTerms: ['1C'] })])
   input.career.id = 'uade-informatica'; input.career.plan = '1621'
   const h = harness(input); h.start(2030); h.generate()
   const text = h.text(h.render())
@@ -161,4 +161,82 @@ test('invalid generation displays explanation without summary, timeline or final
   assert.match(h.text(tree), /No pudimos proyectar/)
   assert.doesNotMatch(h.text(tree), /Fin estimado de cursadas|0 cuatrimestres|Finales pendientes/)
   assert.equal(h.nodes(tree).filter(n => n.type === 'article').length, 0)
+})
+
+test('compact quantity supports seven, nine and over one hundred, rejecting invalid initial values', () => {
+  const h = harness(props([subject('A')]))
+  h.load(7)
+  h.nodes(h.render()).find(n => n.props['aria-label'] === 'Aumentar carga inicial').props.onClick()
+  assert.equal(h.nodes(h.render()).find(n => n.props.id === 'projection-load').props.value, 8)
+  h.nodes(h.render()).find(n => n.props['aria-label'] === 'Disminuir carga inicial').props.onClick()
+  assert.equal(h.nodes(h.render()).find(n => n.props.id === 'projection-load').props.value, 7)
+  for (const value of ['', 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+    h.load(value); h.generate(); assert.equal(h.calls(), 0)
+  }
+  for (const value of [1, 9, 101]) {
+    h.load(value); h.generate(); assert.match(h.text(h.render()), /Fin estimado de cursadas/)
+  }
+})
+
+test('real UCA renders with nine and explains a synthetic incoherent state without correcting it', () => {
+  const career = require('./projection-catalogs.cjs')().find(c => c.id === 'uca-teologia-sistematica')
+  const h = harness({ career, statusMap: career.initialStatus }); h.load(9); h.generate()
+  assert.match(h.text(h.render()), /Fin estimado de cursadas/)
+  const statusMap = { ...career.initialStatus, 'UCA-TS-HF2': 'Cursando' }
+  const invalid = harness({ career, statusMap }); invalid.generate()
+  const text = invalid.text(invalid.render())
+  assert.match(text, /El estado registrado no cumple/)
+  assert.match(text, /Falta regularizar: Historia de la Filosofía I/)
+  assert.equal(statusMap['UCA-TS-HF1'], 'Pendiente')
+})
+
+function renderCatalogComponent(file, name, props) {
+  const api = { ProgressSummary: 'progress-summary',
+    h: (type, props, ...children) => ({ type, props: props || {}, children: children.flat(Infinity) }) }
+  vm.createContext(api)
+  vm.runInContext(clean(source('src/logic.js')), api)
+  vm.runInContext(transformSync(file, clean(source(file)), { jsx: { runtime: 'classic', pragma: 'h' } }).code, api)
+  const tree = api[name](props)
+  const nodes = n => n && typeof n === 'object' ? [n, ...(n.children || []).flatMap(nodes)] : []
+  return nodes(tree)
+}
+
+test('UTN Sistemas is selectable under UTN and the academic map renders all 44 elements and both prerequisite types', () => {
+  const careers = require('./projection-catalogs.cjs')()
+  const career = careers.find(c => c.id === 'utn-sistemas-2023')
+  let selected
+  const selector = renderCatalogComponent('src/components/CareerSelector.jsx', 'CareerSelector', {
+    careers, activeCareerId: 'utn-industrial-2023', setActiveCareerId: id => { selected = id },
+  })
+  const field = selector.find(n => n.type === 'select' && n.children.some(c => c?.props?.value === career.name))
+  assert.ok(field)
+  field.props.onChange({ target: { value: career.name } })
+  assert.equal(selected, career.id)
+  assert.equal(careers.filter(c => c.name === 'Ingeniería Industrial' && c.university === 'UTN').length, 2)
+  const map = renderCatalogComponent('src/components/CareerMap.jsx', 'CareerMap', {
+    subjects: career.subjects, statusMap: career.initialStatus, selectedCode: 'UTN-ISI23-36',
+    setSelectedCode() {}, setActivePage() {}, setPlannerSelectedCodes() {},
+  })
+  const buttons = map.filter(n => n.props.className?.includes('map-subject '))
+  assert.equal(buttons.length, 44)
+  const regularized = buttons.find(n => n.props.key === 'UTN-ISI23-25')
+  const approved = buttons.find(n => n.props.key === 'UTN-ISI23-20')
+  assert.match(regularized.props.className, /related prereq/)
+  assert.match(approved.props.className, /related prereq/)
+  assert.doesNotMatch(approved.props.className, /dimmed/)
+  assert.match(approved.props.title, /aprobación/)
+})
+
+test('UTN Sistemas final-project timeline and PPS panel use real metadata and no automatic accreditation', () => {
+  const career = require('./projection-catalogs.cjs')().find(c => c.id === 'utn-sistemas-2023')
+  const statusMap = Object.fromEntries(career.subjects.filter(s => !['UTN-ISI23-36','UTN-ISI23-PPS'].includes(s.code)).map(s => [s.code, 'Aprobada']))
+  const before = JSON.stringify(statusMap), h = harness({ career, statusMap })
+  h.start(2027); h.generate()
+  const tree = h.render(), text = h.text(tree)
+  assert.match(text, /Anual · inicio/); assert.match(text, /Anual · continuación/)
+  assert.match(text, /Actividades pendientes de acreditar \(\s*1\s*\)/)
+  assert.match(text, /Requisitos de inicio satisfechos/)
+  const semesters = h.nodes(tree).filter(n => n.type === 'article')
+  assert.ok(semesters.every(n => !h.text(n).includes('Práctica Profesional Supervisada')))
+  assert.equal(JSON.stringify(statusMap), before)
 })

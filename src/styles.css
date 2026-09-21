@@ -70,6 +70,9 @@
 .projection-page .projection-finals { display: block; padding: 16px 22px; }
 .projection-finals > summary { font-weight: 700; }
 .projection-setup { margin-top: 12px; }
+.projection-load-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.projection-load-controls input[type="number"] { width: 82px; }
+.projection-load-controls button:disabled { opacity: .45; cursor: default; }
 @media (max-width: 600px) { .projection-summary { grid-template-columns: 1fr; } .projection-page .side-card { padding: 18px; } }
 
 :root {

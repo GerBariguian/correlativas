@@ -25,14 +25,14 @@ projectCareer({
 })
 ```
 
-Las capacidades son enteros de 0 a 100; los períodos sin override usan
+Las capacidades del motor son enteros seguros no negativos de JavaScript; los períodos sin override usan
 `initialCapacity`. Cero permite una pausa. Horizonte por defecto: 40 períodos;
 máximo admitido: 120. No se infiere dificultad ni capacidad desde horas.
 Se rechazan períodos anteriores al inicio, duplicados de capacidad, múltiples
 eventos de aprobación para el mismo código, estados desconocidos y referencias
 inválidas. Los códigos ausentes del mapa se interpretan como Pendiente.
 
-La elegibilidad académica de Proyecto Final sigue exclusivamente el catálogo actual
+La elegibilidad académica de Proyecto Final de UADE Informática sigue exclusivamente el catálogo actual
 (`prereqs: []`). Su requisito real de avance/cantidad de materias es desconocido.
 Esto puede adelantar Proyecto Final respecto de su habilitación académica real.
 Queda pendiente incorporar el requisito oficial, separado de la política temporal.
@@ -88,17 +88,28 @@ horas ni dificultad. Es una heurística explicable, no un optimizador global.
 La metadata no habilita ni bloquea materias: una materia habilitada de año 5
 puede cursarse desde el primer período, incluido Proyecto Final en 1C.
 
-## Proyecto Final
+## Duraciones y restricciones temporales generales
 
-Excepción aislada por igualdad exacta de:
-`uade-informatica`, plan string `1621`, código `3.4.100`.
-Puede iniciar en cualquier 1C habilitado según el catálogo; ocupa un cupo en 1C y 2C y
-regulariza al cierre de 2C. No se divide en dos materias. No inicia si el 2C
-tiene capacidad cero. No se inventan requisitos para reemplazar `prereqs: []`.
+`durationPeriods: 1 | 2` representa cursada de un cuatrimestre o anual.
+`allowedStartTerms: ['1C'] | ['2C'] | ['1C', '2C']` restringe comienzos.
+Sin duración explícita, la metadata preexistente exacta `term: 'Anual'` significa
+dos períodos; las demás etiquetas conservan el comportamiento anterior de un período.
+No se deduce duración de nombres, IDs, horas o año curricular.
 
-Las demás materias duran un período en este motor de etapa 1. Esto no certifica
-duraciones reales de otras carreras: su calendario queda fuera de esta política.
-No se infiere duración ni oferta de `hours`, `name` o `term`.
+Las anuales inician únicamente en 1C, continúan en 2C, consumen un cupo en ambos
+y regularizan solo al segundo cierre. Las dependientes se habilitan posteriormente.
+Se comprueba la reserva TOTAL de continuaciones antes de iniciar otra anual, de
+modo que varias anuales no sobrecarguen un segundo período de menor capacidad.
+Una selección manual de comienzos suma sus continuaciones obligatorias.
+No se puede editar/mover una continuación por separado; se edita el inicio.
+
+Proyecto Final de UADE Informática 1621 migra a `durationPeriods: 2` y
+`allowedStartTerms: ['1C']` en su catálogo, sin cambiar prereqs. El motor ya no
+consulta su ID. UCA usa sus cuatro etiquetas `Anual` existentes, sin modificar
+correlativas. También se respetan las etiquetas Anual de los demás catálogos.
+
+Duración y oferta no alteran `canCourse`/`canTakeFinal`: solo afectan calendario.
+Una duración inválida o una anual con inicio 2C es error de metadata, no se ignora.
 
 ## Salida y terminación
 
@@ -186,12 +197,13 @@ no recibe callbacks de escritura. El escenario vive en memoria y se descarta al
 salir de la vista o cambiar de usuario/carrera. Cambios en el progreso recibido
 recalculan con el motor; el resultado nunca se copia al progreso real.
 
-La carga inicial seleccionada es 4 (opciones 3/4/5). No se simula antes del CTA.
+La carga inicial seleccionada es 4, editable con − / cantidad / + o escritura
+directa de un entero positivo. No se simula antes del CTA.
 El período inicial propone el cuatrimestre calendario local actual y es editable;
 no representa una regla de habilitación académica ni una oferta oficial.
 No se encontró otra fuente de calendario en App: se conserva el default anterior,
 inicializado una sola vez al montar. Su edición queda en un desplegable secundario.
-El horizonte es de 40 períodos. La carga 3/4/5 se usa para la propuesta automática;
+El horizonte es de 40 períodos. La carga elegida se usa para la propuesta automática;
 después se cambia agregando/quitando materias, sin selector de capacidad.
 `initialCapacity` se aplica a los próximos períodos automáticos planificables,
 no a la cursada real ni como máximo de las selecciones manuales: una propuesta
@@ -247,8 +259,8 @@ Los períodos no editados se recalculan; las decisiones manuales permanecen.
 `periods[].addCandidates` sale del motor: exclusivamente materias Pendientes que
 satisfacen requisitos al INICIO y las restricciones temporales, excluyendo las ya
 seleccionadas. React no calcula correlativas ni usa el estado de cierre para agregar.
-El límite de agregado es 100 materias simultáneas, consistente con el límite base
-del motor, sin presentarlo como recomendación académica.
+No hay tope arbitrario de agregado: los códigos únicos del catálogo y la
+elegibilidad determinan cuántas materias pueden seleccionarse.
 
 `placementDiagnostics` identifica cada materia solicitada y su período:
 `applied`, `blocked`, `not-reached` o `invalid`. Un rechazo académico incluye listas
@@ -267,3 +279,69 @@ realmente Cursando no se pueden quitar desde esta simulación.
 Limitaciones: no hay drag & drop, editor de finales, persistencia ni calendario
 oficial. Una selección inválida queda pendiente de revisión hasta que se la libere
 o recupere sus requisitos. Requisito académico real de Proyecto Final aún pendiente.
+
+## Generalización de cantidad e investigación entre catálogos
+
+Se retiró el límite anterior de 100 materias. La UI exige cantidad inicial positiva;
+el motor conserva 0 para pausas y compatibilidad con escenarios existentes.
+El único límite numérico es `Number.MAX_SAFE_INTEGER` (9.007.199.254.740.991), por
+representación exacta de enteros en JavaScript. No es un límite académico. No se
+reservan arrays del tamaño de la carga: se itera el catálogo. Las decisiones
+manuales siguen pudiendo dejar períodos vacíos y superar la carga inicial.
+
+Se probó el registro real `src/data/careers.js`, con cargas 3, 4, 5, 7 y 9, tanto
+desde initialStatus como desde un progreso coherente con cursadas en curso:
+
+| Catálogo | Materias | Resultado desde initialStatus sin finales |
+| --- | ---: | --- |
+| UADE Informática 1621 | 52 | Cursadas completas; finales pendientes |
+| UADE Industrial (plan a confirmar) | 54 | Cursadas completas; finales pendientes |
+| UCA Teología Sistemática (plan a confirmar) | 86 | Cursadas completas; finales pendientes |
+| UBA Odontología 2021 | 63 | Cursadas completas; finales pendientes |
+| UBA Actuario | 31 | Cursadas completas; finales pendientes |
+| UTN Industrial 2023 | 45 | Bloqueos por aprobaciones requeridas |
+| UTN Industrial 2007 | 44 | Bloqueos por aprobaciones requeridas |
+| UTN Sistemas 2023 | 44 (incluida PPS) | Bloqueos por aprobaciones requeridas; PPS sin calendario |
+
+El fallo reportado de UCA NO se reprodujo con esos datos. No se dispone del mapa
+de progreso que falla: no puede atribuirse su causa exacta. No hay referencias
+ausentes ni ciclos en ese catálogo; sus etiquetas de semestre/Anual/Final no
+invalidan entradas ni se interpretan como correlativas o calendarios de UADE.
+Se verificó un ejemplo SINTÉTICO que produce el mismo error genérico:
+HF2 Cursando con HF1 Pendiente contradice `prereqs: ['UCA-TS-HF1']`.
+HF1 Regularizada permite cursar HF2, pero no habilita su final. Esto demuestra
+una vía posible de fallo, no la causa confirmada del caso real.
+
+No se relajó la consistencia del progreso. `INCONSISTENT_STATUS` agrega al
+diagnóstico el estado, las regularizaciones/aprobaciones faltantes para cursar
+y las aprobaciones faltantes para final. «Ver qué impide proyectar» traduce causas
+de catálogo, ciclo, progreso, período, horizonte o eventos sin imprimir objetos
+internos. Todo queda en memoria; no se envía telemetría ni se consulta producción.
+
+Para reproducir el caso real se necesita: código de materia señalado y su estado,
+estados de sus requisitos, período inicial y carga. Si no alcanza un ejemplo mínimo,
+el mapa completo código→estado y las decisiones manuales del escenario que falla,
+sin datos personales. No se deben inventar equivalencias/excepciones para validarlo.
+
+La limitación anterior sobre UCA se resolvió al incorporar soporte genérico para
+`term: 'Anual'`. Las modalidades ambiguas y ofertas no documentadas siguen sin
+inferirse. Compatibilidad estructural no certifica fechas académicas oficiales.
+
+## Actividades no calendarizables
+
+`projectionKind: 'activity'` conserva una entrada en el seguimiento académico pero
+no la coloca en la timeline ni en candidatos, no ocupa cupo y no regulariza ni
+aprueba automáticamente, incluso si inicialmente figura Cursando. No admite pins
+ni eventos de final como sustituto de su acreditación.
+`summary.pendingActivities` informa estado, elegibilidad de inicio y requisitos
+faltantes. No impide calcular el fin de las cursadas, pero sí completar
+académicamente la carrera mientras no esté Aprobada. La UI la muestra por separado.
+Las demás entradas mantienen `projectionKind: 'course'` implícito.
+
+Esta extensión se utiliza para PPS de UTN Sistemas: 200 horas reloj,
+requisitos de inicio/acreditación iguales a los de inscripción de Proyecto Final,
+sin fecha de finalización inventada ni un 1C/2C obligatorio.
+
+El catálogo de UTN Buenos Aires Sistemas 2023 utiliza esta metadata general para
+sus 17 anuales, Ingeniería y Sociedad en 2C y PPS. Fuentes, correlativas, siete
+slots electivos y alcance de Proyecto Final: [UTN Sistemas 2023](utn-sistemas-2023.md).

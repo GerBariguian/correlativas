@@ -1049,6 +1049,8 @@ export const subjects = [
   "year": 5,
   "term": "1C",
   "code": "3.4.100",
+  "durationPeriods": 2,
+  "allowedStartTerms": ["1C"],
   "name": "Proyecto Final de Ingeniería en Informática",
   "hours": 300,
   "prereqs": [],

@@ -16,15 +16,15 @@ export function advancePeriod(period, count = 1) {
   return result
 }
 
-// Explicit temporal policy only. Academic eligibility remains canCourse against
-// the current catalog. The real advancement requirement for this project is
-// unknown: prereqs: [] may schedule it too early. Never infer it from year or dates.
-export function isUadeFinalProject(career, subject) {
-  return career.id === 'uade-informatica' && career.plan === '1621' && subject.code === '3.4.100'
-}
+// Temporal metadata is independent of academic prerequisites, names and IDs.
+// The existing exact catalog label "Anual" is supported as legacy metadata.
 export function getProjectionDuration(career, subject) {
-  return isUadeFinalProject(career, subject) ? 2 : 1
+  return subject.durationPeriods ?? (subject.term === 'Anual' ? 2 : 1)
 }
+export function getAllowedStartTerms(subject) {
+  return subject.allowedStartTerms ?? (getProjectionDuration(null, subject) === 2 ? ['1C'] : ['1C', '2C'])
+}
+const isCourse = subject => subject.projectionKind !== 'activity'
 
 function finalRequirements(subject, subjects) {
   const requirements = subject.finalPrereqs ?? subject.prereqs ?? []
@@ -80,6 +80,12 @@ export function validateProjectionInputs({ career, statusMap, scenario } = {}) {
   for (const subject of subjects) {
     if (!subject || typeof subject.code !== 'string' || !subject.code || codes.has(subject.code)) fail('INVALID_CODE', subject?.code)
     else codes.add(subject.code)
+    if (subject && ((subject.durationPeriods !== undefined && ![1, 2].includes(subject.durationPeriods))
+      || (subject.projectionKind !== undefined && !['course', 'activity'].includes(subject.projectionKind))
+      || (subject.allowedStartTerms !== undefined && (!Array.isArray(subject.allowedStartTerms) || !subject.allowedStartTerms.length
+        || subject.allowedStartTerms.some(t => !['1C', '2C'].includes(t))
+        || new Set(subject.allowedStartTerms).size !== subject.allowedStartTerms.length))
+      || (getProjectionDuration(null, subject) === 2 && Array.isArray(getAllowedStartTerms(subject)) && getAllowedStartTerms(subject).some(t => t !== '1C')))) fail('INVALID_TEMPORAL_METADATA', subject.code)
     for (const field of ['prereqs', 'approvedPrereqs', 'finalPrereqs']) {
       if (subject?.[field] !== undefined && (!Array.isArray(subject[field]) || subject[field].some(c => typeof c !== 'string'))) fail('INVALID_REQUIREMENTS', subject?.code)
     }
@@ -97,11 +103,15 @@ export function validateProjectionInputs({ career, statusMap, scenario } = {}) {
     for (const subject of subjects) {
       const status = getStatus(statusMap, subject.code)
       if (status !== 'Pendiente' && (!canCourse(subject, statusMap)
-        || (status === 'Aprobada' && !canTakeFinal(subject, statusMap, subjects)))) fail('INCONSISTENT_STATUS', subject.code)
+        || (status === 'Aprobada' && !canTakeFinal(subject, statusMap, subjects)))) {
+        fail('INCONSISTENT_STATUS', subject.code)
+        Object.assign(errors.at(-1), { subjectStatus: status, ...missingCoursePrereqs(subject, statusMap),
+          missingFinalApproved: status === 'Aprobada' ? missingFinalPrereqs(subject, statusMap, subjects) : [] })
+      }
     }
   }
   if (!scenario || !validPeriod(scenario.startPeriod)) { fail('INVALID_START_PERIOD'); return errors }
-  const validCapacity = n => Number.isInteger(n) && n >= 0 && n <= 100
+  const validCapacity = n => Number.isSafeInteger(n) && n >= 0
   if (!validCapacity(scenario.initialCapacity)) fail('INVALID_CAPACITY')
   const horizon = scenario.maxPeriods ?? 40
   if (!Number.isInteger(horizon) || horizon < 1 || horizon > 120
@@ -122,13 +132,13 @@ export function validateProjectionInputs({ career, statusMap, scenario } = {}) {
     const seenPeriods = new Set(), seenCodes = new Set()
     for (const item of scenario.manualPeriods ?? []) {
       if (!item || !validPeriod(item.period) || comparePeriods(item.period, scenario.startPeriod) < 0
-        || !Array.isArray(item.codes) || item.codes.length > 100) { fail('INVALID_MANUAL_PERIOD'); continue }
+        || !Array.isArray(item.codes)) { fail('INVALID_MANUAL_PERIOD'); continue }
       const key = periodIndex(item.period)
-      if (key === periodIndex(scenario.startPeriod) && subjects.some(s => statusMap?.[s.code] === 'Cursando')) fail('CURRENT_PERIOD_READ_ONLY')
+      if (key === periodIndex(scenario.startPeriod) && subjects.some(s => isCourse(s) && statusMap?.[s.code] === 'Cursando')) fail('CURRENT_PERIOD_READ_ONLY')
       if (seenPeriods.has(key)) fail('DUPLICATE_MANUAL_PERIOD')
       seenPeriods.add(key)
       for (const code of item.codes) {
-        if (!codes.has(code) || seenCodes.has(code)) fail('INVALID_MANUAL_CODE', code)
+        if (!codes.has(code) || seenCodes.has(code) || !isCourse(subjects.find(s => s.code === code) ?? {})) fail('INVALID_MANUAL_CODE', code)
         seenCodes.add(code)
       }
     }
@@ -137,9 +147,9 @@ export function validateProjectionInputs({ career, statusMap, scenario } = {}) {
 }
 
 export function rankProjectionCandidates(subjects, statusMap, graph = buildRequirementGraph(subjects)) {
-  const ranked = subjects.filter(s => getStatus(statusMap, s.code) === 'Pendiente' && canCourse(s, statusMap)).map(subject => {
+  const ranked = subjects.filter(s => isCourse(s) && getStatus(statusMap, s.code) === 'Pendiente' && canCourse(s, statusMap)).map(subject => {
     const after = { ...statusMap, [subject.code]: 'Regularizada' }
-    const effectiveUnlocks = subjects.filter(s => s.code !== subject.code && getStatus(statusMap, s.code) === 'Pendiente'
+    const effectiveUnlocks = subjects.filter(s => isCourse(s) && s.code !== subject.code && getStatus(statusMap, s.code) === 'Pendiente'
       && !canCourse(s, statusMap) && canCourse(s, after)).map(s => s.code).sort(compareCode)
     const metric = graph.metrics.find(m => m.code === subject.code)
     return { code: subject.code, transition: 'Regularizada', effectiveUnlocks,
@@ -178,7 +188,7 @@ export function applyPlannedEvents(subjects, statusMap, events, period) {
   const next = { ...statusMap }, applied = [], rejected = []
   for (const event of events.filter(e => comparePeriods(e.period, period) === 0)) {
     const subject = subjects.find(s => s.code === event.code)
-    if (!subject || getStatus(statusMap, event.code) !== 'Regularizada' || !canTakeFinal(subject, statusMap, subjects)) {
+    if (!subject || !isCourse(subject) || getStatus(statusMap, event.code) !== 'Regularizada' || !canTakeFinal(subject, statusMap, subjects)) {
       rejected.push({ code: event.code, period: { ...event.period }, reason: 'FINAL_NOT_AVAILABLE',
         subjectStatus: getStatus(statusMap, event.code), missingApproved: subject ? missingFinalPrereqs(subject, statusMap, subjects) : [] })
     } else { next[event.code] = 'Aprobada'; applied.push(event.code) }
@@ -187,13 +197,15 @@ export function applyPlannedEvents(subjects, statusMap, events, period) {
 }
 
 export function summarizeProjection(subjects, statusMap, periods) {
-  const unfinishedCourses = subjects.filter(s => ['Pendiente', 'Cursando'].includes(getStatus(statusMap, s.code))).map(s => s.code)
-  const pendingFinals = subjects.filter(s => getStatus(statusMap, s.code) === 'Regularizada').map(s => ({ code: s.code,
+  const unfinishedCourses = subjects.filter(s => isCourse(s) && ['Pendiente', 'Cursando'].includes(getStatus(statusMap, s.code))).map(s => s.code)
+  const pendingFinals = subjects.filter(s => isCourse(s) && getStatus(statusMap, s.code) === 'Regularizada').map(s => ({ code: s.code,
     available: canTakeFinal(s, statusMap, subjects), missingApproved: missingFinalPrereqs(s, statusMap, subjects) }))
   const lastCourse = periods.filter(p => p.completedCourses.length).at(-1)
   const lastFinal = periods.filter(p => p.approvedFinals.length).at(-1)
   const academicComplete = subjects.every(s => getStatus(statusMap, s.code) === 'Aprobada')
-  return { coursesComplete: !unfinishedCourses.length, academicComplete, unfinishedCourses, pendingFinals,
+  const pendingActivities = subjects.filter(s => !isCourse(s) && getStatus(statusMap, s.code) !== 'Aprobada')
+    .map(s => ({ code: s.code, status: getStatus(statusMap, s.code), eligible: canCourse(s, statusMap), ...missingCoursePrereqs(s, statusMap) }))
+  return { coursesComplete: !unfinishedCourses.length, academicComplete, unfinishedCourses, pendingFinals, pendingActivities,
     estimatedCourseEnd: unfinishedCourses.length ? null : lastCourse?.period ?? null,
     estimatedAcademicEnd: academicComplete ? lastFinal?.period ?? lastCourse?.period ?? null : null }
 }
@@ -217,23 +229,23 @@ export function projectCareer(input) {
   const reserved = new Set(placementDiagnostics.map(d => d.code))
   // Stage 1 assumption: ALL subjects already Cursando finish at the first close,
   // including an annual subject whose historical start date is unavailable.
-  for (const s of subjects) if (getStatus(statusMap, s.code) === 'Cursando') active.set(s.code, periodIndex(scenario.startPeriod))
-  const canStartAt = (subject, period) => !isUadeFinalProject(career, subject)
-    || period.term === '1C'
+  for (const s of subjects) if (isCourse(s) && getStatus(statusMap, s.code) === 'Cursando') active.set(s.code, periodIndex(scenario.startPeriod))
+  const canStartAt = (subject, period) => getAllowedStartTerms(subject).includes(period.term)
   let outcome = 'horizon', period = { ...scenario.startPeriod }
   if (subjects.every(s => getStatus(statusMap, s.code) === 'Aprobada')) outcome = 'complete'
   else for (let index = 0; index < (scenario.maxPeriods ?? 40); index++) {
     const manual = manualAt(period), continuing = [...active.keys()].sort(compareCode)
     const readOnly = index === 0 && continuing.length > 0
     // Edited periods are exact selections of starts, plus mandatory continuations.
-    const capacity = readOnly ? continuing.length : manual ? Math.min(100, manual.codes.length + continuing.length) : capacityAt(period)
+    const capacity = readOnly ? continuing.length : manual ? manual.codes.length + continuing.length : capacityAt(period)
     if (continuing.length > capacity) { outcome = 'capacity-conflict'; errors.push({ code: 'CAPACITY_BELOW_CONTINUING', period: { ...period }, continuing }); break }
     const ranked = rankProjectionCandidates(subjects, statusMap, graph)
-    const periodBlockers = subjects.filter(s => getStatus(statusMap, s.code) === 'Pendiente' && !canCourse(s, statusMap))
+    const periodBlockers = subjects.filter(s => isCourse(s) && getStatus(statusMap, s.code) === 'Pendiente' && !canCourse(s, statusMap))
       .map(s => ({ code: s.code, ...missingCoursePrereqs(s, statusMap) }))
     const started = [], ranking = [], eligibleNotSelected = []
     const temporalReason = subject => !canStartAt(subject, period) ? 'START_TERM'
-      : getProjectionDuration(career, subject) === 2 && !manualAt(advancePeriod(period)) && capacityAt(advancePeriod(period)) < 1 ? 'CONTINUATION_CAPACITY' : null
+      : getProjectionDuration(career, subject) === 2 && !manualAt(advancePeriod(period))
+        && capacityAt(advancePeriod(period)) <= [...active.values()].filter(end => end > periodIndex(period)).length ? 'CONTINUATION_CAPACITY' : null
     if (manual) for (const code of manual.codes) {
       const subject = subjects.find(s => s.code === code)
       const reason = getStatus(statusMap, code) !== 'Pendiente' ? 'NOT_PENDING'
@@ -241,7 +253,7 @@ export function projectCareer(input) {
           || (started.length + continuing.length >= capacity ? 'CAPACITY' : null)
       const diagnostic = placementDiagnostics.find(d => d.code === code)
       Object.assign(diagnostic, { status: reason ? 'blocked' : 'applied', reason: reason || 'PLACED',
-        ...missingCoursePrereqs(subject, statusMap) })
+        ...missingCoursePrereqs(subject, statusMap), allowedStartTerms: getAllowedStartTerms(subject) })
       if (!reason) {
         started.push(code); ranking.push(ranked.find(c => c.code === code))
         active.set(code, periodIndex(period) + getProjectionDuration(career, subject) - 1)
@@ -282,7 +294,7 @@ export function projectCareer(input) {
       || placementDiagnostics.some(e => comparePeriods(e.period, period) > 0)
     if (summary.coursesComplete && !futureFinal) { outcome = 'finals-pending'; break }
     if (!started.length && !completedCourses.length && !finals.applied.length && !active.size && !futureFinal) {
-      const available = subjects.filter(s => getStatus(statusMap, s.code) === 'Pendiente' && canCourse(s, statusMap))
+      const available = subjects.filter(s => isCourse(s) && getStatus(statusMap, s.code) === 'Pendiente' && canCourse(s, statusMap))
       let futureSlot = false
       for (let offset = 1; offset < (scenario.maxPeriods ?? 40) - index; offset++) {
         const future = advancePeriod(period, offset)
@@ -302,11 +314,11 @@ export function projectCareer(input) {
     diagnostic.reason = periodIndex(diagnostic.period) >= periodIndex(scenario.startPeriod) + (scenario.maxPeriods ?? 40)
       ? 'OUTSIDE_HORIZON' : 'SIMULATION_STOPPED'
   }
-  const blockers = subjects.filter(s => getStatus(statusMap, s.code) === 'Pendiente' && !canCourse(s, statusMap)).map(s => ({ code: s.code,
-    ...missingCoursePrereqs(s, statusMap), allowedStartTerms: isUadeFinalProject(career, s) ? ['1C'] : ['1C', '2C'] }))
-  const eligiblePending = subjects.filter(s => getStatus(statusMap, s.code) === 'Pendiente' && canCourse(s, statusMap))
+  const blockers = subjects.filter(s => isCourse(s) && getStatus(statusMap, s.code) === 'Pendiente' && !canCourse(s, statusMap)).map(s => ({ code: s.code,
+    ...missingCoursePrereqs(s, statusMap), allowedStartTerms: getAllowedStartTerms(s) }))
+  const eligiblePending = subjects.filter(s => isCourse(s) && getStatus(statusMap, s.code) === 'Pendiente' && canCourse(s, statusMap))
     .map(s => ({ code: s.code, reason: 'SIMULATION_ENDED', outcome,
-      allowedStartTerms: isUadeFinalProject(career, s) ? ['1C'] : ['1C', '2C'] }))
+      allowedStartTerms: getAllowedStartTerms(s) }))
   const continuations = [...active].map(([code, end]) => ({ code,
     expectedCompletion: { year: Math.floor(end / 2), term: end % 2 ? '2C' : '1C' } }))
   return { outcome, errors, periods, statusMap, blockers, eligiblePending, continuations, eventDiagnostics, placementDiagnostics,
@@ -318,7 +330,7 @@ export function projectCareer(input) {
 export function editProjectionPeriod(scenario, projection, period, code, action) {
   const entry = projection.periods.find(p => comparePeriods(p.period, period) === 0)
   if (!entry || entry.readOnly || !['add', 'remove'].includes(action)) return scenario
-  if (action === 'add' && (!entry.addCandidates.includes(code) || entry.started.length + entry.continuing.length >= 100)) return scenario
+  if (action === 'add' && !entry.addCandidates.includes(code)) return scenario
   if (action === 'remove' && !entry.started.includes(code)) return scenario
   const previous = scenario.manualPeriods ?? []
   const selected = previous.find(p => comparePeriods(p.period, period) === 0)?.codes ?? entry.started

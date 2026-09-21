@@ -33,6 +33,11 @@ import {
   initialStatus as industrial2007Status,
 } from './utn/industrial2007'
 
+import {
+  subjects as sistemas2023Subjects,
+  initialStatus as sistemas2023Status,
+} from './utn/sistemas2023'
+
 export const careers = [
   {
     id: 'uade-informatica',
@@ -97,5 +102,15 @@ export const careers = [
     plan: '2007',
     subjects: industrial2007Subjects,
     initialStatus: industrial2007Status,
+  },
+  {
+    id: 'utn-sistemas-2023',
+    university: 'UTN',
+    faculty: 'Facultad Regional Buenos Aires (FRBA)',
+    name: 'Ingeniería en Sistemas de Información',
+    plan: '2023',
+    ordinance: '1877',
+    subjects: sistemas2023Subjects,
+    initialStatus: sistemas2023Status,
   },
 ]

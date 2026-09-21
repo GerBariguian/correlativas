@@ -16,7 +16,8 @@ function CareerMap({
   const selectedUnlocks = selectedSubject
     ? unlocks(subjects, selectedSubject.code).map((s) => s.code)
     : []
-  const selectedPrereqs = selectedSubject ? selectedSubject.prereqs : []
+  const selectedPrereqs = selectedSubject
+    ? [...(selectedSubject.prereqs ?? []), ...(selectedSubject.approvedPrereqs ?? [])] : []
 
   function addToPlanner() {
     if (!selectedCode) return
@@ -97,6 +98,8 @@ function CareerMap({
                                 : ''
                             }`}
                             key={subject.code}
+                            title={selectedSubject?.approvedPrereqs?.includes(subject.code) ? 'Requiere aprobación para cursar'
+                              : selectedSubject?.prereqs?.includes(subject.code) ? 'Requiere regularización para cursar' : undefined}
                             onClick={() =>
                               setSelectedCode(
                                 selectedCode === subject.code ? null : subject.code
