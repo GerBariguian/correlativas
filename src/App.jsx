@@ -1,5 +1,6 @@
 import CareerSelector from './components/CareerSelector'
 import CareerProjectionPage from './components/CareerProjectionPage'
+import useCareerProjection from './hooks/useCareerProjection'
 import { Route } from 'lucide-react'
 import PlannerPage from './components/PlannerPage'
 import CareerMap from './components/CareerMap'
@@ -13,6 +14,7 @@ import { onAuthStateChanged, signInWithPopup } from 'firebase/auth'
 import { auth, googleProvider } from './firebase'
 import {
   loadUserStatus,
+  subscribeUserStatus,
   saveUserStatus,
   loadUserProfile,
   saveUserProfile,
@@ -68,6 +70,8 @@ function App() {
   const subjects = activeCareer.subjects
   const initialStatus = activeCareer.initialStatus
   const socialProfile = useSocialProfile(user, activeCareerId, !profileLoading && hasChosenCareer)
+  const personalProjection = useCareerProjection(user, activeCareerId,
+    activePage === 'projection' && !profileLoading && hasChosenCareer && !statusLoading)
 
   function isCurrentSession(token) {
     return Boolean(token) && session.current === token && auth.currentUser?.uid === token.uid
@@ -135,6 +139,7 @@ function App() {
     if (!user || profileLoading || !hasChosenCareer) return
     const token = session.current
     let cancelled = false
+    let stop = () => {}
     setStatusLoading(true)
     setExpanded(null)
     setSelectedMapCode(null)
@@ -143,6 +148,18 @@ function App() {
       try {
         await writes.current
         if (cancelled || !isCurrentSession(token)) return
+        if (activePage === 'projection') {
+          // This branch replaces the one-shot loader; both never write concurrently.
+          stop = subscribeUserStatus(user.uid, activeCareerId, cloudStatus => {
+            if (cancelled || !isCurrentSession(token) || confirmedCareer.current !== activeCareerId) return
+            const map = cloudStatus ?? initialStatus
+            progress.current = { token, careerId: activeCareerId, map }
+            setStatusMap(map)
+            cacheStatus(user.uid, activeCareerId, map)
+            setStatusLoading(false)
+          }, error => { if (!cancelled && isCurrentSession(token)) reportError(error) })
+          return
+        }
         const cloudStatus = await loadUserStatus(user.uid, activeCareerId)
         if (cancelled || !isCurrentSession(token) || confirmedCareer.current !== activeCareerId) return
         const map = cloudStatus ?? initialStatus
@@ -158,9 +175,10 @@ function App() {
     loadStatusForCareer()
     return () => {
       cancelled = true
+      stop()
       progress.current = null
     }
-  }, [user, profileLoading, hasChosenCareer, activeCareerId, initialStatus, careerRevision])
+  }, [user, profileLoading, hasChosenCareer, activeCareerId, initialStatus, careerRevision, activePage === 'projection'])
 
   async function changeCareer(careerId, finishSetup = false) {
     if (!careers.some((career) => career.id === careerId)) return
@@ -372,7 +390,12 @@ if (!hasChosenCareer) {
       </nav>
 
       {activePage === 'projection' && (
-        <CareerProjectionPage key={`${user.uid}:${activeCareerId}`} career={activeCareer} statusMap={statusMap} />
+        ['loading', 'load-error'].includes(personalProjection.phase)
+          ? <section className="side-card"><p role="status">{personalProjection.phase === 'loading' ? 'Cargando planificación…'
+            : personalProjection.error === 'INCOMPATIBLE_PROJECTION_VERSION' ? 'Esta planificación usa una versión no compatible. No se modificó.'
+              : 'No se pudo cargar la planificación. No se crearon ni reemplazaron datos.'}</p>
+            {personalProjection.phase === 'load-error' && <button onClick={personalProjection.retry}>Reintentar carga</button>}</section>
+          : <CareerProjectionPage key={`${user.uid}:${activeCareerId}:${Boolean(personalProjection.scenario)}`} career={activeCareer} statusMap={statusMap} persistence={personalProjection} />
       )}
 
       {activePage === 'amigos' && (

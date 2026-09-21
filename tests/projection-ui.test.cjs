@@ -8,10 +8,10 @@ const source = f => fs.readFileSync(path.join(__dirname, '..', f), 'utf8')
 const clean = text => text.replace(/import[^\n]*\n/g, '').replace(/export default /g, '').replace(/export /g, '')
 const subject = (code, extra = {}) => ({ code, name: `Materia ${code}`, prereqs: [], ...extra })
 const props = (subjects, statusMap = {}) => ({ career: { id: 'test', name: 'Carrera', plan: '1', subjects }, statusMap })
-function harness(input) {
+function harness(input, confirm = () => false) {
   const slots = []; let cursor = 0; let calls = 0
   const api = {
-    Date, Fragment: 'fragment',
+    Date, Fragment: 'fragment', window: { confirm },
     useState(initial) {
       const i = cursor++
       if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial
@@ -56,6 +56,65 @@ test('setup waits for explicit generation, defaults to four and displays estimat
   assert.match(text, /pendiente de planificar finales/)
   assert.match(text, /Al cierre: Regularizada/)
   assert.doesNotMatch(text, /Al cierre: Aprobada/)
+})
+
+function persistedInput(subjects, statusMap = {}, scenario = null) {
+  const input = props(subjects, statusMap)
+  const changes = [], resets = []
+  input.persistence = { phase: scenario ? 'saved' : 'empty', scenario,
+    change(next) { changes.push(next); this.scenario = next; this.phase = 'saving' },
+    reset() { resets.push(true) }, retry() {} }
+  return { input, changes, resets }
+}
+const savedScenario = () => ({ startPeriod: { year: 2027, term: '1C' }, initialCapacity: 4, maxPeriods: 40, capacities: [], manualPeriods: [], finalEvents: [] })
+test('persisted UI keeps initial drafts local, generates once, and never autosaves on render or academic recalculation', () => {
+  const {input,changes} = persistedInput([subject('A'),subject('B')])
+  const h = harness(input); h.start(2027); h.load(3); h.render()
+  assert.equal(changes.length,0)
+  h.generate(); assert.equal(changes.length,1)
+  h.render(); input.statusMap = { A:'Aprobada' }
+  const text=h.text(h.render()); assert.equal(changes.length,1)
+  assert.match(text,/Guardando/); assert.doesNotMatch(text,/Al cierre: Cursando/)
+  input.persistence.phase='saved'; assert.match(h.text(h.render()),/Guardado/)
+})
+test('invalid first persisted generation shows diagnostics and never calls persistence', () => {
+  const {input,changes} = persistedInput([subject('A'),subject('B',{prereqs:['A']})],{B:'Cursando'})
+  const h=harness(input); h.generate()
+  assert.equal(changes.length,0); assert.match(h.text(h.render()),/No se guardó/)
+  assert.match(h.text(h.render()),/Falta regularizar/)
+})
+test('restored configuration and edits preserve empty manual periods and fixed dates', () => {
+  const s=savedScenario(); s.manualPeriods=[{period:{year:2028,term:'1C'},codes:[]}]
+  const {input,changes}=persistedInput([subject('A')],{},s),h=harness(input)
+  assert.equal(h.nodes(h.render()).find(n=>n.props.id==='projection-load').props.value,4)
+  h.load(7)
+  assert.equal(changes.length,1); assert.equal(changes[0].manualPeriods.length,1)
+  assert.deepEqual(changes[0].manualPeriods[0].codes,[])
+  assert.equal(input.persistence.scenario.startPeriod.year,2027)
+})
+test('persisted decisions invalidated by current progress or removed codes remain explicit and releasable', () => {
+  for(const statusMap of [{A:'Aprobada'},{A:'Cursando'}]) {
+    const s=savedScenario(); s.manualPeriods=[{period:s.startPeriod,codes:['A']}]
+    const {input,changes}=persistedInput([subject('A'),subject('B')],Object.freeze(statusMap),s),h=harness(input)
+    const text=h.text(h.render())
+    assert.match(text,/revisión|estado actual/); assert.equal(changes.length,0)
+    assert.deepEqual(s.manualPeriods[0].codes,['A'])
+  }
+  const s=savedScenario(); s.manualPeriods=[{period:s.startPeriod,codes:['REMOVED']}]
+  const {input,changes}=persistedInput([subject('A')],{},s),h=harness(input)
+  assert.match(h.text(h.render()),/REMOVED/)
+  h.nodes(h.render()).find(n=>n.type==='button'&&h.text(n).startsWith('Liberar selección')).props.onClick()
+  assert.equal(changes[0].manualPeriods.length,0)
+})
+test('reset requires confirmation, cancellation does nothing, and conflict does not offer destructive reset', () => {
+  for(const confirm of [false,true]) {
+    const {input,resets}=persistedInput([subject('A')],{},savedScenario()),h=harness(input,()=>confirm)
+    h.nodes(h.render()).find(n=>n.type==='button'&&h.text(n)==='Reiniciar proyección').props.onClick()
+    assert.equal(resets.length,confirm?1:0)
+    input.persistence.phase='conflict'
+    assert.equal(h.nodes(h.render()).find(n=>h.text(n)==='Reiniciar proyección').props.disabled,true)
+    assert.match(h.text(h.render()),/borrador local se conserva/)
+  }
 })
 
 test('manual add and remove recalculate without refilling or mutating real progress', () => {

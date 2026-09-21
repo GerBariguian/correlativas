@@ -87,16 +87,32 @@ function PendingFinalsPanel({ finals, titleOf }) {
   </details>
 }
 
-export default function CareerProjectionPage({ career, statusMap }) {
-  const [initialCapacity, setInitialCapacity] = useState(4)
+export default function CareerProjectionPage({ career, statusMap, persistence }) {
+  const [initialCapacity, setInitialCapacity] = useState(persistence?.scenario?.initialCapacity ?? 4)
   // App has no academic-calendar source. Keep the existing editable calendar
   // default, initialized once outside the pure engine, never an eligibility rule.
   const [startPeriod, setStartPeriod] = useState(() => {
+    if (persistence?.scenario) return persistence.scenario.startPeriod
     const today = new Date()
     return { year: today.getFullYear(), term: today.getMonth() < 6 ? '1C' : '2C' }
   })
-  const [scenario, setScenario] = useState(null)
-  const result = useMemo(() => scenario ? projectCareer({ career, statusMap, scenario }) : null, [career, statusMap, scenario])
+  const [localScenario, setLocalScenario] = useState(null)
+  const scenario = persistence ? persistence.scenario : localScenario
+  const setScenario = update => {
+    const next = typeof update === 'function' ? update(scenario) : update
+    if (persistence) persistence.change(next)
+    else setLocalScenario(next)
+  }
+  const evaluatedScenario = scenario ?? localScenario
+  const result = useMemo(() => evaluatedScenario ? projectCareer({ career, statusMap, scenario: evaluatedScenario }) : null, [career, statusMap, evaluatedScenario])
+  function configure(patch) {
+    if (!scenario) return
+    const next = { ...scenario, ...patch }
+    if (Number.isSafeInteger(next.initialCapacity) && next.initialCapacity >= 1
+      && Number.isInteger(next.startPeriod.year) && next.startPeriod.year >= 1 && next.startPeriod.year <= 9979) setScenario(next)
+  }
+  function changeCapacity(value) { setInitialCapacity(value); configure({ initialCapacity: value }) }
+  function changeStart(value) { setStartPeriod(value); configure({ startPeriod: value }) }
   const titleOf = code => `${career.subjects.find(s => s.code === code)?.name || code} (${code})`
   function edit(period, code, action) {
     setScenario(previous => editProjectionPeriod(previous, result, period, code, action))
@@ -105,32 +121,48 @@ export default function CareerProjectionPage({ career, statusMap }) {
     event.preventDefault()
     if (!Number.isSafeInteger(initialCapacity) || initialCapacity < 1) return
     if (!Number.isInteger(startPeriod.year) || startPeriod.year < 1 || startPeriod.year > 9979) return
-    setScenario({ startPeriod: { ...startPeriod }, initialCapacity, capacities: [], manualPeriods: [], finalEvents: [], maxPeriods: 40 })
+    const next = { ...(scenario ?? { capacities: [], manualPeriods: [], finalEvents: [], maxPeriods: 40 }), startPeriod: { ...startPeriod }, initialCapacity }
+    const evaluated = projectCareer({ career, statusMap, scenario: next })
+    if (persistence && !scenario && ['invalid', 'capacity-conflict', 'invalid-event'].includes(evaluated.outcome)) {
+      setLocalScenario(next)
+      return
+    }
+    setScenario(next)
   }
   const setup = <form onSubmit={generate} className="projection-setup">
     <div className="projection-load"><label htmlFor="projection-load">¿Con qué carga querés comenzar?</label>
       <div className="projection-load-controls">
-        <button type="button" className="projection-action" aria-label="Disminuir carga inicial" disabled={!Number.isSafeInteger(initialCapacity) || initialCapacity <= 1} onClick={() => setInitialCapacity(n => n - 1)}>−</button>
-        <input id="projection-load" aria-label="Cantidad inicial de materias" type="number" min="1" step="1" required value={initialCapacity} onChange={e => setInitialCapacity(e.target.value === '' ? '' : Number(e.target.value))} />
+        <button type="button" className="projection-action" aria-label="Disminuir carga inicial" disabled={!Number.isSafeInteger(initialCapacity) || initialCapacity <= 1} onClick={() => changeCapacity(initialCapacity - 1)}>−</button>
+        <input id="projection-load" aria-label="Cantidad inicial de materias" type="number" min="1" step="1" required value={initialCapacity} onChange={e => changeCapacity(e.target.value === '' ? '' : Number(e.target.value))} />
         <span>materias</span>
-        <button type="button" className="projection-action" aria-label="Aumentar carga inicial" disabled={!Number.isSafeInteger(initialCapacity) || initialCapacity >= Number.MAX_SAFE_INTEGER} onClick={() => setInitialCapacity(n => n + 1)}>+</button>
+        <button type="button" className="projection-action" aria-label="Aumentar carga inicial" disabled={!Number.isSafeInteger(initialCapacity) || initialCapacity >= Number.MAX_SAFE_INTEGER} onClick={() => changeCapacity(initialCapacity + 1)}>+</button>
       </div>
       {(!Number.isSafeInteger(initialCapacity) || initialCapacity < 1) && <small role="alert">Ingresá una cantidad entera positiva representable de forma exacta.</small>}
     </div>
     <small className="projection-muted">Después podés cambiar las materias de cada cuatrimestre.</small>
     <details><summary>Período inicial · {periodLabel(startPeriod)}</summary><div className="projection-period-heading">
-      <label>Cuatrimestre inicial <select value={startPeriod.term} onChange={e => setStartPeriod(p => ({ ...p, term: e.target.value }))}><option>1C</option><option>2C</option></select></label>
-      <label>Año inicial <input type="number" min="1" max="9979" required value={startPeriod.year || ''} onChange={e => setStartPeriod(p => ({ ...p, year: Number(e.target.value) }))} /></label>
+      <label>Cuatrimestre inicial <select value={startPeriod.term} onChange={e => changeStart({ ...startPeriod, term: e.target.value })}><option>1C</option><option>2C</option></select></label>
+      <label>Año inicial <input type="number" min="1" max="9979" required value={startPeriod.year || ''} onChange={e => changeStart({ ...startPeriod, year: Number(e.target.value) })} /></label>
     </div></details>
-    <button className="reset" type="submit">{result ? 'Reemplazar proyección' : 'Generar proyección'}</button>
-    {result && <small className="projection-muted">Reemplaza tus decisiones manuales. El progreso real no cambia.</small>}
+    {!scenario && <button className="reset" type="submit">Generar proyección</button>}
+    {result && <small className="projection-muted">Conserva tus decisiones manuales. El progreso real no cambia.</small>}
   </form>
   const affected = result?.placementDiagnostics.filter(d => d.status !== 'applied') ?? []
   const generationFailed = result && ['invalid', 'capacity-conflict', 'invalid-event'].includes(result.outcome)
   return <div className="projection-page">
+    {persistence && <section aria-live="polite">
+      <p role="status">{({ saving: 'Guardando…', saved: 'Guardado', error: persistence.resetFailed ? 'No se pudo reiniciar la proyección' : 'No se pudo guardar', resetting: 'Reiniciando…',
+        conflict: 'Otra pestaña o dispositivo modificó esta proyección. Tu borrador local se conserva; no se sobrescribió la versión remota.' })[persistence.phase]}</p>
+      {persistence.phase === 'error' && <button type="button" onClick={persistence.retry}>Reintentar sincronización</button>}
+      {scenario && <button type="button" className="projection-action" disabled={['resetting', 'conflict'].includes(persistence.phase)} onClick={() => {
+        if (window.confirm('¿Reiniciar la proyección de esta carrera? Se eliminarán sus decisiones de planificación. Tu progreso académico no cambia.')) persistence.reset()
+      }}>Reiniciar proyección</button>}
+      {!scenario && localScenario && <p role="alert">No se guardó la propuesta porque contiene datos inválidos. Revisá la configuración y el progreso académico.</p>}
+    </section>}
+    <fieldset disabled={persistence?.phase === 'resetting'} style={{ display: 'grid', gap: 12, border: 0, padding: 0, margin: 0, minWidth: 0 }}>
     <section className="side-card projection-intro"><h2>Proyectar carrera</h2>
       {!result && <p>Simulá cómo podría avanzar tu carrera según tu situación académica actual.</p>}
-      {result ? <details><summary>Nueva propuesta · {career.name}</summary>{setup}</details> : setup}
+      {result ? <details><summary>Configuración de la proyección · {career.name}</summary>{setup}</details> : setup}
     </section>
     {result && <>
       {outcomeText[result.outcome] && <p role="status" className="side-card">{outcomeText[result.outcome]}</p>}
@@ -144,6 +176,11 @@ export default function CareerProjectionPage({ career, statusMap }) {
           : error.code === 'INVALID_STATUS' ? `Estado o código de progreso no reconocido: ${error.detail.code}.`
             : diagnosticText[error.code] || 'No se pudo interpretar un dato del escenario. No se modificó el progreso.'}</p>}
       </li>)}</ul></details>}
+      {generationFailed && scenario?.manualPeriods.length > 0 && <section className="side-card"><h3>Decisiones conservadas</h3>
+        <p>La planificación necesita revisión. Podés liberar una selección manual sin modificar tu progreso.</p>
+        {scenario.manualPeriods.map(m => <div key={periodLabel(m.period)}><p>{periodLabel(m.period)}: {m.codes.length ? m.codes.map(titleOf).join(', ') : 'Período manualmente vacío'}</p>
+          <button type="button" onClick={() => setScenario(s => ({ ...s, manualPeriods: s.manualPeriods.filter(item => periodLabel(item.period) !== periodLabel(m.period)) }))}>Liberar selección de {periodLabel(m.period)}</button></div>)}
+      </section>}
       {!generationFailed && <>
       {result.summary && <ProjectionSummary summary={result.summary} count={result.periods.length} />}
       {affected.length > 0 && <section className="side-card" role="status"><h3>Decisiones que necesitan revisión</h3><ul>{affected.map(d => <li key={d.code}>
@@ -172,5 +209,6 @@ export default function CareerProjectionPage({ career, statusMap }) {
       </details>}
       </>}
     </>}
+    </fieldset>
   </div>
 }

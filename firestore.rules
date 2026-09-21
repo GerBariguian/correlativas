@@ -40,6 +40,33 @@ service cloud.firestore {
       match /careers/{careerId} {
         allow read, write: if signedIn() && request.auth.uid == uid;
       }
+      match /careerProjections/{careerId} {
+        allow get, delete: if signedIn() && request.auth.uid == uid;
+        allow list: if false;
+        allow create, update: if signedIn() && request.auth.uid == uid && validProjection();
+        function validProjection() {
+          let d = request.resource.data;
+          let s = d.scenario;
+          return d.keys().hasAll(['schemaVersion', 'careerId', 'revisionToken', 'scenario', 'updatedAt'])
+            && d.keys().hasOnly(['schemaVersion', 'careerId', 'revisionToken', 'scenario', 'updatedAt'])
+            && d.schemaVersion == 1 && d.careerId == careerId
+            && careerId.size() > 0 && careerId.size() <= 100
+            && d.revisionToken is string && d.revisionToken.matches('^[A-Za-z0-9_-]{16,100}$')
+            && d.updatedAt == request.time
+            && s is map
+            && s.keys().hasAll(['startPeriod', 'initialCapacity', 'maxPeriods', 'capacities', 'manualPeriods', 'finalEvents'])
+            && s.keys().hasOnly(['startPeriod', 'initialCapacity', 'maxPeriods', 'capacities', 'manualPeriods', 'finalEvents'])
+            && s.startPeriod is map && s.startPeriod.keys().hasAll(['year', 'term'])
+            && s.startPeriod.keys().hasOnly(['year', 'term'])
+            && s.startPeriod.year is int && s.startPeriod.year >= 1 && s.startPeriod.year <= 9979
+            && s.startPeriod.term in ['1C', '2C']
+            && s.initialCapacity is int && s.initialCapacity >= 1 && s.initialCapacity <= 9007199254740991
+            && s.maxPeriods is int && s.maxPeriods >= 1 && s.maxPeriods <= 40
+            && s.capacities is list && s.capacities.size() <= 40
+            && s.manualPeriods is list && s.manualPeriods.size() <= 40
+            && s.finalEvents is list && s.finalEvents.size() == 0;
+        }
+      }
     }
 
     match /socialProfiles/{uid} {

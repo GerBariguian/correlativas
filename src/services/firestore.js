@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase'
 import { savePlanningProgress } from './planning'
 
@@ -10,6 +10,12 @@ export async function loadUserStatus(userId, careerId) {
   if (!snap.exists()) return null
 
   return snap.data().statusMap
+}
+
+export function subscribeUserStatus(userId, careerId, onData, onError) {
+  return onSnapshot(doc(db, 'users', userId, 'careers', careerId), { includeMetadataChanges: true }, snap => {
+    if (!snap.metadata.fromCache && !snap.metadata.hasPendingWrites) onData(snap.exists() ? snap.data().statusMap : null)
+  }, onError)
 }
 
 export async function saveUserStatus(userId, careerId, statusMap) {

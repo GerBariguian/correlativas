@@ -17,6 +17,60 @@ const change = (client, path, value) => updateDoc(doc(client, path), { ...value,
 const remove = (client, path) => deleteDoc(doc(client, path))
 const list = (client, path, ...filters) => getDocsFromServer(query(collection(client, path), ...filters))
 const snapPath = uid => `planningSnapshots/${uid}/careers/${CAREER}`
+const projectionPath = (uid = 'german', career = CAREER) => `users/${uid}/careerProjections/${career}`
+const projection = (careerId = CAREER) => ({ schemaVersion: 1, careerId, revisionToken: 'revision-token-123456', updatedAt: serverTimestamp(),
+  scenario: { startPeriod: { year: 2027, term: '1C' }, initialCapacity: 4, maxPeriods: 40, capacities: [], manualPeriods: [], finalEvents: [] } })
+
+describe('Private personal career projections', () => {
+  test('ALLOW owner exact get/create/update/delete and independent careers, DENY list', async () => {
+    const client = db(), path = projectionPath()
+    await allow(read(client, path))
+    await allow(put(client, path, projection()))
+    await allow(read(client, path))
+    await allow(change(client, path, { revisionToken: 'revision-token-654321' }))
+    await allow(put(client, projectionPath('german', 'other'), projection('other')))
+    await deny(list(client, 'users/german/careerProjections'))
+    await allow(remove(client, path))
+    assert.equal((await allow(read(client, projectionPath('german', 'other')))).exists(), true)
+  })
+  for (const relationship of ['none', 'friend', 'sharing', 'plan member', 'anonymous']) {
+    test(`DENY personal projection access: ${relationship}`, async () => {
+      if (relationship === 'friend' || relationship === 'sharing') await sharedFixture()
+      if (relationship === 'plan member') await planFixture()
+      await allow(put(db(), projectionPath(), projection()))
+      const other = db(relationship === 'anonymous' ? null : 'juan')
+      await deny(read(other, projectionPath()))
+      await deny(put(other, projectionPath(), projection()))
+      await deny(change(other, projectionPath(), { revisionToken: 'revision-token-654321' }))
+      await deny(remove(other, projectionPath()))
+    })
+  }
+  for (const field of ['statusMap', 'timeline', 'result', 'sharing', 'unknown', 'participants']) {
+    test(`DENY projection field ${field} at document and scenario level`, async () => {
+      const data = projection()
+      await deny(put(db(), projectionPath(), { ...data, [field]: {} }))
+      await deny(put(db(), projectionPath(), { ...data, scenario: { ...data.scenario, [field]: {} } }))
+    })
+  }
+  test('DENY unsupported schema, wrong career, revision, timestamp and invalid scenario bounds', async () => {
+    for (const patch of [{ schemaVersion: 2 }, { careerId: 'other' }, { revisionToken: '' }, { updatedAt: TIME }]) {
+      await deny(put(db(), projectionPath(), { ...projection(), ...patch }))
+    }
+    for (const patch of [{ finalEvents: [{ code: 'A', period: { year: 2027, term: '1C' } }] },
+      { initialCapacity: 0 }, { initialCapacity: 1.5 }, { maxPeriods: 41 }, { manualPeriods: {} },
+      { capacities: Array(41).fill({}) }, { startPeriod: { year: 2027, term: '3C' } }]) {
+      const data = projection()
+      await deny(put(db(), projectionPath(), { ...data, scenario: { ...data.scenario, ...patch } }))
+    }
+  })
+  test('ALLOW explicit empty manual selection; progress remains unchanged', async () => {
+    const client = db(), data = projection(), path = `users/german/careers/${CAREER}`
+    const before = (await read(client, path)).data()
+    data.scenario.manualPeriods = [{ period: { year: 2028, term: '2C' }, codes: [] }]
+    await allow(put(client, projectionPath(), data)); await allow(remove(client, projectionPath()))
+    assert.deepEqual((await read(client, path)).data(), before)
+  })
+})
 function finalize(client, id, tombstone = { deletedAt: serverTimestamp() }) {
   const batch = writeBatch(client)
   batch.set(doc(client, `jointPlanTombstones/${id}`), tombstone)

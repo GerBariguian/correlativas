@@ -1,5 +1,9 @@
 # Motor de proyección — v1.10.0, etapa 1
 
+La persistencia posterior de decisiones está documentada en
+[Persistencia privada](career-projection-persistence.md). El motor continúa puro;
+las referencias históricas a escenarios solo en memoria describen etapas previas.
+
 `src/projectionLogic.js` es independiente de React, Firebase, almacenamiento y
 reloj del sistema. Importa únicamente funciones académicas puras de `logic.js`.
 No modifica el catálogo, los escenarios ni el progreso recibido. La interfaz de
