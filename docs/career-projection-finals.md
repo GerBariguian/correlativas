@@ -27,7 +27,8 @@ de cursadas proyectadas y todos los eventos conservados, incluidos los inválido
 y los ya aplicados en la simulación. No se construye solo con los finales restantes
 del último cierre, porque perdería los eventos exitosos.
 
-Cada materia permite Planificar/Cambiar período y Sin período. El selector evalúa
+Cada materia permite Planificar/Cambiar período y volver a Sin período mediante
+«Quitar período». El selector evalúa
 los períodos del horizonte mediante `getFinalPeriodOptions`: sustituye el evento
 de esa materia y ejecuta el mismo motor, sin reglas académicas duplicadas en React.
 Solo habilita opciones cuyo diagnóstico sea `applied`. `editPlannedFinal` verifica
@@ -37,6 +38,36 @@ Se calcula la lista de opciones solamente para la materia editada, con memoizaci
 La timeline muestra un resumen desplegable de eventos, no otro editor. Una
 finalización simulada se rotula como estimación condicionada a aprobar los finales;
 «Carrera completada» se reserva a la aprobación real de todos los elementos.
+
+## Organización visual del editor
+
+El encabezado integra el estado discreto de guardado y el reset secundario; los
+errores de sincronización y conflictos conservan sus mensajes y acciones debajo.
+Después de la configuración y el resumen aparecen los avisos, Finales, la timeline,
+los requisitos pendientes y las actividades no calendarizables.
+
+Finales es plegable y muestra contadores de revisión y planificación aun cerrado.
+La vista inicial Relevantes incluye pendientes reales y todos los eventos guardados:
+primero revisión, luego pendientes reales, planificados futuros y otras decisiones.
+Los filtros Relevantes, Requiere revisión, Planificados, Pendientes reales, Futuros,
+Ya aprobados y Todos se solapan; sus contadores no son sumandos de un total.
+No hay búsqueda ni paginación. Un filtro vacío ofrece Ver todos.
+
+Solo la fila en edición calcula opciones. El año es una vista local; se obtiene de
+las opciones del motor y cambiarlo no guarda nada. Los botones de cuatrimestre
+usan la elegibilidad del motor y muestran diagnósticos visibles para las opciones
+no disponibles. No se acorta ni amplía el horizonte. Un evento inválido o fuera del
+horizonte sigue mostrando su período original, diagnóstico y acción para quitarlo.
+
+La fila en edición permanece montada al cambiar de categoría o desaparecer de la
+lista del motor; en este último caso deja de ofrecer opciones y no reutiliza una
+elegibilidad anterior. Al cerrar un editor cuya fila queda oculta se enfoca el
+encabezado del panel. Los filtros y la navegación no llaman a la persistencia.
+
+La timeline distingue eventos activos, revisiones e intenciones inactivas, y ofrece
+Ir a Finales: abre el panel y enfoca su summary nativo. No duplica el editor.
+Filtros con aria-pressed, controles nativos, diagnósticos asociados y foco visible
+mantienen la navegación de teclado; las filas y controles se apilan en móvil.
 
 ## Persistencia y validación
 

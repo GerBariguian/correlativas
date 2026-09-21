@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { projectCareer, getProjectionDuration, editProjectionPeriod } from '../projectionLogic'
 import FinalPlanningPanel from './FinalPlanningPanel'
 
@@ -43,9 +43,11 @@ function ProjectionSummary({ summary, count, realComplete }) {
   </section>
 }
 
-function ProjectionSemester({ career, entry, result, onEdit }) {
+function ProjectionSemester({ career, entry, result, onEdit, onGoToFinals }) {
   const nameOf = code => career.subjects.find(s => s.code === code)?.name || code
   const finals = result.eventDiagnostics.filter(e => periodLabel(e.period) === periodLabel(entry.period))
+  const activeFinals = finals.filter(e => e.status !== 'obsolete')
+  const reviewCount = activeFinals.filter(e => e.status !== 'applied').length
   return <article className="side-card projection-semester">
     <header className="projection-period-heading"><h3>{periodLabel(entry.period)}{entry.readOnly && ' · En curso'}</h3><span>{entry.started.length + entry.continuing.length} materias{entry.readOnly && ' reales'}</span></header>
     <ul className="projection-subjects">{[...entry.continuing, ...entry.started].map(code => {
@@ -64,9 +66,10 @@ function ProjectionSemester({ career, entry, result, onEdit }) {
       </div></li>
     })}</ul>
     {!entry.started.length && !entry.continuing.length && <p className="projection-muted">Sin materias planificadas.</p>}
-    {finals.length > 0 && <details className="projection-period-finals"><summary>Finales planificados: {finals.length}</summary>
+    {finals.length > 0 && <details className="projection-period-finals"><summary>Finales planificados: {activeFinals.length}{reviewCount > 0 && ` · ${reviewCount} requieren revisión`}{finals.length > activeFinals.length && ` · ${finals.length - activeFinals.length} inactivos`}</summary>
       <ul>{finals.map(e => <li key={e.code}>{nameOf(e.code)} · {e.status === 'applied' ? 'Aprobación supuesta al cierre' : e.status === 'obsolete' ? 'Ya aprobado en tu progreso' : 'Requiere revisión'}</li>)}</ul>
       <small>Los períodos se editan en la sección Finales.</small>
+      <button type="button" className="projection-action" onClick={onGoToFinals}>Ir a Finales</button>
     </details>}
     {!entry.readOnly && <details className="projection-picker" key={entry.started.join('|')}><summary>+ Agregar materia</summary>
       <>
@@ -83,6 +86,12 @@ function ProjectionSemester({ career, entry, result, onEdit }) {
 }
 
 export default function CareerProjectionPage({ career, statusMap, persistence }) {
+  const finalsPanel = useRef(null)
+  function goToFinals() {
+    if (!finalsPanel.current) return
+    finalsPanel.current.open = true
+    finalsPanel.current.querySelector('summary')?.focus()
+  }
   const [initialCapacity, setInitialCapacity] = useState(persistence?.scenario?.initialCapacity ?? 4)
   // App has no academic-calendar source. Keep the existing editable calendar
   // default, initialized once outside the pure engine, never an eligibility rule.
@@ -146,21 +155,28 @@ export default function CareerProjectionPage({ career, statusMap, persistence })
   const affected = result?.placementDiagnostics.filter(d => d.status !== 'applied') ?? []
   const generationFailed = result && ['invalid', 'capacity-conflict', 'invalid-event'].includes(result.outcome)
   return <div className="projection-page">
-    {persistence && <section aria-live="polite">
-      <p role="status">{({ saving: 'Guardando…', saved: 'Guardado', error: persistence.resetFailed ? 'No se pudo reiniciar la proyección' : 'No se pudo guardar', resetting: 'Reiniciando…',
-        conflict: 'Otra pestaña o dispositivo modificó esta proyección. Tu borrador local se conserva; no se sobrescribió la versión remota.' })[persistence.phase]}</p>
-      {persistence.phase === 'error' && <button type="button" onClick={persistence.retry}>Reintentar sincronización</button>}
-      {scenario && <button type="button" className="projection-action" disabled={['resetting', 'conflict'].includes(persistence.phase)} onClick={() => {
+    <section className="side-card projection-intro">
+      <header className="projection-heading"><h2>Proyectar carrera</h2>
+      {persistence && <div className="projection-save-controls">
+        <span role="status" className="projection-muted">{({ saving: 'Guardando…', saved: 'Guardado', resetting: 'Reiniciando…' })[persistence.phase]}</span>
+      {scenario && <button type="button" className="projection-action projection-reset" disabled={['resetting', 'conflict'].includes(persistence.phase)} onClick={() => {
         if (window.confirm('¿Reiniciar la proyección de esta carrera? Se eliminarán sus decisiones de planificación. Tu progreso académico no cambia.')) persistence.reset()
       }}>Reiniciar proyección</button>}
-      {!scenario && localScenario && <p role="alert">No se guardó la propuesta porque contiene datos inválidos. Revisá la configuración y el progreso académico.</p>}
-    </section>}
-    <fieldset disabled={persistence?.phase === 'resetting'} style={{ display: 'grid', gap: 12, border: 0, padding: 0, margin: 0, minWidth: 0 }}>
-    <section className="side-card projection-intro"><h2>Proyectar carrera</h2>
+      </div>}</header>
+      {persistence && <>
+        {persistence.phase === 'error' && <div className="projection-sync-notice"><p role="alert">{persistence.resetFailed ? 'No se pudo reiniciar la proyección' : 'No se pudo guardar'}</p>
+          <button type="button" className="projection-action" onClick={persistence.retry}>Reintentar sincronización</button></div>}
+        {persistence.phase === 'conflict' && <p role="alert" className="projection-sync-notice">Otra pestaña o dispositivo modificó esta proyección. Tu borrador local se conserva; no se sobrescribió la versión remota.</p>}
+        {!scenario && localScenario && <p role="alert">No se guardó la propuesta porque contiene datos inválidos. Revisá la configuración y el progreso académico.</p>}
+      </>}
+      <fieldset className="projection-content" disabled={persistence?.phase === 'resetting'}>
       {!result && <p>Simulá cómo podría avanzar tu carrera según tu situación académica actual.</p>}
       {result ? <details><summary>Configuración de la proyección · {career.name}</summary>{setup}</details> : setup}
+      </fieldset>
     </section>
+    <fieldset className="projection-content" disabled={persistence?.phase === 'resetting'}>
     {result && <>
+      {!generationFailed && result.summary && <ProjectionSummary summary={result.summary} count={result.periods.length} realComplete={realComplete} />}
       {outcomeText[result.outcome] && <p role="status" className="side-card">{outcomeText[result.outcome]}</p>}
       {generationFailed && result.errors.length > 0 && <details className="side-card"><summary>Ver qué impide proyectar</summary><ul>{result.errors.map((error, index) => <li key={index}>
         {error.code === 'INCONSISTENT_STATUS' ? <><strong>{titleOf(error.detail)} · {error.subjectStatus}</strong>
@@ -178,7 +194,6 @@ export default function CareerProjectionPage({ career, statusMap, persistence })
           <button type="button" onClick={() => setScenario(s => ({ ...s, manualPeriods: s.manualPeriods.filter(item => periodLabel(item.period) !== periodLabel(m.period)) }))}>Liberar selección de {periodLabel(m.period)}</button></div>)}
       </section>}
       {!generationFailed && <>
-      {result.summary && <ProjectionSummary summary={result.summary} count={result.periods.length} realComplete={realComplete} />}
       {affected.length > 0 && <section className="side-card" role="status"><h3>Decisiones que necesitan revisión</h3><ul>{affected.map(d => <li key={d.code}>
         <strong>{titleOf(d.code)} · {periodLabel(d.period)}</strong>
         <p>{d.reason === 'ACADEMIC_REQUIREMENTS' ? 'Ya no cumple los requisitos al comienzo de ese cuatrimestre.'
@@ -190,7 +205,10 @@ export default function CareerProjectionPage({ career, statusMap, persistence })
         <button type="button" className="projection-action" onClick={() => setScenario(s => ({ ...s, manualPeriods: s.manualPeriods.map(m => ({ ...m, codes: m.codes.filter(c => c !== d.code) })) }))}>Liberar decisión de {titleOf(d.code)}</button>
       </li>)}</ul></section>}
       {realComplete && <p className="side-card">¡Carrera completada! No hay cursadas por proyectar.</p>}
-      <div className="projection-timeline">{result.periods.map(entry => <ProjectionSemester key={periodLabel(entry.period)} career={career} entry={entry} result={result} onEdit={edit} />)}</div>
+      </>}
+      {scenario && (!generationFailed || scenario.finalEvents.length > 0) && <FinalPlanningPanel career={career} statusMap={statusMap} scenario={scenario} result={result} onChange={setScenario} panelRef={finalsPanel} />}
+      {!generationFailed && <>
+      <section className="projection-timeline" aria-label="Cursadas por cuatrimestre"><h3>Cursadas por cuatrimestre</h3>{result.periods.map(entry => <ProjectionSemester key={periodLabel(entry.period)} career={career} entry={entry} result={result} onEdit={edit} onGoToFinals={goToFinals} />)}</section>
       {result.blockers.length > 0 && <details className="side-card"><summary>Materias con requisitos pendientes ({result.blockers.length})</summary><p>No podés cursarlas todavía.</p><ul>{result.blockers.map(s => <li key={s.code}><strong>{titleOf(s.code)}</strong>
         {s.regularized.length > 0 && <p>Falta regularizar: {s.regularized.map(titleOf).join(', ')}.</p>}
         {s.approved.length > 0 && <p>Falta aprobar: {s.approved.map(titleOf).join(', ')}.</p>}
@@ -203,7 +221,6 @@ export default function CareerProjectionPage({ career, statusMap, persistence })
         </li>)}</ul>
       </details>}
       </>}
-      {scenario && (!generationFailed || scenario.finalEvents.length > 0) && <FinalPlanningPanel career={career} statusMap={statusMap} scenario={scenario} result={result} onChange={setScenario} />}
     </>}
     </fieldset>
   </div>
