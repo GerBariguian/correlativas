@@ -1563,6 +1563,47 @@ h1 {
 .subject-card :is(button):focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
 .map-to-planner-btn:disabled { opacity: .65; cursor: not-allowed; }
 #map-planner-reason { margin-top: 12px; }
+.planner-intelligent { display: grid; gap: 24px; min-width: 0; }
+.planner-intelligent .planner-subject small { display: block; margin-top: 4px; }
+.planner-intelligent .planner-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.planner-intelligent .planner-summary article { min-width: 0; }
+.planner-intelligent .planner-summary strong { font-size: clamp(1.4rem, 2.2vw, 2.25rem); overflow-wrap: anywhere; }
+.planner-intelligent .planner-uncertainty { display: flex; flex-wrap: wrap; gap: 4px 8px; margin: 4px 0; }
+.planner-intelligent .planner-uncertainty small { display: inline; margin: 0; padding: 2px 6px; border: 1px solid var(--line); border-radius: 6px; font-size: .75rem; font-weight: 400; text-transform: none; }
+@media (max-width: 900px) { .planner-intelligent .planner-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.planner-intelligent h3 { margin: 0 0 12px; }
+.planner-intelligent p { line-height: 1.5; }
+.planner-intelligent section { min-width: 0; }
+.planner-controls { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: flex-start; }
+.planner-controls fieldset { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-width: 0; max-width: 100%; }
+.planner-controls legend { font-weight: 700; padding: 0 4px; }
+.planner-controls small { flex-basis: 100%; }
+.planner-controls input, .planner-controls select { box-sizing: border-box; min-height: 40px; border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--text); padding: 8px; font: inherit; }
+.planner-controls #planner-year { width: 7rem; }
+.planner-quantity { display: flex; align-items: center; gap: 8px; max-width: 100%; }
+.planner-quantity input { width: 6rem; text-align: center; appearance: textfield; }
+.planner-quantity input::-webkit-inner-spin-button, .planner-quantity input::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.planner-intelligent button:not(.planner-subject) { min-height: 40px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; font: inherit; }
+.planner-intelligent button:disabled { opacity: .6; cursor: not-allowed; }
+.planner-intelligent :is(button, input, select, summary):focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.planner-note { color: var(--muted); font-size: .9rem; }
+.planner-selection ul { list-style: none; padding: 0; margin: 0; }
+.planner-selection li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.planner-selection li > div { flex: 1; min-width: 12rem; overflow-wrap: anywhere; }
+.planner-selection li p { margin: 4px 0; }
+.planner-intelligent details { padding: 12px 0; }
+.planner-intelligent summary { cursor: pointer; font-weight: 700; padding: 4px 0; }
+.planner-intelligent details li { margin: 8px 0; line-height: 1.5; }
+.planner-comparison { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 16px; overflow-wrap: anywhere; }
+.planner-comparison-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.planner-comparison-columns article { padding: 12px; background: #f8fafc; border-radius: 10px; }
+.planner-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+@media (max-width: 640px) {
+  .planner-intelligent .planner-summary { grid-template-columns: 1fr; }
+  .planner-comparison-columns { grid-template-columns: 1fr; }
+  .planner-controls { flex-direction: column; }
+  .planner-intelligent .planner-grid { grid-template-columns: 1fr; }
+}
 .planner-unavailable { padding: 16px; border: 1px solid var(--line); border-radius: 12px; }
 .planner-unavailable ul { padding: 0; list-style: none; }
 .planner-unavailable li { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 8px 0; }

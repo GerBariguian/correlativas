@@ -9,11 +9,14 @@ function CareerMap({
   setSelectedCode,
   setActivePage,
   setPlannerSelectedCodes,
+  plannerSelectedCodes = [],
 }) {
   const levels = [...new Set(subjects.map(getSubjectLevel))]
 
   const selectedSubject = subjects.find((subject) => subject.code === selectedCode)
-  const canAdd = availableToCourse(subjects, statusMap).some(subject => subject.code === selectedCode)
+  const isActivity = selectedSubject?.projectionKind === 'activity'
+  const alreadySelected = plannerSelectedCodes.includes(selectedCode)
+  const canAdd = !isActivity && availableToCourse(subjects, statusMap).some(subject => subject.code === selectedCode)
   const selectedStatus = selectedSubject && getStatus(statusMap, selectedCode)
   const missing = selectedSubject && missingCoursePrereqs(selectedSubject, statusMap)
   const names = codes => codes.map(code => subjects.find(subject => subject.code === code)?.name || code).join(', ')
@@ -24,6 +27,7 @@ function CareerMap({
     ? [...(selectedSubject.prereqs ?? []), ...(selectedSubject.approvedPrereqs ?? [])] : []
 
   function addToPlanner() {
+    if (alreadySelected) { setActivePage('planificador'); return }
     if (!canAdd) return
 
     setPlannerSelectedCodes((current) =>
@@ -47,10 +51,11 @@ function CareerMap({
           />
 
           {selectedSubject && (
-            <div><button className="map-to-planner-btn" disabled={!canAdd} aria-describedby={!canAdd ? 'map-planner-reason' : undefined} onClick={addToPlanner}>
-              📅 Agregar {selectedSubject.name} al planificador
+            <div><button className="map-to-planner-btn" disabled={!canAdd && !alreadySelected} aria-describedby={!canAdd ? 'map-planner-reason' : undefined} onClick={addToPlanner}>
+              {alreadySelected ? `Ver ${selectedSubject.name} en Mi selección` : `📅 Agregar ${selectedSubject.name} al planificador`}
             </button>
               {!canAdd && <div id="map-planner-reason">
+                {isActivity && <p>Esta actividad no se incluye como cursada en Mi selección. Podés seguir su estado en Materias.</p>}
                 {selectedStatus !== 'Pendiente' && <p>No se puede agregar a Mi selección: su estado es {selectedStatus}. Solo se incluyen materias Pendientes habilitadas para cursar.</p>}
                 {missing.regularized.length > 0 && <p>Falta regularizar: {names(missing.regularized)}.</p>}
                 {missing.approved.length > 0 && <p>Falta aprobar para cursar: {names(missing.approved)}.</p>}
@@ -89,6 +94,7 @@ function CareerMap({
 
                         return (
                           <button
+                            aria-pressed={selectedCode === subject.code}
                             className={`map-subject ${status.toLowerCase()} ${
                               selectedCode === subject.code ? 'selected' : ''
                             } ${

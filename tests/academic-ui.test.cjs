@@ -16,7 +16,7 @@ function harness() {
   }
   vm.createContext(api)
   vm.runInContext(clean(source('src/logic.js')), api)
-  for (const name of ['WelcomeSetup','CareerMap','Planner','SubjectModal','SubjectCard','Advisor']) {
+  for (const name of ['WelcomeSetup','CareerMap','SubjectModal','SubjectCard','Advisor']) {
     vm.runInContext(transformSync(name+'.jsx', clean(source(`src/components/${name}.jsx`)), { jsx: { runtime: 'classic', pragma: 'h', pragmaFrag: 'Fragment' } }).code, api)
   }
   return { api, refs }
@@ -59,18 +59,19 @@ test('map explains regularization and approval requirements without adding or na
 })
 
 test('invalidated selections remain visible, excluded from metrics, and removable independently',()=>{
-  const {api}=harness(), subjects=[subject('A',{hours:9}),subject('B',{prereqs:['A']}),subject('C',{hours:3})]
-  let codes=['B','C']
+  const subjects=[subject('A',{hours:9}),subject('B',{prereqs:['A']}),subject('C',{hours:3,hoursUnit:'horas cátedra semanales'})]
   const before=Object.freeze({A:'Regularizada'})
-  const render=statusMap=>api.Planner({subjects,availableSubjects:api.availableToCourse(subjects,statusMap),selectedCodes:codes,setSelectedCodes:fn=>{codes=fn(codes)}})
-  assert.match(text(render(before)),/Elegidas 2/)
-  const after=Object.freeze({A:'Pendiente'}), tree=render(after)
-  assert.deepEqual(codes,['B','C'])
-  assert.match(text(tree),/Materia B · No disponible/)
+  const h=require('./planner-ui-harness.cjs').plannerHarness(subjects,{selectedCodes:['B','C'],statusMap:before})
+  assert.match(text(h.render()),/Elegidas válidas 2/)
+  const after=Object.freeze({A:'Pendiente'}); h.props.statusMap=after
+  const tree=h.render()
+  assert.deepEqual(h.props.selectedCodes,['B','C'])
+  assert.match(text(tree),/Materia B No disponible/)
   const summary=nodes(tree).find(n=>n.props.className==='planner-summary')
-  assert.match(text(summary),/Elegidas 1 Horas totales 3 Desbloqueos directos 0/)
+  assert.match(text(summary),/Elegidas válidas 1 Nuevas habilitaciones al cierre 0/)
+  assert.match(text(tree),/3 horas cátedra semanales/)
   nodes(tree).find(n=>n.props['aria-label']==='Quitar Materia B de Mi selección').props.onClick()
-  assert.deepEqual(codes,['C']); assert.equal(after.A,'Pendiente')
+  assert.deepEqual(Array.from(h.props.selectedCodes),['C']); assert.equal(after.A,'Pendiente')
 })
 
 for(const state of ['Pendiente','Cursando','Regularizada','Aprobada']) for(const requirementsMet of [false,true]) test(`final presentation: ${state}, requirements ${requirementsMet}`,()=>{
@@ -110,4 +111,59 @@ test('advisor removes residual eyebrow and preserves icon and recommendation ord
   assert.doesNotMatch(text(tree),/Opción B/); assert.match(text(tree),/Asesor académico/)
   assert.ok(nodes(tree).some(n=>n.type==='sparkles'))
   assert.deepEqual(nodes(tree).filter(n=>n.type==='article').map(text),['Uno Primera Motivo 1','Dos Segunda Motivo 2'])
+})
+
+for (const [label, metadata, valid] of [
+  ['unknown start and duration', {}, true],
+  ['explicit incompatible', { durationPeriods: 1, allowedStartTerms: ['2C'] }, false],
+  ['annual compatible', { durationPeriods: 2, allowedStartTerms: ['1C'] }, true],
+  ['annual incompatible', { durationPeriods: 2, allowedStartTerms: ['2C'] }, false],
+]) test(`map to planner preserves ${label} without a manual capacity limit`, () => {
+  const { api } = harness(), subjects = ['A','B','C','D'].map(c => subject(c)).concat(subject('E', metadata))
+  const statusMap = Object.freeze({}), period = { year: 2030, term: '1C' }
+  let codes = ['A','B','C','D'], page
+  const tree = api.CareerMap({subjects, statusMap, selectedCode:'E', plannerSelectedCodes:codes, setSelectedCode(){},
+    setPlannerSelectedCodes: fn => { codes = fn(codes) }, setActivePage: value => { page = value }})
+  const button = nodes(tree).find(n => n.props.className === 'map-to-planner-btn')
+  assert.equal(button.props.disabled, false); button.props.onClick()
+  assert.equal(page, 'planificador'); assert.equal(codes.length, 5)
+  const h = require('./planner-ui-harness.cjs').plannerHarness(subjects, { selectedCodes:codes, statusMap, targetPeriod:period, desiredCount:4 })
+  const result = h.render()
+  assert.match(text(result), new RegExp(`Elegidas válidas ${valid ? 5 : 4}`))
+  if (!valid) {
+    assert.match(text(result), /Inicio incompatible con el período elegido/)
+    assert.doesNotMatch(text(tree), /Falta regularizar|Falta aprobar/)
+  }
+  assert.ok(nodes(result).some(n => n.props['aria-label'] === 'Quitar Materia E de Mi selección'))
+  assert.deepEqual(statusMap, {})
+  assert.equal(h.props.desiredCount, 4); assert.deepEqual(h.props.targetPeriod, period)
+})
+
+test('map existing invalid selection navigates without duplicating or editing it', () => {
+  const {api}=harness(); let navigations=0
+  const tree=api.CareerMap({subjects:[subject('A')],statusMap:{A:'Aprobada'},selectedCode:'A',plannerSelectedCodes:['A'],setSelectedCode(){},
+    setPlannerSelectedCodes(){assert.fail('existing selection must not change')},setActivePage(){navigations++}})
+  const button=nodes(tree).find(n=>n.props.className==='map-to-planner-btn')
+  assert.equal(button.props.disabled,false); assert.match(text(button),/Ver Materia A en Mi selección/)
+  button.props.onClick(); assert.equal(navigations,1)
+  const mapButton=nodes(tree).find(n=>n.props.className?.startsWith('map-subject '))
+  assert.equal(mapButton.type,'button'); assert.equal(mapButton.props['aria-pressed'],true)
+})
+
+test('map activity cannot be newly added and explains academic tracking without name heuristics',()=>{
+  const {api}=harness()
+  const tree=api.CareerMap({subjects:[subject('A',{projectionKind:'activity'})],statusMap:{},selectedCode:'A',setSelectedCode(){},
+    setPlannerSelectedCodes(){assert.fail('activity')},setActivePage(){assert.fail('activity')}})
+  const button=nodes(tree).find(n=>n.props.className==='map-to-planner-btn')
+  assert.equal(button.props.disabled,true); button.props.onClick()
+  assert.equal(button.props['aria-describedby'],'map-planner-reason')
+  assert.match(text(tree),/actividad no se incluye como cursada/)
+})
+
+for(const career of require('./projection-catalogs.cjs')()) test(`map structural compatibility: ${career.id}`,()=>{
+  const {api}=harness()
+  for(const subject of career.subjects) {
+    const tree=api.CareerMap({subjects:career.subjects,statusMap:career.initialStatus||{},selectedCode:subject.code,setSelectedCode(){},setPlannerSelectedCodes(){},setActivePage(){}})
+    assert.ok(nodes(tree).some(n=>n.props.className==='map-to-planner-btn'))
+  }
 })

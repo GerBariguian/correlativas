@@ -1,6 +1,7 @@
 import CareerSelector from './components/CareerSelector'
 import CareerProjectionPage from './components/CareerProjectionPage'
 import useCareerProjection from './hooks/useCareerProjection'
+import usePlannerSession from './hooks/usePlannerSession'
 import { Route } from 'lucide-react'
 import PlannerPage from './components/PlannerPage'
 import CareerMap from './components/CareerMap'
@@ -61,7 +62,9 @@ function App() {
   const [expanded, setExpanded] = useState(null)
   const [activePage, setActivePage] = useState('dashboard')
   const [selectedMapCode, setSelectedMapCode] = useState(null)
-  const [plannerSelectedCodes, setPlannerSelectedCodes] = useState([])
+  const planner = usePlannerSession(user?.uid ?? null, activeCareerId)
+  const plannerSelectedCodes = planner.selectedCodes
+  const setPlannerSelectedCodes = planner.setSelectedCodes
   const session = useRef(null)
   const progress = useRef(null)
   const writes = useRef(Promise.resolve())
@@ -100,7 +103,6 @@ function App() {
       setStatusLoading(true)
       setActiveCareerId(DEFAULT_CAREER_ID)
       setStatusMap(careers[0].initialStatus)
-      setPlannerSelectedCodes([])
       setAuthLoading(false)
     })
     return () => {
@@ -143,7 +145,6 @@ function App() {
     setStatusLoading(true)
     setExpanded(null)
     setSelectedMapCode(null)
-    setPlannerSelectedCodes([])
     async function loadStatusForCareer() {
       try {
         await writes.current
@@ -446,6 +447,7 @@ if (!hasChosenCareer) {
   setSelectedCode={setSelectedMapCode}
   setActivePage={setActivePage}
   setPlannerSelectedCodes={setPlannerSelectedCodes}
+  plannerSelectedCodes={plannerSelectedCodes}
 />
 )}
 
@@ -455,10 +457,13 @@ if (!hasChosenCareer) {
     user={user}
     career={activeCareer}
     statusMap={statusMap}
-    availableSubjects={toCourse}
     subjects={subjects}
     selectedCodes={plannerSelectedCodes}
     setSelectedCodes={setPlannerSelectedCodes}
+    targetPeriod={planner.targetPeriod}
+    setTargetPeriod={planner.setTargetPeriod}
+    desiredCount={planner.desiredCount}
+    setDesiredCount={planner.setDesiredCount}
   />
 )}
     </main>

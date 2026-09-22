@@ -45,7 +45,7 @@ export default function PlannerPage({ user, career, statusMap, ...plannerProps }
       {[['selection', 'Mi selección'], ['comparison', 'Comparar avance'], ['joint', 'Plan conjunto']].map(([key, text]) => <button key={key} className={view === key ? 'active' : ''} aria-current={view === key ? 'page' : undefined} onClick={() => { setView(key); setNotice('') }}>{text}</button>)}
     </nav>
     {notice && <p role="status">{notice}</p>}
-    {view === 'selection' && <Planner {...plannerProps} />}
+    {view === 'selection' && <Planner {...plannerProps} statusMap={statusMap} scopeKey={`${user.uid}:${career.id}`} />}
     {view === 'comparison' && <>
       <header className="planning-section-head"><h2>Comparar avance</h2></header>
       {planComparison ? <div className="planning-context"><p>{data.selected ? `Comparando participantes de ${titleOf(data.selected)}` : 'Este plan ya no está disponible para vos.'}</p><button className="planning-link" onClick={() => setPlanComparison(false)}>Volver a mi comparación</button></div> : <>
