@@ -12,6 +12,7 @@ function SubjectModal({
   open,
   onClose,
   subject,
+  status,
   subjects,
   courseOk,
   finalOk,
@@ -40,7 +41,7 @@ function SubjectModal({
             <h2>{subject.name}</h2>
           </div>
 
-          <IconButton onClick={onClose}>
+          <IconButton onClick={onClose} aria-label="Cerrar detalle de materia">
             ✕
           </IconButton>
         </div>
@@ -137,7 +138,7 @@ function SubjectModal({
               <strong>Estado para final</strong>
               <br />
 
-              {finalOk ? (
+              {status === 'Aprobada' ? 'Materia ya aprobada' : status !== 'Regularizada' ? 'Todavía no está regularizada' : finalOk ? (
                 '✅ Puede rendirse'
               ) : (
                 <>
@@ -153,6 +154,8 @@ function SubjectModal({
                 </>
               )}
             </p>
+
+            {status !== 'Regularizada' && missingFinal.length > 0 && <p>Correlativas de final pendientes. Falta aprobar: {missingFinal.map(code => subjectNameByCode(code, subjects)).join(', ')}.</p>}
 
             <p>
               <strong>Desbloquea</strong>

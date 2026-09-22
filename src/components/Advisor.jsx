@@ -5,7 +5,6 @@ function Advisor({ recs }) {
     <section className="advisor">
       <div className="section-title">
         <div>
-          <p className="eyebrow">Opción B</p>
           <h2>Asesor académico</h2>
         </div>
         <Sparkles />

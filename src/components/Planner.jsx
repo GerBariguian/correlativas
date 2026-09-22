@@ -7,6 +7,7 @@ function Planner({ availableSubjects, subjects,  selectedCodes, setSelectedCodes
   const selectedSubjects = availableSubjects.filter((subject) =>
     selectedCodes.includes(subject.code)
   )
+  const unavailableCodes = selectedCodes.filter(code => !availableSubjects.some(subject => subject.code === code))
 
   const totalHours = selectedSubjects.reduce(
     (total, subject) => total + subject.hours,
@@ -91,6 +92,14 @@ function Planner({ availableSubjects, subjects,  selectedCodes, setSelectedCodes
         </article>
       </div>
 
+      {unavailableCodes.length > 0 && <section className="planner-unavailable" aria-label="Selecciones actualmente no disponibles">
+        <h3>Selecciones actualmente no disponibles</h3>
+        <p>Estas materias ya no figuran entre las habilitadas para cursar. Conservamos tu selección, pero no cuentan en cantidad, horas ni desbloqueos del resumen.</p>
+        <ul>{unavailableCodes.map(code => <li key={code}>
+          <span>{subjects.find(subject => subject.code === code)?.name || code} · No disponible</span>
+          <button type="button" onClick={() => toggleSubject(code)} aria-label={`Quitar ${subjects.find(subject => subject.code === code)?.name || code} de Mi selección`}>Quitar</button>
+        </li>)}</ul>
+      </section>}
       <div className="planner-grid">
         {availableSubjects.map((subject) => {
           const selected = selectedCodes.includes(subject.code)

@@ -1558,6 +1558,16 @@ h1 {
   padding: 0;
   list-style: none;
 }
+
+.subject-detail-button { align-self: flex-start; background: transparent; border: 0; padding: 8px 0; cursor: pointer; }
+.subject-card :is(button):focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.map-to-planner-btn:disabled { opacity: .65; cursor: not-allowed; }
+#map-planner-reason { margin-top: 12px; }
+.planner-unavailable { padding: 16px; border: 1px solid var(--line); border-radius: 12px; }
+.planner-unavailable ul { padding: 0; list-style: none; }
+.planner-unavailable li { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 8px 0; }
+.planner-unavailable li span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.planner-unavailable button { padding: 8px 12px; cursor: pointer; }
 .planning-participants li {
   display: flex;
   flex-wrap: wrap;

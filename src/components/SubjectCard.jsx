@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import {
   STATUS,
   canCourse,
@@ -38,12 +39,18 @@ function SubjectCard({
   const missingFinal = missingFinalPrereqs(subject, statusMap, subjects)
 
   const isOpen = expanded === subject.code
+  const detailButton = useRef(null)
+  function openDetail() {
+    // MUI restores the focused trigger on close, including surface mouse clicks.
+    detailButton.current?.focus()
+    setExpanded(subject.code)
+  }
 
   return (
     <>
       <article
         className="subject-card"
-        onClick={() => setExpanded(subject.code)}
+        onClick={openDetail}
       >
         <div className="subject-head">
           <div>
@@ -54,9 +61,11 @@ function SubjectCard({
             <div className="subject-title">
               <h3>{subject.name}</h3>
 
-              <small className="subject-toggle">
+              <button type="button" ref={detailButton} className="subject-toggle subject-detail-button"
+                aria-label={`Ver detalle de ${subject.name}`} aria-haspopup="dialog"
+                onClick={event => { event.stopPropagation(); openDetail() }}>
                 Ver detalle
-              </small>
+              </button>
             </div>
 
             <p className="hours">
@@ -75,7 +84,7 @@ function SubjectCard({
           </span>
 
           <span className={finalOk ? 'rule ok' : 'rule no'}>
-            {finalOk ? '✓' : '×'} Final
+            {finalOk ? '✓' : '×'} Correlativas de final
           </span>
         </div>
 
@@ -99,6 +108,7 @@ function SubjectCard({
         open={isOpen}
         onClose={() => setExpanded(null)}
         subject={subject}
+        status={status}
         subjects={subjects}
         courseOk={courseOk}
         finalOk={finalOk}

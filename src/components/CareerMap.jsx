@@ -1,4 +1,4 @@
-import { getStatus, unlocks, getSubjectLevel } from '../logic'
+import { getStatus, unlocks, getSubjectLevel, availableToCourse, missingCoursePrereqs } from '../logic'
 import ProgressSummary from './ProgressSummary'
 
 
@@ -13,6 +13,10 @@ function CareerMap({
   const levels = [...new Set(subjects.map(getSubjectLevel))]
 
   const selectedSubject = subjects.find((subject) => subject.code === selectedCode)
+  const canAdd = availableToCourse(subjects, statusMap).some(subject => subject.code === selectedCode)
+  const selectedStatus = selectedSubject && getStatus(statusMap, selectedCode)
+  const missing = selectedSubject && missingCoursePrereqs(selectedSubject, statusMap)
+  const names = codes => codes.map(code => subjects.find(subject => subject.code === code)?.name || code).join(', ')
   const selectedUnlocks = selectedSubject
     ? unlocks(subjects, selectedSubject.code).map((s) => s.code)
     : []
@@ -20,7 +24,7 @@ function CareerMap({
     ? [...(selectedSubject.prereqs ?? []), ...(selectedSubject.approvedPrereqs ?? [])] : []
 
   function addToPlanner() {
-    if (!selectedCode) return
+    if (!canAdd) return
 
     setPlannerSelectedCodes((current) =>
       current.includes(selectedCode) ? current : [...current, selectedCode]
@@ -43,9 +47,15 @@ function CareerMap({
           />
 
           {selectedSubject && (
-            <button className="map-to-planner-btn" onClick={addToPlanner}>
+            <div><button className="map-to-planner-btn" disabled={!canAdd} aria-describedby={!canAdd ? 'map-planner-reason' : undefined} onClick={addToPlanner}>
               📅 Agregar {selectedSubject.name} al planificador
             </button>
+              {!canAdd && <div id="map-planner-reason">
+                {selectedStatus !== 'Pendiente' && <p>No se puede agregar a Mi selección: su estado es {selectedStatus}. Solo se incluyen materias Pendientes habilitadas para cursar.</p>}
+                {missing.regularized.length > 0 && <p>Falta regularizar: {names(missing.regularized)}.</p>}
+                {missing.approved.length > 0 && <p>Falta aprobar para cursar: {names(missing.approved)}.</p>}
+              </div>}
+            </div>
           )}
         </div>
       </div>

@@ -64,7 +64,7 @@ function WelcomeSetup({
               }
               onClick={() => setActiveCareerId(career.id)}
             >
-              {career.name}
+              {career.name}{careersOfUniversity.filter(item => item.name === career.name).length > 1 && ` · Plan ${career.plan}`}
             </button>
           ))}
         </div>
