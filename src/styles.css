@@ -1753,3 +1753,43 @@ h1 {
   .planning-ui .planning-course-card { padding: 16px; }
   .planning-ui .planning-options > div { right: auto; left: 0; }
 }
+
+/* Activity quick panel: shared shell session, non-modal popover. */
+.header-personal { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.activity-control { position: relative; flex: 0 0 auto; z-index: 30; }
+.activity-trigger { position: relative; display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 50%; background: white; color: var(--text); cursor: pointer; }
+.activity-control button:focus-visible, .activity-panel:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.activity-trigger:hover, .activity-panel-head button:hover, .activity-item button:hover { background: var(--bg); }
+.activity-badge { position: absolute; top: -5px; right: -7px; min-width: 20px; padding: 2px 5px; border-radius: 99px; background: var(--primary); color: white; font-size: .7rem; font-weight: 700; border: 2px solid white; }
+.activity-panel { position: absolute; top: calc(100% + 12px); right: 0; width: min(370px, calc(100vw - 32px)); max-height: min(70vh, 560px); overflow-y: auto; overscroll-behavior: contain; background: white; color: var(--text); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
+.activity-panel-head { display: flex; align-items: center; justify-content: space-between; padding: 16px; gap: 12px; border-bottom: 1px solid var(--line); }
+.activity-panel-head h2 { margin: 0; font-size: 1.1rem; }
+.activity-panel-head button { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 8px; background: transparent; color: var(--text); cursor: pointer; }
+.activity-message { padding: 12px 16px; margin: 0; font-size: .9rem; }
+.activity-message button, .activity-navigation-notice button { background: transparent; color: var(--primary); border: 0; cursor: pointer; text-decoration: underline; font: inherit; padding: 6px; }
+.activity-list { padding: 0; margin: 0; list-style: none; }
+.activity-item { border-bottom: 1px solid var(--line); }
+.activity-item:last-child { border: 0; }
+.activity-item button { display: flex; gap: 10px; width: 100%; padding: 16px; text-align: left; border: 0; background: transparent; color: var(--text); font: inherit; font-size: .9rem; line-height: 1.4; cursor: pointer; overflow-wrap: anywhere; }
+.activity-item button:disabled { cursor: progress; }
+.activity-item button > span:last-child { min-width: 0; }
+.activity-copy { display: block; }
+.activity-unread { background: var(--bg); }
+.activity-unread .activity-copy { font-weight: 600; }
+.activity-dot { flex: 0 0 7px; height: 7px; margin-top: 6px; border-radius: 50%; background: transparent; }
+.activity-unread .activity-dot { background: var(--primary); }
+.activity-item time { display: block; margin-top: 5px; font-size: .78rem; color: var(--muted); }
+.activity-navigation-notice { padding: 10px 14px; border-left: 3px solid var(--primary); }
+@media (max-width: 900px) {
+  .header-personal { flex-wrap: wrap; width: 100%; }
+  .activity-panel { left: 0; right: auto; }
+  .header-personal .user-pill { max-width: 100%; min-width: 0; box-sizing: border-box; flex-wrap: wrap; }
+  .header-personal .user-pill div { min-width: 0; overflow-wrap: anywhere; }
+}
+@media (max-width: 480px) {
+  .activity-panel { position: fixed; top: 16px; left: 16px; right: 16px; width: auto; max-height: calc(100dvh - 32px); }
+}
+
+.emulator-indicator { padding: 6px 16px; text-align: center; font-size: .8rem; font-weight: 700; color: var(--text); background: var(--bg); border-bottom: 1px solid var(--line); }
+
+.activity-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); clip-path: inset(50%); white-space: nowrap; border: 0; }

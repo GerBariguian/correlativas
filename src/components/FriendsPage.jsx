@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { auth } from '../firebase'
+import { socialMaintenance } from '../socialMaintenance'
 import { careers } from '../data/careers'
 import ProgressSharingSettings from './ProgressSharingSettings'
 import {
@@ -139,7 +140,7 @@ export default function FriendsPage({ user, socialProfile, careerId }) {
           </form>
           {searched && !result && <p role="status">No encontramos ese usuario. Debe haber ingresado a Correlativas con esta versión.</p>}
           {result && <Person profile={result}>
-            {result.uid === user.uid ? <span>Este es tu perfil</span> : relationship ? <span>{relationship.status === 'accepted' ? 'Ya son amigos' : relationship.status === 'rejected' ? 'Solicitud rechazada' : relationship.recipientId === user.uid ? 'Tenés una solicitud recibida' : 'Solicitud enviada'}</span> : <button className="reset" disabled={busy} onClick={() => mutate(() => sendFriendRequest(user.uid, result.uid), 'Solicitud enviada.')}>
+            {result.uid === user.uid ? <span>Este es tu perfil</span> : relationship ? <span>{relationship.status === 'accepted' ? 'Ya son amigos' : relationship.status === 'rejected' ? 'Solicitud rechazada' : relationship.recipientId === user.uid ? 'Tenés una solicitud recibida' : 'Solicitud enviada'}</span> : <button className="reset" disabled={busy || socialMaintenance} onClick={() => mutate(() => sendFriendRequest(user.uid, result.uid), 'Solicitud enviada.')}>
               Enviar solicitud
             </button>}
           </Person>}
@@ -152,7 +153,7 @@ export default function FriendsPage({ user, socialProfile, careerId }) {
           <h2>Solicitudes recibidas</h2>
           {loading ? <p role="status">Cargando...</p> : !received.length && <p>No tenés solicitudes recibidas.</p>}
           {received.map((item) => <Person key={item.id} profile={profiles[item.senderId]}>
-            <button className="reset" disabled={busy} onClick={() => mutate(() => respondToFriendRequest(user.uid, item.id, 'accepted'), 'Solicitud aceptada.')}>Aceptar</button>
+            <button className="reset" disabled={busy || socialMaintenance} onClick={() => mutate(() => respondToFriendRequest(user.uid, item.id, 'accepted'), 'Solicitud aceptada.')}>Aceptar</button>
             <button className="reset" disabled={busy} onClick={() => mutate(() => respondToFriendRequest(user.uid, item.id, 'rejected'), 'Solicitud rechazada.')}>Rechazar</button>
           </Person>)}
         </div>

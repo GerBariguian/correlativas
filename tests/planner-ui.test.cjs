@@ -221,7 +221,7 @@ test('actual App effects retain planner across projection load branch and isolat
     loadUserStatus: async () => ({ A: 'Pendiente' }),
     subscribeUserStatus(_uid, _career, callback) { subscribed = callback; callback({ A: 'Pendiente' }); return () => {} },
     saveUserProfile: async () => {}, saveUserStatus: async () => {},
-    useSocialProfile: () => ({}), useCareerProjection: () => ({ phase: 'empty', scenario: null }),
+    useActivity: () => ({}), useSocialProfile: () => ({}), useCareerProjection: () => ({ phase: 'empty', scenario: null }),
     localStorage: { setItem() {} }, window: { alert() { assert.fail('unexpected error') } },
   })
   for (const component of ['CareerSelector', 'CareerProjectionPage', 'Route', 'PlannerPage', 'CareerMap', 'Header', 'SubjectsPanel', 'Advisor', 'WelcomeSetup', 'FriendsPage', 'Dashboard']) api[component] = component

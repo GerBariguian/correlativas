@@ -12,8 +12,28 @@ beforeEach(async () => { await baseline(env) })
 const db = (uid = 'german', overrides) => uid === null ? env.unauthenticatedContext().firestore()
   : env.authenticatedContext(uid, claims(uid, overrides)).firestore()
 const read = (client, path) => getDocFromServer(doc(client, path))
-const put = (client, path, value) => setDoc(doc(client, path), value)
-const change = (client, path, value) => updateDoc(doc(client, path), { ...value, updatedAt: serverTimestamp() })
+// These legacy authorization scenarios now issue the mandatory v1.15 protocol.
+// Omission/replay tests deliberately use raw SDK writes in activity.test.cjs.
+const activity = (type, actorUid, kind, id) => ({schemaVersion:1,type,actorUid,createdAt:serverTimestamp(),target:{kind,id},readAt:null})
+const put = (client, path, value) => {
+  if (!/^(friendships|jointPlans)\/[^/]+$/.test(path)) return setDoc(doc(client,path),value)
+  const batch=writeBatch(client), id=path.split('/')[1]
+  batch.set(doc(client,path),value)
+  if(path.startsWith('friendships/')) batch.set(doc(client,'users',value.recipientId,'activityInbox','fr_'+id),activity('FRIEND_REQUEST_RECEIVED',value.senderId,'friendship',id))
+  else for(const uid of value.inviteeIds || []) batch.set(doc(client,'users',uid,'activityInbox','jp_'+id),activity('JOINT_PLAN_INVITATION',value.ownerId,'jointPlan',id))
+  return batch.commit()
+}
+const change = async (client, path, value) => {
+  if (!/^(friendships|jointPlans)\/[^/]+$/.test(path)) return updateDoc(doc(client,path),{...value,updatedAt:serverTimestamp()})
+  const before=(await getDocFromServer(doc(client,path))).data(),batch=writeBatch(client),id=path.split('/')[1]
+  batch.update(doc(client,path),{...value,updatedAt:serverTimestamp()})
+  if(path.startsWith('friendships/') && value.status==='accepted') batch.set(doc(client,'users',before.senderId,'activityInbox','fa_'+id),activity('FRIEND_REQUEST_ACCEPTED',before.recipientId,'friendship',id))
+  if(path.startsWith('jointPlans/') && value.inviteeIds) {
+    for(const uid of value.inviteeIds.filter(uid=>!before.inviteeIds.includes(uid))) batch.set(doc(client,'users',uid,'activityInbox','jp_'+id),activity('JOINT_PLAN_INVITATION',value.invitedBy?.[uid] || before.ownerId,'jointPlan',id))
+    for(const uid of before.inviteeIds.filter(uid=>!value.inviteeIds.includes(uid))) batch.delete(doc(client,'users',uid,'activityInbox','jp_'+id))
+  }
+  return batch.commit()
+}
 const remove = (client, path) => deleteDoc(doc(client, path))
 const list = (client, path, ...filters) => getDocsFromServer(query(collection(client, path), ...filters))
 const snapPath = uid => `planningSnapshots/${uid}/careers/${CAREER}`
@@ -110,8 +130,10 @@ describe('Private personal career projections', () => {
     assert.deepEqual((await read(client, path)).data(), before)
   })
 })
-function finalize(client, id, tombstone = { deletedAt: serverTimestamp() }) {
+async function finalize(client, id, tombstone = { deletedAt: serverTimestamp() }) {
   const batch = writeBatch(client)
+  const previous = (await getDocFromServer(doc(client, `jointPlans/${id}`))).data()
+  for(const uid of previous?.inviteeIds || []) batch.delete(doc(client,'users',uid,'activityInbox','jp_'+id))
   batch.set(doc(client, `jointPlanTombstones/${id}`), tombstone)
   batch.delete(doc(client, `jointPlans/${id}`))
   return batch.commit()

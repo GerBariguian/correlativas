@@ -73,7 +73,11 @@ function setup() {
         const uid = auth.currentUser?.uid
         const before = records.get(ref)
         const plan = records.get(ref.split('/').slice(0, 2).join('/'))
-        if (ref.startsWith('jointPlanTombstones/')) {
+        if (ref.includes('/activityInbox/')) {
+          // Atomic service adapter only; authorization is covered by real Emulator tests.
+          assert.ok(writes.some(([,target]) => target.startsWith('jointPlans/')))
+          if (op === 'set') assert.equal(data.actorUid, uid)
+        } else if (ref.startsWith('jointPlanTombstones/')) {
           const parent = `jointPlans/${ref.split('/')[1]}`
           assert.equal(before, undefined)
           assert.deepEqual(Object.keys(data), ['deletedAt'])
@@ -102,7 +106,7 @@ function setup() {
     },
   }
   vm.createContext(api)
-  for (const name of ['src/jointPlanLogic.js', 'src/services/jointPlans.js']) {
+  for (const name of ['src/socialMaintenance.js', 'src/activityLogic.js', 'src/jointPlanLogic.js', 'src/services/jointPlans.js']) {
     vm.runInContext(source(name).replace(/import[\s\S]*?from ['"][^'"]+['"]\s*/g, '').replace(/export /g, ''), api)
   }
   return { api, auth, records, relationships, listeners, canRead, clone, fail: (value) => { fail = value },
@@ -278,7 +282,7 @@ test('member invites their own friend who is not a friend of the owner, without 
   plan = records.get(`jointPlans/${id}`)
   relationships.delete('bob:dave')
   assert.equal(canRead(plan, 'dave', true), true)
-  assert.equal([...records.keys()].some((key) => key.startsWith('planning') || key.startsWith('users/')), false)
+  assert.equal([...records.keys()].some((key) => key.startsWith('planning') || (key.startsWith('users/') && !key.includes('/activityInbox/'))), false)
 })
 
 test('a member cannot invite arbitrary users, and concurrent duplicate invitations yield only one invite', async () => {

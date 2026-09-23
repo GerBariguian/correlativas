@@ -11,6 +11,29 @@ service cloud.firestore {
         && request.auth.token.firebase.sign_in_provider == 'google.com';
     }
 
+    // Deployment-time constant. The rollout generator changes ONLY this literal.
+    // Maintenance/recovery pauses new social events, never their safe cleanup.
+    function activityCreationEnabled() {
+      return true; // ACTIVITY_ROLLOUT_GATE
+    }
+
+    // The source requires the exact notice; the notice requires a real source
+    // transition in this same atomic request. Rules never generate writes.
+    function noticeRequired(uid, itemId, type, kind, id) {
+      let d = getAfter(/databases/$(database)/documents/users/$(uid)/activityInbox/$(itemId)).data;
+      return activityCreationEnabled()
+        && !exists(/databases/$(database)/documents/users/$(uid)/activityInbox/$(itemId))
+        && d.type == type && d.actorUid == request.auth.uid
+        && d.target.kind == kind && d.target.id == id
+        && d.createdAt == request.time && d.readAt == null;
+    }
+    function invitationRequired(uid, planId) {
+      return noticeRequired(uid, 'jp_' + planId, 'JOINT_PLAN_INVITATION', 'jointPlan', planId);
+    }
+    function invitationRemoved(uid, planId) {
+      return !existsAfter(/databases/$(database)/documents/users/$(uid)/activityInbox/$('jp_' + planId));
+    }
+
     // The previous index may already be absent or belong to someone else.
     // Never require (or authorize) deleting another user's index.
     function releasedIndex(email, uid) {
@@ -39,6 +62,59 @@ service cloud.firestore {
         && releasedIndex(resource.data.get('socialEmail', null), uid);
       match /careers/{careerId} {
         allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+      match /activityInbox/{itemId} {
+        allow get, list: if socialUser() && request.auth.uid == uid;
+        allow create: if socialUser() && activityCreationEnabled() && validNotice() && validNoticeTransition();
+        allow update: if socialUser() && request.auth.uid == uid
+          && resource.data.readAt == null && request.resource.data.readAt == request.time
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt']);
+        allow delete: if socialUser() && (request.auth.uid == uid || removingPlan());
+        function validNotice() {
+          let d = request.resource.data;
+          return d.keys().hasAll(['schemaVersion', 'type', 'actorUid', 'createdAt', 'target', 'readAt'])
+            && d.keys().hasOnly(['schemaVersion', 'type', 'actorUid', 'createdAt', 'target', 'readAt'])
+            && d.schemaVersion is int && d.schemaVersion == 1
+            && d.actorUid == request.auth.uid && d.actorUid != uid
+            && d.createdAt == request.time && d.readAt == null
+            && d.target is map && d.target.keys().hasAll(['kind', 'id'])
+            && d.target.keys().hasOnly(['kind', 'id']) && d.target.id is string
+            && ((d.type in ['FRIEND_REQUEST_RECEIVED', 'FRIEND_REQUEST_ACCEPTED']
+              && d.target.kind == 'friendship' && d.target.id.matches('^[A-Za-z0-9_-]+:[A-Za-z0-9_-]+$')
+              && d.target.id.size() <= 257)
+              || (d.type == 'JOINT_PLAN_INVITATION' && d.target.kind == 'jointPlan'
+                && d.target.id.matches('^[A-Za-z0-9_-]{1,100}$')));
+        }
+        function validNoticeTransition() {
+          let d = request.resource.data;
+          return d.type == 'JOINT_PLAN_INVITATION' ? planInvitation(d.target.id)
+            : friendNotice(d.type, d.target.id);
+        }
+        function friendNotice(type, id) {
+          let path = /databases/$(database)/documents/friendships/$(id);
+          let after = getAfter(path).data;
+          return type == 'FRIEND_REQUEST_RECEIVED'
+            ? itemId == 'fr_' + id && !exists(path) && after.status == 'pending'
+              && after.senderId == request.auth.uid && after.recipientId == uid
+            : itemId == 'fa_' + id && get(path).data.status == 'pending' && after.status == 'accepted'
+              && after.recipientId == request.auth.uid && after.senderId == uid;
+        }
+        function planInvitation(id) {
+          let path = /databases/$(database)/documents/jointPlans/$(id);
+          let after = getAfter(path).data;
+          return itemId == 'jp_' + id && uid in after.inviteeIds
+            && after.get('invitedBy', {}).get(uid, after.ownerId) == request.auth.uid
+            && (!exists(path) || !(uid in get(path).data.inviteeIds))
+            && acceptedPlanningFriend(uid);
+        }
+        function removingPlan() {
+          let id = itemId.replace('^jp_', '');
+          let path = /databases/$(database)/documents/jointPlans/$(id);
+          return itemId.matches('^jp_[A-Za-z0-9_-]{1,100}$')
+            && get(path).data.ownerId == request.auth.uid && uid in get(path).data.inviteeIds
+            && get(path).data.closed && get(path).data.get('deleting', false)
+            && !existsAfter(path);
+        }
       }
       match /careerProjections/{careerId} {
         allow get, delete: if signedIn() && request.auth.uid == uid;
@@ -247,7 +323,7 @@ service cloud.firestore {
       }
       function validInvitee(ids, index) {
         return ids.size() <= index || (ids[index] is string
-          && ids[index].matches('^[A-Za-z0-9_-]+$') && acceptedPlanningFriend(ids[index])
+          && ids[index].matches('^[A-Za-z0-9_-]+$') && invitationRequired(ids[index], planId)
           && request.resource.data.get('invitedBy', {}).get(ids[index], request.auth.uid) == request.auth.uid);
       }
       // Plan authorization is explicit membership/invitation, independent of friendship.
@@ -257,7 +333,11 @@ service cloud.firestore {
       allow delete: if socialUser() && resource.data.ownerId == request.auth.uid
         && resource.data.closed && resource.data.get('deleting', false)
         && !exists(/databases/$(database)/documents/jointPlanTombstones/$(planId))
-        && existsAfter(/databases/$(database)/documents/jointPlanTombstones/$(planId));
+        && existsAfter(/databases/$(database)/documents/jointPlanTombstones/$(planId))
+        && removedInvitationAt(0) && removedInvitationAt(1) && removedInvitationAt(2) && removedInvitationAt(3);
+      function removedInvitationAt(index) {
+        return resource.data.inviteeIds.size() <= index || invitationRemoved(resource.data.inviteeIds[index], planId);
+      }
       allow create: if socialUser() && validPlan()
         && !exists(/databases/$(database)/documents/jointPlanTombstones/$(planId))
         && request.resource.data.ownerId == request.auth.uid
@@ -282,7 +362,7 @@ service cloud.firestore {
           && after.diff(before).affectedKeys().hasOnly(['inviteeIds', 'invitedBy', 'updatedAt'])
           && added.size() == 1 && after.inviteeIds.hasAll(before.inviteeIds)
           && added[0] is string && added[0].matches('^[A-Za-z0-9_-]+$')
-          && acceptedPlanningFriend(added[0])
+          && invitationRequired(added[0], planId)
           && after.get('invitedBy', {}).get(added[0], '') == request.auth.uid
           && after.get('invitedBy', {}).diff(before.get('invitedBy', {})).affectedKeys().hasOnly([added[0]]);
       }
@@ -306,7 +386,8 @@ service cloud.firestore {
             && after.get('invitedBy', {}) == before.get('invitedBy', {})
             && after.memberIds.toSet() == before.memberIds.toSet().union([uid].toSet())
             && before.careerId == get(/databases/$(database)/documents/users/$(uid)).data.activeCareerId)
-          || (after.memberIds.toSet() == before.memberIds.toSet().difference([uid].toSet())
+          || (invitationRemoved(uid, planId)
+            && after.memberIds.toSet() == before.memberIds.toSet().difference([uid].toSet())
             && after.get('invitedBy', {}).diff(before.get('invitedBy', {})).affectedKeys().hasOnly([uid])
             && after.inviteeIds.toSet() == before.inviteeIds.toSet().difference([uid].toSet())));
       }
@@ -353,6 +434,8 @@ service cloud.firestore {
         && resource.data.recipientId == request.auth.uid
         && resource.data.status == 'pending'
         && request.resource.data.status in ['accepted', 'rejected']
+        && (request.resource.data.status == 'rejected'
+          || noticeRequired(resource.data.senderId, 'fa_' + id, 'FRIEND_REQUEST_ACCEPTED', 'friendship', id))
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
         && request.resource.data.updatedAt == request.time;
 
@@ -374,6 +457,7 @@ service cloud.firestore {
           && exists(/databases/$(database)/documents/socialProfiles/$(data.senderId))
           && exists(/databases/$(database)/documents/socialProfiles/$(data.recipientId))
           && data.status == 'pending'
+          && noticeRequired(data.recipientId, 'fr_' + id, 'FRIEND_REQUEST_RECEIVED', 'friendship', id)
           && data.createdAt == request.time
           && data.updatedAt == request.time;
       }

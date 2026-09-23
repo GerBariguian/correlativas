@@ -2,6 +2,8 @@ import { collection, doc, onSnapshot, query, where, runTransaction, serverTimest
 import { auth, db } from '../firebase'
 import { newJointPlan, changePlanMembership, proposedSubject, assertPlanEditor, invitePlanParticipant, planName } from '../jointPlanLogic'
 import { friendshipId } from './friends'
+import { activityId, newActivity } from '../activityLogic'
+import { assertSocialCreationAvailable } from '../socialMaintenance'
 
 function session(uid) {
   const user = auth.currentUser
@@ -10,12 +12,15 @@ function session(uid) {
 }
 
 export async function createJointPlan(uid, careerId, inviteeIds, name) {
+  assertSocialCreationAvailable()
   const check = session(uid)
   const ref = doc(collection(db, 'jointPlans'))
   const data = newJointPlan(uid, careerId, inviteeIds, serverTimestamp(), name)
   await runTransaction(db, async (tx) => {
     for (const invitee of inviteeIds) await assertFriend(tx, uid, invitee)
     check(); tx.set(ref, data)
+    for (const invitee of inviteeIds) tx.set(doc(db, 'users', invitee, 'activityInbox', activityId('JOINT_PLAN_INVITATION', ref.id)),
+      newActivity('JOINT_PLAN_INVITATION', uid, ref.id, serverTimestamp()))
   })
   return ref.id
 }
@@ -41,6 +46,7 @@ export async function renameJointPlan(uid, id, name) {
 }
 
 export async function inviteJointParticipant(uid, id, invitee) {
+  assertSocialCreationAvailable()
   const check = session(uid)
   await runTransaction(db, async (tx) => {
     const ref = doc(db, 'jointPlans', id)
@@ -50,6 +56,8 @@ export async function inviteJointParticipant(uid, id, invitee) {
     await assertFriend(tx, uid, invitee)
     check()
     tx.update(ref, { ...changes, updatedAt: serverTimestamp() })
+    tx.set(doc(db, 'users', invitee, 'activityInbox', activityId('JOINT_PLAN_INVITATION', id)),
+      newActivity('JOINT_PLAN_INVITATION', uid, id, serverTimestamp()))
   })
 }
 
@@ -61,6 +69,7 @@ export async function updatePlanMembership(uid, id, join) {
     check()
     if (!snapshot.exists()) throw new Error('El plan ya no está disponible.')
     tx.update(ref, { ...changePlanMembership(snapshot.data(), uid, join), updatedAt: serverTimestamp() })
+    if (!join) tx.delete(doc(db, 'users', uid, 'activityInbox', activityId('JOINT_PLAN_INVITATION', id)))
   })
 }
 
@@ -130,6 +139,7 @@ export async function deleteJointPlan(uid, id) {
     if (!snapshot.exists()) return
     if (snapshot.data().ownerId !== uid || !snapshot.data().closed || !snapshot.data().deleting) throw new Error('El plan no está bloqueado para eliminar.')
     tx.set(doc(db, 'jointPlanTombstones', id), { deletedAt: serverTimestamp() })
+    for (const invitee of snapshot.data().inviteeIds) tx.delete(doc(db, 'users', invitee, 'activityInbox', activityId('JOINT_PLAN_INVITATION', id)))
     tx.delete(ref)
   })
 }

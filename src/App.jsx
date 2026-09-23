@@ -1,3 +1,4 @@
+import useActivity from './hooks/useActivity'
 import CareerSelector from './components/CareerSelector'
 import CareerProjectionPage from './components/CareerProjectionPage'
 import useCareerProjection from './hooks/useCareerProjection'
@@ -50,6 +51,10 @@ function cacheStatus(uid, careerId, map) {
 function App() {
   const [activeCareerId, setActiveCareerId] = useState(DEFAULT_CAREER_ID)
   const [user, setUser] = useState(null)
+  const activity = useActivity(user)
+  const [activityIntent, setActivityIntent] = useState(null)
+  const [activityNotice, setActivityNotice] = useState('')
+  const activitySequence = useRef(0)
   const [authLoading, setAuthLoading] = useState(true)
   const [profileLoading, setProfileLoading] = useState(true)
   const [statusLoading, setStatusLoading] = useState(true)
@@ -98,6 +103,8 @@ function App() {
       progress.current = null
       confirmedCareer.current = DEFAULT_CAREER_ID
       setUser(currentUser)
+      setActivityIntent(null)
+      setActivityNotice('')
       setHasChosenCareer(false)
       setProfileLoading(Boolean(currentUser))
       setStatusLoading(true)
@@ -344,7 +351,13 @@ if (!hasChosenCareer) {
 
   return (
     <main className="app-shell">
-      <Header user={user} />
+      <Header user={user} activity={activity} onActivityNavigate={result => {
+        if (auth.currentUser !== user) return
+        setActivityNotice(result.notice || '')
+        if (result.destination === 'friends') { setActivityIntent(null); setActivePage('amigos') }
+        else { setActivityIntent({ token: ++activitySequence.current, planId: result.planId || '', notice: result.notice || '' }); setActivePage('planificador') }
+      }} />
+      {activityNotice && <p role="status" className="activity-navigation-notice">{activityNotice}<button type="button" onClick={() => setActivityNotice('')}>Cerrar</button></p>}
       <CareerSelector
   	careers={careers}
   	activeCareerId={activeCareerId}
@@ -455,6 +468,8 @@ if (!hasChosenCareer) {
   <PlannerPage
     key={`${user.uid}:${activeCareerId}`}
     user={user}
+    activityIntent={activityIntent}
+    onActivityConsumed={() => setActivityIntent(null)}
     career={activeCareer}
     statusMap={statusMap}
     subjects={subjects}

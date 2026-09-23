@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { activityPlanSelection } from '../activityPresentation'
 import Planner from './Planner'
 import PlanningComparison from './PlanningComparison'
 import JointPlanPanel from './JointPlanPanel'
@@ -11,7 +12,7 @@ import { addComparisonFriend, derivePlanningSnapshot } from '../planningLogic'
 import { academicMessages } from '../planningPresentation'
 import { fallbackPlanName } from '../jointPlanLogic'
 
-export default function PlannerPage({ user, career, statusMap, ...plannerProps }) {
+export default function PlannerPage({ user, career, statusMap, activityIntent, onActivityConsumed, ...plannerProps }) {
   const [selectedIds, setSelectedIds] = useState([])
   const [view, setView] = useState('selection')
   const [attempt, setAttempt] = useState(0)
@@ -25,6 +26,16 @@ export default function PlannerPage({ user, career, statusMap, ...plannerProps }
   const mine = { uid: user.uid, name: 'Vos', isSelf: true, state: 'ready', snapshot: derivePlanningSnapshot(career, statusMap, null, null, true) }
   const comparison = [mine, ...others]
   const data = useJointPlans(user, career.id, planId, attempt)
+  const consumedActivity = useRef(null)
+  useEffect(() => {
+    if (!activityIntent || consumedActivity.current === activityIntent.token) return
+    setView('joint')
+    const selection = activityPlanSelection(activityIntent, data)
+    if (!selection) return
+    consumedActivity.current = activityIntent.token
+    setPlanId(selection.planId); setNotice(selection.notice)
+    onActivityConsumed?.()
+  }, [activityIntent, data.state, data.plans, onActivityConsumed])
   const profileIds = data.plans.flatMap((p) => [p.ownerId, ...p.inviteeIds, ...Object.values(p.invitedBy || {})])
     .concat((data.rows || []).flatMap((row) => [row.addedByUid, ...row.proposedParticipantIds]).filter(Boolean))
   const profiles = useJointProfiles(user, profileIds)

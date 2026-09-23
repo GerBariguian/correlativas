@@ -11,7 +11,7 @@ const email = uid => `${uid}@example.test`
 function claims(uid, overrides = {}) {
   return { email: email(uid), email_verified: true, firebase: { sign_in_provider: 'google.com' }, ...overrides }
 }
-async function initialize() {
+async function initialize(rules) {
   if (process.env.FIRESTORE_EMULATOR_HOST !== HOST || process.env.RULES_TEST_PROJECT !== PROJECT
     || (process.env.GCLOUD_PROJECT && process.env.GCLOUD_PROJECT !== PROJECT)) {
     throw new Error('Local-only guard: run npm.cmd run test:rules (demo project and loopback emulator required).')
@@ -20,7 +20,7 @@ async function initialize() {
   const response = await fetch(`http://${HOST}/`, { signal: AbortSignal.timeout(3000) })
   if (!response.ok) throw new Error('Local emulator is not ready')
   return initializeTestEnvironment({ projectId: PROJECT, firestore: { host: '127.0.0.1', port: 8088,
-    rules: readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8') } })
+    rules: rules ?? readFileSync(resolve(__dirname, '../../firestore.rules'), 'utf8') } })
 }
 const profile = uid => ({ uid, name: uid, photoURL: '', careerId: CAREER, updatedAt: TIME })
 const friendship = (a, b, status = 'accepted') => ({ participants: [a, b], senderId: a, recipientId: b,

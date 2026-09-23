@@ -7,6 +7,23 @@
         { "fieldPath": "ownerId", "order": "ASCENDING" },
         { "fieldPath": "inviteeIds", "arrayConfig": "CONTAINS" }
       ]
+    },
+    {
+      "collectionGroup": "activityInbox",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdAt", "order": "DESCENDING" },
+        { "fieldPath": "__name__", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "activityInbox",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "readAt", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" },
+        { "fieldPath": "__name__", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

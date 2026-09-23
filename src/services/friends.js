@@ -3,6 +3,8 @@ import {
   serverTimestamp, where,
 } from 'firebase/firestore'
 import { auth, db } from '../firebase'
+import { activityId, newActivity } from '../activityLogic'
+import { assertSocialCreationAvailable } from '../socialMaintenance'
 
 export function normalizeEmail(value) {
   const email = value.trim().toLowerCase()
@@ -121,6 +123,7 @@ export async function loadSocialProfiles(uids) {
 }
 
 export async function sendFriendRequest(senderId, recipientId) {
+  assertSocialCreationAvailable()
   requireUser(senderId)
   const id = friendshipId(senderId, recipientId)
   const ref = doc(db, 'friendships', id)
@@ -140,10 +143,13 @@ export async function sendFriendRequest(senderId, recipientId) {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     })
+    transaction.set(doc(db, 'users', recipientId, 'activityInbox', activityId('FRIEND_REQUEST_RECEIVED', id)),
+      newActivity('FRIEND_REQUEST_RECEIVED', senderId, id, serverTimestamp()))
   })
 }
 
 export async function respondToFriendRequest(uid, id, status) {
+  if (status === 'accepted') assertSocialCreationAvailable()
   requireUser(uid)
   if (!['accepted', 'rejected'].includes(status)) throw new Error('Respuesta inválida.')
   await runTransaction(db, async (transaction) => {
@@ -155,5 +161,7 @@ export async function respondToFriendRequest(uid, id, status) {
     }
     if (snapshot.data().status !== 'pending') throw new Error('La solicitud ya fue respondida.')
     transaction.update(ref, { status, updatedAt: serverTimestamp() })
+    if (status === 'accepted') transaction.set(doc(db, 'users', snapshot.data().senderId, 'activityInbox', activityId('FRIEND_REQUEST_ACCEPTED', id)),
+      newActivity('FRIEND_REQUEST_ACCEPTED', uid, id, serverTimestamp()))
   })
 }

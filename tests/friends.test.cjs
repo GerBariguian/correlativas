@@ -62,6 +62,8 @@ function setup() {
     .replace(/import[\s\S]*?from ['"][^'"]+['"]\s*/g, '')
     .replace(/export /g, '')
   vm.createContext(context)
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/socialMaintenance.js'), 'utf8').replace(/export /g, ''), context)
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/activityLogic.js'), 'utf8').replace(/export /g, ''), context)
   vm.runInContext(source, context)
   return { api: context, records, reads, deniedReads, auth, user, clone,
     fail: (value) => { failWrite = value },
@@ -110,7 +112,8 @@ test('two simultaneous repeated sends create just one pending request', async ()
     api.sendFriendRequest('alice', 'bob'), api.sendFriendRequest('alice', 'bob'),
   ])
   assert.equal(results.filter((item) => item.status === 'fulfilled').length, 1)
-  assert.equal(records.size, 1)
+  assert.equal([...records.keys()].filter(key => key.startsWith('friendships/')).length, 1)
+  assert.equal(records.get('users/bob/activityInbox/fr_alice:bob').type, 'FRIEND_REQUEST_RECEIVED')
   assert.equal(records.get('friendships/alice:bob').status, 'pending')
   assert.deepEqual(records.get('friendships/alice:bob').participants, ['alice', 'bob'])
 })
@@ -120,11 +123,11 @@ test('crossed request and inverse document cannot create a second relationship',
   await api.sendFriendRequest('alice', 'bob')
   auth.currentUser = { uid: 'bob', emailVerified: true }
   await assert.rejects(api.sendFriendRequest('bob', 'alice'))
-  assert.equal(records.size, 1)
+  assert.equal([...records.keys()].filter(key => key.startsWith('friendships/')).length, 1)
   records.clear()
   records.set('friendships/bob:alice', { status: 'pending' })
   await assert.rejects(api.sendFriendRequest('bob', 'alice'))
-  assert.equal(records.size, 1)
+  assert.equal([...records.keys()].filter(key => key.startsWith('friendships/')).length, 1)
 })
 
 test('only recipient can respond; response cannot be reversed or duplicated', async () => {
@@ -135,6 +138,7 @@ test('only recipient can respond; response cannot be reversed or duplicated', as
   await assert.rejects(api.respondToFriendRequest('charlie', 'alice:bob', 'rejected'))
   auth.currentUser = { uid: 'bob', emailVerified: true }
   await api.respondToFriendRequest('bob', 'alice:bob', 'accepted')
+  assert.equal(records.get('users/alice/activityInbox/fa_alice:bob').actorUid, 'bob')
   assert.equal(records.get('friendships/alice:bob').status, 'accepted')
   await assert.rejects(api.respondToFriendRequest('bob', 'alice:bob', 'rejected'))
   assert.equal(records.get('friendships/alice:bob').senderId, 'alice')
@@ -156,7 +160,7 @@ test('failed writes leave records unchanged and can be retried', async () => {
   assert.equal(records.size, 0)
   fail(false)
   await api.sendFriendRequest('alice', 'bob')
-  assert.equal(records.size, 1)
+  assert.equal([...records.keys()].filter(key => key.startsWith('friendships/')).length, 1)
 })
 
 test('mutations reject old sessions, unverified users and invalid responses', async () => {
