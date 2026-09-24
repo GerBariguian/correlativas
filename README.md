@@ -2,6 +2,13 @@
 
 Asistente académico para saber qué cursar, qué rendir y qué materias te están frenando.
 
+## Contratos de evolución
+
+[v1.16.0 — Multicarrera, Etapa 0](docs/multicareer-v1.16-contracts.md):
+arquitectura objetivo, invariantes, migración y criterios de aceptación.
+Es documentación de funcionalidad futura, todavía no implementada; distingue
+explícitamente los contratos históricos de v1.15 del objetivo v1.16.
+
 ## Stack
 
 - React
