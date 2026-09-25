@@ -4,7 +4,7 @@
     "dev:emulator": "vite --mode emulator --host 127.0.0.1 --port 5174 --strictPort",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test tests/career-persistence.test.cjs tests/career-instances.test.cjs tests/activity-rollout.test.cjs tests/firebase-runtime.test.cjs tests/activity.test.cjs tests/activity-service.test.cjs tests/activity-session.test.cjs tests/activity-ui.test.cjs tests/planner-ui.test.cjs tests/planner-equivalence.test.cjs tests/planner-suggestions.test.cjs tests/planner.test.cjs tests/academic-ui.test.cjs tests/friends.test.cjs tests/planning.test.cjs tests/jointPlans.test.cjs tests/planning-ui.test.cjs tests/audit-orphan-subjects.test.cjs tests/projection.test.cjs tests/projection-ui.test.cjs tests/projection-persistence.test.cjs",
+    "test": "node --test tests/migration.test.cjs tests/career-persistence.test.cjs tests/career-instances.test.cjs tests/activity-rollout.test.cjs tests/firebase-runtime.test.cjs tests/activity.test.cjs tests/activity-service.test.cjs tests/activity-session.test.cjs tests/activity-ui.test.cjs tests/planner-ui.test.cjs tests/planner-equivalence.test.cjs tests/planner-suggestions.test.cjs tests/planner.test.cjs tests/academic-ui.test.cjs tests/friends.test.cjs tests/planning.test.cjs tests/jointPlans.test.cjs tests/planning-ui.test.cjs tests/audit-orphan-subjects.test.cjs tests/projection.test.cjs tests/projection-ui.test.cjs tests/projection-persistence.test.cjs",
     "test:projection": "node --test tests/projection.test.cjs tests/projection-ui.test.cjs tests/projection-persistence.test.cjs",
     "test:rules": "node scripts/test-rules.cjs",
     "rollout:prepare": "node scripts/activity-rollout.cjs",

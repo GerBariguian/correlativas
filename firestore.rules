@@ -50,6 +50,16 @@ service cloud.firestore {
         && (previousEmail == email || releasedIndex(previousEmail, uid));
     }
 
+    // Administrative migration protocol. Owners may inspect their control only.
+    // This does not enforce legacy freeze yet; bridge/rollout owns that gate.
+    match /migrationUsers/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, create, update, delete: if false;
+    }
+    match /migrationManifests/{uid} {
+      allow read, write: if false;
+    }
+
     // Academic records remain private, including after accepting a friendship.
     match /users/{uid} {
       allow read: if signedIn() && request.auth.uid == uid;

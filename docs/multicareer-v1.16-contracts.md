@@ -2,7 +2,10 @@
 
 Estado: contrato objetivo congelado documentalmente. Etapas 1–2 implementan
 dominio puro y persistencia de metadata aislada, descritos al final.
-La integración productiva y la migración **no están implementadas**.
+La integración productiva y la migración productiva **no están implementadas**.
+Etapa 3 incorpora un [migrador solo local](multicareer-migration.md), con
+fixtures/Emulator y checkpoints administrativos; no activa enforcement de
+freeze, cliente puente ni cutover productivo.
 Base auditada: `8a4abd4` — v1.15.0, Centro de Actividad y notificaciones sociales.
 Esta etapa no cambia código, Rules, paths productivos ni datos. Aprobar este
 documento no autoriza ejecutar migraciones ni publicar ningún artefacto.
