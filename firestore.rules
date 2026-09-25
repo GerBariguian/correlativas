@@ -63,6 +63,45 @@ service cloud.firestore {
       match /careers/{careerId} {
         allow read, write: if signedIn() && request.auth.uid == uid;
       }
+      // v1.16 isolated metadata. No navigation, social access or academic children.
+      function instanceKey(value) {
+        return value is string && value.matches('^[A-Za-z0-9_-]{1,100}$');
+      }
+      match /careerInstances/{instanceId} {
+        function validInstance() {
+          let d = request.resource.data;
+          return d.keys().hasAll(['schemaVersion', 'catalogId', 'lifecycle', 'createdAt', 'updatedAt', 'archivedAt'])
+            && d.keys().hasOnly(['schemaVersion', 'catalogId', 'lifecycle', 'createdAt', 'updatedAt', 'archivedAt'])
+            && d.schemaVersion is int && d.schemaVersion == 1
+            && instanceKey(instanceId) && instanceKey(d.catalogId) && instanceId != d.catalogId
+            && d.lifecycle in ['active', 'archived']
+            && d.createdAt is timestamp && d.updatedAt == request.time
+            && (d.lifecycle == 'active' ? d.archivedAt == null : d.archivedAt == request.time);
+        }
+        allow read: if signedIn() && request.auth.uid == uid;
+        allow create: if signedIn() && request.auth.uid == uid && validInstance()
+          && request.resource.data.lifecycle == 'active' && request.resource.data.createdAt == request.time
+          && !exists(/databases/$(database)/documents/users/$(uid)/catalogMemberships/$(request.resource.data.catalogId))
+          && getAfter(/databases/$(database)/documents/users/$(uid)/catalogMemberships/$(request.resource.data.catalogId)).data.careerInstanceId == instanceId;
+        allow update: if signedIn() && request.auth.uid == uid && validInstance()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lifecycle', 'archivedAt', 'updatedAt'])
+          && ((resource.data.lifecycle == 'active' && request.resource.data.lifecycle == 'archived')
+            || (resource.data.lifecycle == 'archived' && request.resource.data.lifecycle == 'active'))
+          && get(/databases/$(database)/documents/users/$(uid)/catalogMemberships/$(resource.data.catalogId)).data.careerInstanceId == instanceId;
+        allow delete: if false;
+      }
+      match /catalogMemberships/{catalogId} {
+        allow read: if signedIn() && request.auth.uid == uid;
+        allow create: if signedIn() && request.auth.uid == uid
+          && request.resource.data.keys().hasAll(['schemaVersion', 'careerInstanceId'])
+          && request.resource.data.keys().hasOnly(['schemaVersion', 'careerInstanceId'])
+          && request.resource.data.schemaVersion is int && request.resource.data.schemaVersion == 1
+          && instanceKey(catalogId) && instanceKey(request.resource.data.careerInstanceId)
+          && catalogId != request.resource.data.careerInstanceId
+          && !exists(/databases/$(database)/documents/users/$(uid)/careerInstances/$(request.resource.data.careerInstanceId))
+          && getAfter(/databases/$(database)/documents/users/$(uid)/careerInstances/$(request.resource.data.careerInstanceId)).data.catalogId == catalogId;
+        allow update, delete: if false;
+      }
       match /activityInbox/{itemId} {
         allow get, list: if socialUser() && request.auth.uid == uid;
         allow create: if socialUser() && activityCreationEnabled() && validNotice() && validNoticeTransition();

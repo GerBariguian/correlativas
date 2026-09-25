@@ -1,8 +1,8 @@
 # Multicarrera — v1.16.0, Etapa 0: contratos
 
-Estado: contrato objetivo congelado documentalmente. Etapa 1 implementa únicamente
-el dominio puro aislado descrito al final; el modelo persistente y su integración
-productiva **no están implementados**.
+Estado: contrato objetivo congelado documentalmente. Etapas 1–2 implementan
+dominio puro y persistencia de metadata aislada, descritos al final.
+La integración productiva y la migración **no están implementadas**.
 Base auditada: `8a4abd4` — v1.15.0, Centro de Actividad y notificaciones sociales.
 Esta etapa no cambia código, Rules, paths productivos ni datos. Aprobar este
 documento no autoriza ejecutar migraciones ni publicar ningún artefacto.
@@ -541,8 +541,9 @@ esto no agrega campos a los documentos Firestore ni cambia el schema objetivo.
 La representación es intencionalmente mínima: no admite progreso, proyección o
 consentimiento embebidos. Archive/restore producen otro valor de lifecycle, no
 un reemplazo de documento persistente. **Nunca guardar ese valor como sustituto
-del documento completo**. Etapa 2 deberá componer la transacción de archivado,
-sharing OFF/epoch y selección null, preservando los dominios académicos.
+del documento completo**. El lifecycle productivo posterior deberá componer
+sharing OFF/epoch y selección null, preservando los dominios académicos. El alcance
+aprobado de Etapa 2 se limita a archive/restore de metadata, sin esos side effects.
 `isActiveCareerInstance` expresa una condición necesaria para sharing, no un
 permiso ni una implementación del consentimiento. Restore no tiene un campo
 de sharing que pueda reactivar.
@@ -587,3 +588,117 @@ unicidad persistente ni concurrencia**: índice + Rules pertenecen a Etapa 2.
 JavaScript no ofrece tipos nominales aquí: campos y validadores distinguen los
 roles; un string arbitrario por sí solo no acredita identidad o autorización.
 Tests: `node --test tests/career-instances.test.cjs`, también incluidos en `npm test`.
+
+## 13. Etapa 2: persistencia de metadata aislada
+
+Implementación local desconectada de App: `src/services/careerInstances.js` y
+`src/careerInstancePersistenceLogic.js`. La fábrica recibe `{db, auth}` y uid;
+no importa `src/firebase.js`, no inicializa Firebase y no existe un consumidor
+productivo de estas rutas. No migración, cutover ni cambio de fuente autoritativa.
+
+### Schema efectivamente implementado en esta etapa
+
+- `users/{uid}/careerInstances/{id}`: exactamente schemaVersion=1, catalogId,
+  lifecycle, createdAt, updatedAt, archivedAt.
+- `users/{uid}/catalogMemberships/{catalogId}`: exactamente schemaVersion=1,
+  careerInstanceId.
+- UID/ID son implícitos por path; no se persisten campos duplicados de identidad.
+- IDs de instancia/catálogo: `[A-Za-z0-9_-]{1,100}`, distintos entre sí. Esto es
+  validación estructural, **no un registro de catálogos permitidos**. Un cliente
+  futuro deberá validar catálogo real; esta etapa no importa el registry ni
+  prueba matrícula real. No se modifica la gramática más general del dominio puro.
+- Auto-ID opaco generado por `doc(collection(...))`, antes de la transacción y
+  sin escritura independiente. Rules no puede demostrar entropía: comprueba
+  estructura/coherencia; la generación opaca es responsabilidad del repositorio.
+- No campo sharing todavía, conforme al alcance explícito de Etapa 2. No se
+  guarda progreso/proyección/snapshot ni se habilita lectura/escritura de sus
+  futuros subpaths. La sección 3 sigue siendo el objetivo completo posterior.
+
+El propietario autenticado puede leer/listar instancias e índices propios.
+Terceros y anónimos no leen ni mutan ninguno, aun con amistad. La futura lectura
+social mínima se construirá sobre get exacto del índice en Etapa 6, comprobando
+metadata privada desde Rules; nunca requiere entregar la instancia completa.
+
+### API y resultados
+
+`careerInstancesRepository({db, auth}, uid)` captura la sesión concreta. Métodos:
+
+| Método | Resultado |
+|---|---|
+| `create(catalogId)` | ID confirmado de nueva instancia; duplicado arroja error |
+| `get(instanceId)` | `{instance, metadata}` o null si no existe |
+| `list()` | Array validado de envelopes propios; no omite documentos corruptos |
+| `getByCatalog(catalogId)` | Envelope o null si no existe índice; índice huérfano/incoherente es error |
+| `archiveMetadata(instanceId)` | ID confirmado; no-op si ya archivada |
+| `restoreMetadata(instanceId)` | ID confirmado; no-op si ya activa |
+
+`instance` es el valor mínimo del dominio puro y `metadata` el DTO validado con
+timestamps. No se expone CRUD genérico ni delete. Las lecturas directas/listados
+son desde servidor; el lookup del índice/par usa transacción para coherencia.
+Archive/restore comprueban índice y preservan createdAt/catalogId/ID. Los no-op
+no cambian fechas. No tocan cuenta/selección, sharing, planes ni hijos académicos:
+**NO son la operación productiva completa de archivado/restauración**.
+
+### Transacción, concurrencia e invariantes
+
+Alta usa transacción en vez de batch para leer la reserva y devolver un duplicado
+controlado. Rules exige simetría y ausencia previa de la contraparte:
+instancia nueva ↔ membership nuevo. No permite anexar unilateralmente un índice
+a un huérfano antiguo. Catálogo, createdAt y asociación del índice son inmutables;
+ninguno de los dos documentos puede borrarse desde cliente.
+
+Dos altas simultáneas: exactamente una crea el par; la perdedora arroja
+`DUPLICATE_CATALOG_INSTANCE`. Emulator mostró que Rules puede observar el ganador
+antes del retry del SDK y denegar al perdedor. Por eso el repositorio, solo ante
+permission-denied, relee el par en una transacción **sin escrituras**: solo
+reclasifica como duplicado si demuestra otra instancia coherente. En caso contrario
+conserva la denegación; nunca informa éxito ni reintenta una escritura sin índice.
+
+Errores estables: INVALID_INPUT, DUPLICATE_CATALOG_INSTANCE,
+CAREER_INSTANCE_NOT_FOUND (mutación de ausente), INVALID_CAREER_DOCUMENT,
+CAREER_SESSION_CHANGED, PERMISSION_DENIED, PERSISTENCE_CONFLICT,
+PERSISTENCE_UNAVAILABLE y PERSISTENCE_FAILED. No expone mensajes/rutas/tokens del
+SDK. Sesión cambiada antes/después de una operación invalida su resultado; no es
+una garantía de cancelar una escritura que el servidor ya aceptó.
+
+### Rules y presupuesto de accesos
+
+Se agregan únicamente los matches nuevos y el helper `instanceKey` bajo users.
+Las condiciones legacy, incluidos activeCareerId y gate de Activity, no cambian.
+
+| Operación | Accesos de Rules a otros documentos (sin asumir caché) |
+|---|---|
+| Alta de instancia | 2: exists(index) previo + getAfter(index) |
+| Alta de membership | 2: exists(instance) previo + getAfter(instance) |
+| Alta atómica completa | 4 en total; 2 por escritura |
+| Archive/restore efectivo | 1: get(index); transición exacta y request.time |
+| No-op lifecycle | 0 validaciones de escritura; repositorio lee instancia + índice |
+| Get/list propio | 0; autorización por UID autenticado y path |
+
+`exists` observa ausencia antes de la escritura y `getAfter` el par resultante
+antes de commit. Archive/restore usa `get`: el índice es inmutable y no se modifica
+en la operación. Estas cifras son conteo del código, no telemetría de facturación;
+las lecturas de transacción del SDK son adicionales y los retries pueden repetirlas.
+Queda holgura frente a los límites de 10 por operación y 20 por transacción.
+
+### Pruebas y frontera de seguridad
+
+- Unit: DTOs, timestamps, errores sanitizados, sesión e inputs; reconciliación
+  read-only con ganador coherente, huérfano, otro catálogo o documento corrupto.
+- Emulator Rules: owner/foreign/anonymous; schemas exactos, omisión de campos,
+  timestamps falsos, orphans en ambos sentidos, pares cross-user, doble instancia,
+  hijacking, catálogo/createdAt inmutables, archive/restore y deny de subpaths.
+- Ataques delete/recreate y archive + alta duplicada denegados; incluso borrar
+  el documento padre users no borra la reserva del catálogo. Restore sigue válido
+  después de intentar duplicar. Navegación null/legacy/futura no altera permisos.
+- Integración con SDK/repositorio real: ciclo completo, idempotencia, concurrencia,
+  aislamiento entre propietarios/catálogos, denegación sin escritura parcial,
+  índice huérfano y preservación de hijos/datos legacy durante lifecycle metadata.
+- `node scripts/test-rules.cjs --career-only` usa el mismo aislamiento demo/loopback
+  del runner. `npm.cmd run test:rules` incluye históricas, Activity, rollout/recovery
+  y multicarrera. No se ejecutan herramientas de publicación ni migración.
+
+Los artefactos ignorados `.tools/activity-rollout/*` pueden quedar desactualizados
+al cambiar Rules fuente; no se regeneran ni publican en esta etapa. La suite de
+rollout prueba las variantes en memoria. El review futuro debe regenerar/revisar
+artefactos antes de cualquier publicación autorizada.
