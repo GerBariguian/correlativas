@@ -1,5 +1,6 @@
 import useAcademicBridge from './hooks/useAcademicBridge'
 import InstanceSelection from './components/InstanceSelection'
+import MyCareers from './components/MyCareers'
 import JointPlanHistory from './components/JointPlanHistory'
 import useActivity from './hooks/useActivity'
 import CareerSelector from './components/CareerSelector'
@@ -158,7 +159,7 @@ function App() {
           // This branch replaces the one-shot loader; both never write concurrently.
           stop = bridge.source.subscribe(({ statusMap: cloudStatus, revision }) => {
             if (cancelled || !isCurrentSession(token) || confirmedCareer.current !== activeCareerId) return
-            const map = cloudStatus ?? initialStatus
+            const map = cloudStatus ?? (bridge.authority === 'instances' ? EMPTY_STATUS : initialStatus)
             progress.current = { token, careerId: activeCareerId, source: bridge.source, revision, map }
             setStatusMap(map)
             setStatusScope(bridge.key)
@@ -169,7 +170,7 @@ function App() {
         }
         const { statusMap: cloudStatus, revision } = await bridge.source.load()
         if (cancelled || !isCurrentSession(token) || confirmedCareer.current !== activeCareerId) return
-        const map = cloudStatus ?? initialStatus
+        const map = cloudStatus ?? (bridge.authority === 'instances' ? EMPTY_STATUS : initialStatus)
         progress.current = { token, careerId: activeCareerId, source: bridge.source, revision, map }
         setStatusMap(map)
         setStatusScope(bridge.key)
@@ -339,7 +340,7 @@ if ((profileLoading || (bridge.phase === 'blocked' && !bridge.source))
 }
 
 
-if ((profileLoading || (hasChosenCareer && activeCareer && (statusLoading || statusScope !== bridge.key)))
+if ((profileLoading || (activePage !== 'careers' && hasChosenCareer && activeCareer && (statusLoading || statusScope !== bridge.key)))
   && !['frozen', 'invalid'].includes(bridge.authority) && bridge.phase !== 'blocked') {
   return (
     <main className="app-shell">
@@ -374,7 +375,7 @@ if (!hasChosenCareer && bridge.authority === 'legacy') {
         else { setActivityIntent({ token: ++activitySequence.current, planId: result.planId || '', notice: result.notice || '' }); setActivePage('planificador') }
       }} />
       {activityNotice && <p role="status" className="activity-navigation-notice">{activityNotice}<button type="button" onClick={() => setActivityNotice('')}>Cerrar</button></p>}
-      {bridge.authority === 'instances' ? <InstanceSelection bridge={bridge} careers={careers} /> :
+      {bridge.authority === 'instances' ? <InstanceSelection bridge={bridge} careers={careers} onManage={() => setActivePage('careers')} /> :
         <fieldset disabled={!bridge.capabilities.select} style={{ border: 0, padding: 0, margin: 0 }}>
           <CareerSelector careers={careers} activeCareerId={activeCareerId} setActiveCareerId={changeCareer} />
         </fieldset>}
@@ -386,6 +387,8 @@ if (!hasChosenCareer && bridge.authority === 'legacy') {
       {bridge.phase === 'blocked' && <p role="status">Tu cuenta requiere revisión. La edición está suspendida.</p>}
       {personalProjection.retainedDraft && <p role="status">Conservamos en esta sesión un borrador de la planificación anterior. No se trasladó ni guardó automáticamente en tu nueva trayectoria.</p>}
       {!activeCareer && <p role="status">No hay una trayectoria disponible seleccionada. Elegí una para ver su progreso.</p>}
+      {bridge.authority === 'instances' && (activePage === 'careers' || !activeCareer) &&
+        <MyCareers key={user.uid} bridge={bridge} careers={careers} />}
 
       <nav className="top-nav">
   	<button

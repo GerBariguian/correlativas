@@ -1,10 +1,11 @@
 import { collection, doc, getDocFromServer, getDocsFromServer, runTransaction, serverTimestamp } from 'firebase/firestore'
 import { validateCareerInstances } from '../careerInstanceLogic.js'
+import { resolveUserDataAuthority } from '../userDataAuthorityLogic.js'
 import { careerPersistenceError, validateCareerPersistenceId, mapCareerPersistenceError, decodeCareerMetadata, decodeCatalogMembership } from '../careerInstancePersistenceLogic.js'
 
 // Deliberately no import of ../firebase: nothing initializes or connects at import.
-// Caller supplies an authenticated context. This repository is not wired into App.
-export function careerInstancesRepository({ db, auth }, uid) {
+// Caller supplies authenticated context; App uses the product lifecycle facade.
+export function careerInstancesRepository({ db, auth }, uid, product = null) {
   if (typeof uid !== 'string' || !uid || /[\s/\x00-\x1f\x7f]/.test(uid)) throw careerPersistenceError('INVALID_INPUT')
   const user = auth.currentUser
   const check = () => { if (!user || user.uid !== uid || auth.currentUser !== user) throw careerPersistenceError('CAREER_SESSION_CHANGED') }
@@ -17,10 +18,22 @@ export function careerInstancesRepository({ db, auth }, uid) {
     catch (error) { throw mapCareerPersistenceError(error) }
   }
   const decode = snapshot => decodeCareerMetadata(uid, snapshot.id, snapshot.data())
+  const guardProduct = async tx => {
+    if (!product) return null // Isolated metadata API retained for existing callers.
+    check()
+    const control = await tx.get(doc(db, 'migrationUsers', uid))
+    const context = resolveUserDataAuthority(uid, control.exists() ? control.data() : null)
+    if (context.authority !== 'instances' || !context.capabilities.academicWrite) throw careerPersistenceError('PERMISSION_DENIED')
+    const profile = await tx.get(doc(db, 'users', uid))
+    if (!profile.exists() || profile.data().schemaVersion !== 2) throw careerPersistenceError('INVALID_CAREER_DOCUMENT')
+    check()
+    return profile.data()
+  }
   const metadataLifecycle = (id, lifecycle) => safely(async () => {
     const target = ref(id)
     await runTransaction(db, async tx => {
       check()
+      const profile = await guardProduct(tx)
       const snapshot = await tx.get(target)
       check()
       if (!snapshot.exists()) throw careerPersistenceError('CAREER_INSTANCE_NOT_FOUND')
@@ -29,18 +42,23 @@ export function careerInstancesRepository({ db, auth }, uid) {
       check()
       if (!index.exists() || decodeCatalogMembership(index.data()) !== id) throw careerPersistenceError('INVALID_CAREER_DOCUMENT')
       if (current.instance.lifecycle === lifecycle) return
+      if (product && lifecycle === 'archived' && profile.activeCareerInstanceId === id) {
+        tx.update(doc(db, 'users', uid), { activeCareerInstanceId: null, updatedAt: serverTimestamp() })
+      }
       tx.update(target, { lifecycle, archivedAt: lifecycle === 'archived' ? serverTimestamp() : null, updatedAt: serverTimestamp() })
     })
     return id
   })
   return {
     create: catalogId => safely(async () => {
+      if (product && !product.catalogs.some(catalog => catalog.id === catalogId)) throw careerPersistenceError('INVALID_INPUT')
       const index = membership(catalogId)
       const target = doc(instances) // Local opaque auto-ID; no standalone write.
       if (target.id === catalogId) throw careerPersistenceError('PERSISTENCE_CONFLICT')
       try {
         await runTransaction(db, async tx => {
           check()
+          await guardProduct(tx)
           const existing = await tx.get(index)
           check()
           if (existing.exists()) { decodeCatalogMembership(existing.data()); throw careerPersistenceError('DUPLICATE_CATALOG_INSTANCE') }

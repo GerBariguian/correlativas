@@ -48,8 +48,34 @@ test('read-only history does not auto-select a plan and exposes no mutation cont
   assert.equal(nodes(tree).filter(n => n.type === 'button').length, 0)
   assert.match(text(tree), /temporalmente suspendidas/)
 })
+
+test('archiving suspends only that instance autosave; restore does not schedule a save or select it', () => {
+  const user = { uid: 'u' }, controllers = []
+  const h = harness('src/hooks/useCareerProjection.js', 'useCareerProjection', {
+    createProjectionController: () => {
+      let state = { phase: 'saving', scenario: { draft: true } }
+      const controller = { setSuspended(value) { state = { ...state, suspended: value, phase: value ? 'error' : state.phase } },
+        getState: () => state, load() {}, dispose() {} }
+      controllers.push(controller); return controller
+    },
+  })
+  let bridge = { authority: 'instances', capabilities: { academicWrite: true }, key: 'u:instances:a',
+    instances: [{ careerInstanceId: 'a', lifecycle: 'active' }, { careerInstanceId: 'b', lifecycle: 'active' }], projectionRepository: () => ({}) }
+  h.render(user, 'cat-a', true, bridge)
+  bridge = { ...bridge, key: 'u:instances:b' }; h.render(user, 'cat-b', true, bridge)
+  bridge = { ...bridge, instances: [{ careerInstanceId: 'a', lifecycle: 'archived' }, { careerInstanceId: 'b', lifecycle: 'active' }] }
+  h.render(user, 'cat-b', true, bridge)
+  assert.equal(controllers[0].getState().suspended, true)
+  assert.equal(controllers[1].getState().suspended, false)
+  assert.equal(h.render(user, 'cat-b', true, bridge).retainedDraft, true)
+  bridge = { ...bridge, instances: bridge.instances.map(i => ({ ...i, lifecycle: 'active' })) }
+  h.render(user, 'cat-b', true, bridge)
+  assert.equal(controllers[0].getState().phase, 'error')
+  assert.equal(bridge.key, 'u:instances:b')
+  h.stop()
+})
 test('App switches source by context, gates freeze, null instances never onboard or default', async () => {
-  const user = { uid: 'u' }, calls = []
+  const user = { uid: 'u' }, calls = [], maps = []
   let bridge
   const source = model => ({ key: `u:${model}:id`, scope: { catalogId: 'cat' }, load: async () => { calls.push(model); return { statusMap: { A: model === 'legacy' ? 'Regularizada' : 'Aprobada' }, revision: 1 } } })
   const setBridge = (authority, selected = true) => {
@@ -61,14 +87,14 @@ test('App switches source by context, gates freeze, null instances never onboard
       canWrite: () => bridge.capabilities.academicWrite, retry() {} }
   }
   setBridge('legacy')
-  const components = Object.fromEntries(['Header', 'CareerSelector', 'InstanceSelection', 'JointPlanHistory', 'CareerProjectionPage', 'PlannerPage',
+  const components = Object.fromEntries(['Header', 'CareerSelector', 'InstanceSelection', 'MyCareers', 'JointPlanHistory', 'CareerProjectionPage', 'PlannerPage',
     'CareerMap', 'SubjectsPanel', 'Advisor', 'WelcomeSetup', 'FriendsPage', 'Dashboard', 'Route'].map(name => [name, name]))
   const h = harness('src/App.jsx', 'App', { ...components, auth: { currentUser: user }, googleProvider: {}, signInWithPopup() {},
     onAuthStateChanged: (auth, callback) => { callback(user); return () => {} },
     useAcademicBridge: () => bridge, useActivity: () => ({}), useSocialProfile: () => ({ ready: true }),
     useCareerProjection: () => ({ phase: 'empty', scenario: null }), usePlannerSession: () => ({ selectedCodes: [], setSelectedCodes() {} }),
-    careers: [{ id: 'cat', name: 'Catalog', plan: '1', subjects: [], initialStatus: {} }],
-    summary: () => ({}), availableToCourse: () => [], availableFinals: () => [], blockedSubjects: () => [], recommendations: () => [],
+    careers: [{ id: 'cat', name: 'Catalog', plan: '1', subjects: [], initialStatus: { A: 'Aprobada' } }],
+    summary: (_, map) => { maps.push(map); return {} }, availableToCourse: () => [], availableFinals: () => [], blockedSubjects: () => [], recommendations: () => [],
     localStorage: { setItem() {} }, console, window: { alert: message => { throw Error(message) } },
   })
   const settle = async () => { let tree; for (let i = 0; i < 8; i++) { tree = h.render(); await Promise.resolve() } return tree }
@@ -90,10 +116,12 @@ test('App switches source by context, gates freeze, null instances never onboard
   tree = await settle()
   assert.ok(!nodes(tree).some(n => n.type === 'Dashboard' || n.type === 'SubjectsPanel'))
   assert.match(text(tree), /Cargando perfil/)
-  resolveProgress({ statusMap: {}, revision: 1 })
+  resolveProgress({ statusMap: null, revision: null })
   await settle()
+  assert.equal(Object.keys(maps.at(-1)).length, 0, 'New instance must not inherit catalog demo progress')
   setBridge('instances', false); tree = await settle()
   assert.ok(!nodes(tree).some(n => n.type === 'WelcomeSetup' || n.type === 'Dashboard'))
   assert.match(text(tree), /No hay una trayectoria/)
+  assert.ok(nodes(tree).some(n => n.type === 'MyCareers'))
   h.stop()
 })

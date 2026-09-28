@@ -8,8 +8,10 @@ export default function useCareerProjection(user, careerId, visible, bridge = nu
   const key = bridge ? bridge.key : user ? `${user.uid}:${careerId}` : null
   useEffect(() => {
     contexts.current.forEach((controller, controllerKey) => controller.setSuspended(Boolean(bridge)
-      && (!bridge.capabilities.academicWrite || !controllerKey.startsWith(`${user?.uid}:${bridge.authority}:`))))
-  }, [key, bridge?.authority, bridge?.capabilities.academicWrite, user])
+      && (!bridge.capabilities.academicWrite || !controllerKey.startsWith(`${user?.uid}:${bridge.authority}:`)
+        || (bridge.authority === 'instances' && !bridge.instances?.some(instance => instance.lifecycle === 'active'
+          && controllerKey === `${user?.uid}:instances:${instance.careerInstanceId}`)))))
+  }, [key, bridge?.authority, bridge?.capabilities.academicWrite, bridge?.instances, user])
   useEffect(() => {
     const controllers = contexts.current
     return () => { controllers.forEach(c => c.dispose()); controllers.clear() }

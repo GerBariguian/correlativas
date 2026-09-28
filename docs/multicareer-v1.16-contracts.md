@@ -1,5 +1,30 @@
 # Multicarrera — v1.16.0, Etapa 0: contratos
 
+## Etapa 5 — alcance aprobado y bloqueo de release
+
+Lifecycle/Mis carreras opera únicamente con control válido `authority=instances`,
+`phase=complete`, `origin=legacy|new`. No crea ni modifica controles.
+Ver [checkpoint de lifecycle](multicareer-lifecycle-checkpoint.md).
+
+### Protected new-account bootstrap — BLOCKED / RELEASE BLOCKER
+
+El bootstrap protegido de cuentas realmente nuevas está pendiente por diseño y
+es **blocker del release v1.16**, no deuda opcional. El modelo legacy permite
+historia en subcolecciones sin padre y referencias/catalog IDs históricos o
+desconocidos. Rules no puede enumerarlos exhaustivamente. Ausencia de control,
+perfil, carreras conocidas o documentos sociales no demuestra origen nuevo.
+Datos aportados por el cliente, `auth_time` y heurísticas tampoco son prueba.
+
+Falta definir una fuente confiable que certifique el origen nuevo y un protocolo
+verificable por Rules. No se implementa esa certificación en Etapa 5 ni se
+modifican permisos legacy para fabricar una prueba. El cliente sigue sin poder
+crear/modificar migrationUsers o manifests. No hay autobootstrap ni fallback nuevo.
+
+Una cuenta legítimamente establecida en instances con cero carreras sí es válida;
+los tests la establecen administrativamente en Emulator. Esto no acredita un
+bootstrap productivo. GO a Etapa 6 y GO al release son decisiones separadas:
+el release permanece **NO-GO** mientras este bloqueo no se resuelva.
+
 ## Aclaración aprobada para Etapa 4 (2026-09-25)
 
 La prohibición absoluta de usar selección como autorización aplica al **modelo

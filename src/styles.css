@@ -1793,3 +1793,12 @@ h1 {
 .emulator-indicator { padding: 6px 16px; text-align: center; font-size: .8rem; font-weight: 700; color: var(--text); background: var(--bg); border-bottom: 1px solid var(--line); }
 
 .activity-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+/* Lifecycle controls fit narrow screens without truncating university/plan labels. */
+.my-careers-actions { display: flex; flex-wrap: wrap; gap: .65rem; align-items: center; }
+.my-careers-actions select { min-width: 0; max-width: 100%; flex: 1 1 18rem; }
+.my-careers-list { list-style: none; padding: 0; display: grid; gap: 1rem; }
+.my-careers-list > li { border: 1px solid var(--border, #d5dae3); padding: 1rem; border-radius: .75rem; overflow-wrap: anywhere; }
+.my-careers-list h4 { margin: 0; }
+.my-career-archived { border-style: dashed !important; }
+.my-careers-confirm { margin-top: 1rem; min-width: 0; }
+.my-careers :is(button, select):focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }

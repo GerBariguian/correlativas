@@ -126,7 +126,7 @@ service cloud.firestore {
             && request.resource.data.schemaVersion is int && request.resource.data.schemaVersion == 2
             && request.resource.data.updatedAt == request.time
             && (selected == null || (instanceKey(selected)
-              && get(/databases/$(database)/documents/users/$(uid)/careerInstances/$(selected)).data.lifecycle == 'active')));
+              && getAfter(/databases/$(database)/documents/users/$(uid)/careerInstances/$(selected)).data.lifecycle == 'active')));
       }
       match /careers/{careerId} {
         allow read: if signedIn() && request.auth.uid == uid;
@@ -137,6 +137,17 @@ service cloud.firestore {
         return value is string && value.matches('^[A-Za-z0-9_-]{1,100}$');
       }
       match /careerInstances/{instanceId} {
+        // Product archive cannot leave this instance selected, even in a malicious batch.
+        // Legacy metadata compatibility remains unchanged; no bootstrap permission.
+        function validLifecycleSelection() {
+          return legacyAuthority(uid) || request.resource.data.lifecycle != 'archived'
+            || clearedSelection();
+        }
+        function clearedSelection() {
+          let before = get(/databases/$(database)/documents/users/$(uid)).data.get('activeCareerInstanceId', null);
+          let after = getAfter(/databases/$(database)/documents/users/$(uid)).data.get('activeCareerInstanceId', null);
+          return before == instanceId ? after == null : after != instanceId;
+        }
         function validInstance() {
           let d = request.resource.data;
           return d.keys().hasAll(['schemaVersion', 'catalogId', 'lifecycle', 'createdAt', 'updatedAt', 'archivedAt'])
@@ -153,6 +164,7 @@ service cloud.firestore {
           && !exists(/databases/$(database)/documents/users/$(uid)/catalogMemberships/$(request.resource.data.catalogId))
           && getAfter(/databases/$(database)/documents/users/$(uid)/catalogMemberships/$(request.resource.data.catalogId)).data.careerInstanceId == instanceId;
         allow update: if signedIn() && request.auth.uid == uid && metadataWritable(uid) && validInstance()
+          && validLifecycleSelection()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lifecycle', 'archivedAt', 'updatedAt'])
           && ((resource.data.lifecycle == 'active' && request.resource.data.lifecycle == 'archived')
             || (resource.data.lifecycle == 'archived' && request.resource.data.lifecycle == 'active'))
@@ -165,7 +177,7 @@ service cloud.firestore {
           return (kind == 'academic' && documentId == 'progress') || (kind == 'planning' && documentId == 'projection');
         }
         function editable() {
-          let m = get(/databases/$(database)/documents/users/$(uid)/careerInstances/$(instanceId)).data;
+          let m = getAfter(/databases/$(database)/documents/users/$(uid)/careerInstances/$(instanceId)).data;
           return signedIn() && request.auth.uid == uid && instanceAuthority(uid)
             && m.schemaVersion == 1 && m.lifecycle == 'active'
             && get(/databases/$(database)/documents/users/$(uid)/catalogMemberships/$(m.catalogId)).data.careerInstanceId == instanceId;

@@ -38,10 +38,11 @@ console.log(`Rules tests: ${project}, ${host}; ${java.stderr.trim().split('\n')[
 console.log('firestore.rules SHA256:', createHash('sha256').update(readFileSync(join(root, 'firestore.rules'))).digest('hex'))
 const cli = require.resolve('firebase-tools/lib/bin/firebase.js')
 const suites = process.argv.includes('--activity-only') ? 'tests/rules/activity.test.cjs'
+  : process.argv.includes('--lifecycle-only') ? 'tests/rules/career-lifecycle.test.cjs'
   : process.argv.includes('--bridge-only') ? 'tests/rules/academic-bridge.test.cjs'
   : process.argv.includes('--migration-only') ? 'tests/rules/migration.test.cjs'
   : process.argv.includes('--career-only') ? 'tests/rules/career-instances.test.cjs'
-  : 'tests/rules/firestore.test.cjs tests/rules/activity.test.cjs tests/rules/activity-rollout.test.cjs tests/rules/career-instances.test.cjs tests/rules/migration.test.cjs tests/rules/academic-bridge.test.cjs';
+  : 'tests/rules/firestore.test.cjs tests/rules/activity.test.cjs tests/rules/activity-rollout.test.cjs tests/rules/career-instances.test.cjs tests/rules/migration.test.cjs tests/rules/academic-bridge.test.cjs tests/rules/career-lifecycle.test.cjs';
 const child = spawn(process.execPath, [cli, 'emulators:exec', '--only', 'firestore', '--project', project,
   '--config', 'firebase.rules-test.json', '--non-interactive',
   `node --test --test-concurrency=1 --test-timeout=120000 ${suites}`],
