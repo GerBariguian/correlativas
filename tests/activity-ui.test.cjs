@@ -88,7 +88,7 @@ test('activity panel item uses exact instance and navigates without writing on o
 test('activity Planner intention waits for authorized list and consumes once without selecting hidden plans',()=>{
  let data={plans:[],state:'loading'},consumed=0
  const user={uid:'u'},career={id:'c',subjects:[]}
- const h=harness('src/components/PlannerPage.jsx','PlannerPage',{
+ const h=harness('src/components/PlannerPage.jsx','LegacyPlannerPage',{
    Planner:'planner',PlanningComparison:'comparison',JointPlanPanel:'joint-panel',AddPlanSubjectDialog:'add-dialog',
    usePlanningParticipants:()=>({friends:{profiles:{},ids:[],state:'ready'},participants:[]}),derivePlanningSnapshot:()=>({}),
    useJointPlans:()=>data,useJointProfiles:()=>({}),usePlanAcademicContext:()=>[],academicMessages:{},fallbackPlanName:()=>'',

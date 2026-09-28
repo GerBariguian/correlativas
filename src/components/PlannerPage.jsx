@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { activityPlanSelection } from '../activityPresentation'
 import Planner from './Planner'
+import JointPlanHistory from './JointPlanHistory'
 import PlanningComparison from './PlanningComparison'
 import JointPlanPanel from './JointPlanPanel'
 import AddPlanSubjectDialog from './AddPlanSubjectDialog'
@@ -12,7 +13,16 @@ import { addComparisonFriend, derivePlanningSnapshot } from '../planningLogic'
 import { academicMessages } from '../planningPresentation'
 import { fallbackPlanName } from '../jointPlanLogic'
 
-export default function PlannerPage({ user, career, statusMap, activityIntent, onActivityConsumed, ...plannerProps }) {
+export default function PlannerPage({ academicSocial = true, ...props }) {
+  if (academicSocial) return <LegacyPlannerPage {...props} />
+  const { user, career, statusMap, activityIntent, onActivityConsumed, ...plannerProps } = props
+  return <section className="planning-ui">
+    <Planner {...plannerProps} statusMap={statusMap} scopeKey={`${user.uid}:${career.id}`} />
+    <JointPlanHistory user={user} activityIntent={activityIntent} onActivityConsumed={onActivityConsumed} />
+  </section>
+}
+
+function LegacyPlannerPage({ user, career, statusMap, activityIntent, onActivityConsumed, ...plannerProps }) {
   const [selectedIds, setSelectedIds] = useState([])
   const [view, setView] = useState('selection')
   const [attempt, setAttempt] = useState(0)

@@ -19,7 +19,7 @@ export default function useJointPlans(user, careerId, selectedId, attempt) {
     return () => { live = false; stops.forEach((stop) => stop()) }
   }, [user, key])
   const values = lists.key === key ? lists.values : {}
-  const plans = owners.flatMap((uid) => values[uid]?.rows || []).filter((plan) => plan.careerId === careerId)
+  const plans = owners.flatMap((uid) => values[uid]?.rows || []).filter((plan) => careerId === null || plan.careerId === careerId)
   const selected = plans.find((plan) => plan.id === selectedId)
   const canRead = selected && !selected.deleting && selected.memberIds.includes(user.uid)
   const subjectKey = JSON.stringify([key, selectedId, Boolean(canRead), selected?.updatedAt])

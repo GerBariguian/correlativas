@@ -1,5 +1,10 @@
 # v1.16 — Etapa 3: migrador local
 
+> Estado posterior: [Etapa 4](multicareer-bridge-checkpoint.md) conecta el bridge y
+> comprueba enforcement de authority en Rules locales. La descripción de freeze
+> que sigue corresponde a Etapa 3 aprobada, no al comportamiento local de Etapa 4.
+> No hay enforcement nuevo desplegado ni autorización para migrar producción.
+
 Base: `534e81f`. Implementación administrativa para fixtures y Firestore Emulator.
 No está conectada a App, servicios productivos, Auth, UI ni bootstrap de cuentas.
 No autoriza una migración real. Contrato base: [multicarrera](multicareer-v1.16-contracts.md).

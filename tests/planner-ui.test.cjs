@@ -181,7 +181,7 @@ test('session hook preserves decisions through navigation and progress, resets b
   assert.deepEqual(plain(render('another', 'other').selectedCodes), [])
   assert.deepEqual(plain(render('u', 'c').selectedCodes), [])
   const app = source('src/App.jsx')
-  assert.match(app, /usePlannerSession\(user\?\.uid \?\? null, activeCareerId\)/)
+  assert.match(app, /usePlannerSession\(user\?\.uid \?\? null, bridge.key\)/)
   assert.doesNotMatch(app, /setPlannerSelectedCodes\(\[\]\)/)
   assert.match(app, /targetPeriod=\{planner.targetPeriod\}/)
 })
@@ -216,6 +216,14 @@ test('actual App effects retain planner across projection load branch and isolat
   const careers = ['c1', 'c2'].map(id => ({ id, name: id, subjects: [s('A')], initialStatus: { A: 'Pendiente' } }))
   const auth = { currentUser: { uid: 'u1' } }
   Object.assign(api, { careers, auth, googleProvider: {},
+    useAcademicBridge: (user, catalogId) => ({ authority: 'legacy', catalogId: 'c1',
+      key: user ? `${user.uid}:legacy:${catalogId}` : null,
+      capabilities: { academicWrite: true, select: true, legacySocial: true }, canWrite: () => true,
+      source: { scope: { catalogId }, key: `${user?.uid}:legacy:${catalogId}`,
+        load: async () => ({ statusMap: { A: 'Pendiente' }, revision: null }),
+        subscribe(callback) { subscribed = map => callback({ statusMap: map, revision: null }); subscribed({ A: 'Pendiente' }); return () => {} },
+        save: async () => null },
+    }),
     onAuthStateChanged(_auth, callback) { authChanged = callback; callback(auth.currentUser); return () => {} },
     loadUserProfile: async () => ({ activeCareerId: 'c1' }),
     loadUserStatus: async () => ({ A: 'Pendiente' }),

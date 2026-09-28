@@ -1,5 +1,24 @@
 # Multicarrera — v1.16.0, Etapa 0: contratos
 
+## Aclaración aprobada para Etapa 4 (2026-09-25)
+
+La prohibición absoluta de usar selección como autorización aplica al **modelo
+multicarrera nuevo**. `activeCareerInstanceId` es exclusivamente navegación.
+Mientras authority sea `legacy` (incluida la ausencia transitoria del control),
+se conservan las condiciones existentes por `activeCareerId` solamente en las
+rutas legacy que ya las utilizan. Esta excepción no amplía permisos y debe
+eliminarse al completar Etapa 6.
+
+Con `frozen` o `instances`, las operaciones académico-sociales que dependan de
+esa autorización legacy deben cerrarse hasta Etapa 6. No se adelantan sharing
+multicarrera, compatibilidad cross-user ni bindings operativos. Friendship,
+Activity e historia autorizada no conceden nuevo acceso académico.
+
+Etapa 4 implementa el bridge y el enforcement local de authority.
+Ver [implementación y validación del bridge](multicareer-bridge-checkpoint.md).
+Las descripciones de Etapas 0–3 que siguen son evidencia de esas etapas, no una
+descripción del runtime anterior al bridge. No hay autorización de rollout productivo.
+
 Estado: contrato objetivo congelado documentalmente. Etapas 1–2 implementan
 dominio puro y persistencia de metadata aislada, descritos al final.
 La integración productiva y la migración productiva **no están implementadas**.

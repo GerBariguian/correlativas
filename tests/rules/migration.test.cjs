@@ -43,12 +43,13 @@ test('migration resume in fresh runner during copy, no missing parent assumption
   assert.deepEqual((await read('migrationManifests/alice')).assignments, before.assignments)
   assert.equal((await read('users/alice')).activeCareerInstanceId, null)
 })
-test('migration frozen is protocol only: legacy writes still allowed and reread catches them', async () => {
+test('migration freeze rejects old clients; administrative tamper is still detected', async () => {
   await seedData(data()); await m().step('alice', 'INVENTORY'); await m().step('alice', 'FREEZE')
   const db = env.authenticatedContext('alice', claims('alice')).firestore()
-  await allow(updateDoc(doc(db, 'users/alice/careers/cat'), { statusMap: { Z: 'Aprobada' } }))
+  await deny(updateDoc(doc(db, 'users/alice/careers/cat'), { statusMap: { Z: 'Aprobada' } }))
   await m().step('alice', 'REREAD')
-  await allow(updateDoc(doc(db, 'users/alice/careers/cat'), { statusMap: { Z: 'Regularizada' } }))
+  await deny(updateDoc(doc(db, 'users/alice/careers/cat'), { statusMap: { Z: 'Regularizada' } }))
+  await seedData({ 'users/alice/careers/cat': { ...progress(), statusMap: { Z: 'Regularizada' } } })
   const r = await m().step('alice', 'COPY'); assert.equal(r.phase, 'blocked'); assert.ok(r.conflicts.includes('LEGACY_SOURCE_CONFLICT'))
   assert.equal((await read('migrationUsers/alice')).authority, 'frozen')
 })
@@ -74,14 +75,14 @@ for (const uid of ['alice', 'bob', null]) test(`migration admin mutations and ma
   await deny(getDocFromServer(doc(db, 'migrationManifests/alice')))
   await (uid === 'alice' ? allow : deny)(getDocFromServer(doc(db, 'migrationUsers/alice')))
 })
-test('migration copied academic paths remain private/default-deny until bridge', async () => {
+test('migration copied academic paths readable by instances owner only; malformed writes denied', async () => {
   await seedData(data()); await m().run('alice')
   const id = (await read('migrationManifests/alice')).assignments.cat.instanceId
   for (const uid of ['alice', 'bob']) {
     const db = env.authenticatedContext(uid, claims(uid)).firestore()
     for (const child of ['academic/progress', 'planning/projection']) {
       const ref = doc(db, `users/alice/careerInstances/${id}/${child}`)
-      await deny(getDocFromServer(ref)); await deny(setDoc(ref, { bypass: true }))
+      await (uid === 'alice' ? allow : deny)(getDocFromServer(ref)); await deny(setDoc(ref, { bypass: true }))
     }
   }
 })

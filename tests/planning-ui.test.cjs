@@ -209,7 +209,7 @@ test('delete progress requires explicit confirmation, focuses cancel and blocks 
 test('App reset retains its original transform and is exposed only in the subjects panel', () => {
   const app = source('src/App.jsx')
   assert.match(app, /function reset\(\) \{\s*return persistStatus\(\(\) => initialStatus\)\s*\}/)
-  assert.match(app, /<SubjectsPanel\s+key=\{activeCareerId\}\s+reset=\{reset\}/)
+  assert.match(app, /<SubjectsPanel\s+key=\{bridge.key\}\s+reset=\{reset\}/)
   assert.doesNotMatch(source('src/components/Header.jsx'), /Reiniciar|reset=|onClick=\{reset\}/)
 })
 

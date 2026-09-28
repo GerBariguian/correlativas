@@ -1,3 +1,6 @@
+import useAcademicBridge from './hooks/useAcademicBridge'
+import InstanceSelection from './components/InstanceSelection'
+import JointPlanHistory from './components/JointPlanHistory'
 import useActivity from './hooks/useActivity'
 import CareerSelector from './components/CareerSelector'
 import CareerProjectionPage from './components/CareerProjectionPage'
@@ -15,10 +18,6 @@ import useSocialProfile from './hooks/useSocialProfile'
 import { onAuthStateChanged, signInWithPopup } from 'firebase/auth'
 import { auth, googleProvider } from './firebase'
 import {
-  loadUserStatus,
-  subscribeUserStatus,
-  saveUserStatus,
-  loadUserProfile,
   saveUserProfile,
 } from './services/firestore'
 import Dashboard from './components/Dashboard'
@@ -36,6 +35,7 @@ import {
 } from './logic'
 
 const DEFAULT_CAREER_ID = careers[0].id
+const EMPTY_SUBJECTS = [], EMPTY_STATUS = {}
 
 const STORAGE_KEY_PREFIX = 'correlativas-status'
 
@@ -51,6 +51,7 @@ function cacheStatus(uid, careerId, map) {
 function App() {
   const [activeCareerId, setActiveCareerId] = useState(DEFAULT_CAREER_ID)
   const [user, setUser] = useState(null)
+  const bridge = useAcademicBridge(user, activeCareerId)
   const activity = useActivity(user)
   const [activityIntent, setActivityIntent] = useState(null)
   const [activityNotice, setActivityNotice] = useState('')
@@ -61,25 +62,29 @@ function App() {
   const [careerRevision, setCareerRevision] = useState(0)
   const [hasChosenCareer, setHasChosenCareer] = useState(false)
   const [statusMap, setStatusMap] = useState(careers[0].initialStatus)
+  const [statusScope, setStatusScope] = useState(null)
   const [view, setView] = useState('all')
   const [query, setQuery] = useState('')
   const [year, setYear] = useState('')
   const [expanded, setExpanded] = useState(null)
   const [activePage, setActivePage] = useState('dashboard')
   const [selectedMapCode, setSelectedMapCode] = useState(null)
-  const planner = usePlannerSession(user?.uid ?? null, activeCareerId)
+  const planner = usePlannerSession(user?.uid ?? null, bridge.key)
   const plannerSelectedCodes = planner.selectedCodes
   const setPlannerSelectedCodes = planner.setSelectedCodes
   const session = useRef(null)
   const progress = useRef(null)
   const writes = useRef(Promise.resolve())
   const confirmedCareer = useRef(DEFAULT_CAREER_ID)
-  const activeCareer = careers.find((career) => career.id === activeCareerId)
-  const subjects = activeCareer.subjects
-  const initialStatus = activeCareer.initialStatus
-  const socialProfile = useSocialProfile(user, activeCareerId, !profileLoading && hasChosenCareer)
+  const confirmedSource = useRef(null)
+  const activeCareer = careers.find((career) => career.id === activeCareerId
+    && (bridge.authority !== 'instances' || bridge.scope?.catalogId === career.id))
+  const subjects = activeCareer?.subjects ?? EMPTY_SUBJECTS
+  const initialStatus = activeCareer?.initialStatus ?? EMPTY_STATUS
+  const socialProfile = useSocialProfile(user, activeCareerId,
+    (!profileLoading && hasChosenCareer) || ['frozen', 'instances'].includes(bridge.authority), !bridge.capabilities.legacySocial)
   const personalProjection = useCareerProjection(user, activeCareerId,
-    activePage === 'projection' && !profileLoading && hasChosenCareer && !statusLoading)
+    activePage === 'projection' && !profileLoading && hasChosenCareer && !statusLoading, bridge)
 
   function isCurrentSession(token) {
     return Boolean(token) && session.current === token && auth.currentUser?.uid === token.uid
@@ -102,6 +107,7 @@ function App() {
       session.current = currentUser ? { uid: currentUser.uid } : null
       progress.current = null
       confirmedCareer.current = DEFAULT_CAREER_ID
+      confirmedSource.current = null
       setUser(currentUser)
       setActivityIntent(null)
       setActivityNotice('')
@@ -120,32 +126,24 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!user) return
-    const token = session.current
-    let cancelled = false
-    async function loadProfile() {
-      try {
-        await writes.current
-        if (cancelled || !isCurrentSession(token)) return
-        const profile = await loadUserProfile(user.uid)
-        if (cancelled || !isCurrentSession(token)) return
-        const career = careers.find((item) => item.id === profile?.activeCareerId)
-        confirmedCareer.current = career?.id || DEFAULT_CAREER_ID
-        setActiveCareerId(confirmedCareer.current)
-        setHasChosenCareer(Boolean(career))
-        setProfileLoading(false)
-      } catch (error) {
-        // Never treat a failed read as an absent profile.
-        if (!cancelled && isCurrentSession(token)) reportError(error)
-      }
+    if (!user || ['loading', 'frozen', 'invalid'].includes(bridge.authority)) return
+    const catalog = careers.find(item => item.id === bridge.catalogId)
+    const chosen = catalog?.id ?? (bridge.authority === 'legacy' ? DEFAULT_CAREER_ID : null)
+    if (confirmedSource.current !== bridge.key || confirmedCareer.current !== chosen) {
+      progress.current = null
+      setStatusLoading(true)
     }
-    loadProfile()
-    return () => { cancelled = true }
-  }, [user])
+    confirmedSource.current = bridge.key
+    confirmedCareer.current = chosen
+    setActiveCareerId(chosen)
+    setHasChosenCareer(Boolean(catalog))
+    setProfileLoading(false)
+  }, [user, bridge.authority, bridge.catalogId, bridge.activeCareerInstanceId])
 
   useEffect(() => {
     progress.current = null
-    if (!user || profileLoading || !hasChosenCareer) return
+    if (!user || profileLoading || !hasChosenCareer || !bridge.source || !bridge.capabilities.academicWrite
+      || bridge.source.scope.catalogId !== activeCareerId) return
     const token = session.current
     let cancelled = false
     let stop = () => {}
@@ -158,22 +156,24 @@ function App() {
         if (cancelled || !isCurrentSession(token)) return
         if (activePage === 'projection') {
           // This branch replaces the one-shot loader; both never write concurrently.
-          stop = subscribeUserStatus(user.uid, activeCareerId, cloudStatus => {
+          stop = bridge.source.subscribe(({ statusMap: cloudStatus, revision }) => {
             if (cancelled || !isCurrentSession(token) || confirmedCareer.current !== activeCareerId) return
             const map = cloudStatus ?? initialStatus
-            progress.current = { token, careerId: activeCareerId, map }
+            progress.current = { token, careerId: activeCareerId, source: bridge.source, revision, map }
             setStatusMap(map)
-            cacheStatus(user.uid, activeCareerId, map)
+            setStatusScope(bridge.key)
+            cacheStatus(user.uid, bridge.key, map)
             setStatusLoading(false)
           }, error => { if (!cancelled && isCurrentSession(token)) reportError(error) })
           return
         }
-        const cloudStatus = await loadUserStatus(user.uid, activeCareerId)
+        const { statusMap: cloudStatus, revision } = await bridge.source.load()
         if (cancelled || !isCurrentSession(token) || confirmedCareer.current !== activeCareerId) return
         const map = cloudStatus ?? initialStatus
-        progress.current = { token, careerId: activeCareerId, map }
+        progress.current = { token, careerId: activeCareerId, source: bridge.source, revision, map }
         setStatusMap(map)
-        cacheStatus(user.uid, activeCareerId, map)
+        setStatusScope(bridge.key)
+        cacheStatus(user.uid, bridge.key, map)
         setStatusLoading(false)
       } catch (error) {
         // Keep editing gated rather than overwrite an unreadable cloud record.
@@ -186,9 +186,10 @@ function App() {
       stop()
       progress.current = null
     }
-  }, [user, profileLoading, hasChosenCareer, activeCareerId, initialStatus, careerRevision, activePage === 'projection'])
+  }, [user, profileLoading, hasChosenCareer, activeCareerId, initialStatus, careerRevision, activePage === 'projection', bridge.key, bridge.capabilities.academicWrite])
 
   async function changeCareer(careerId, finishSetup = false) {
+    if (!bridge.canWrite() || bridge.authority !== 'legacy') return
     if (!careers.some((career) => career.id === careerId)) return
     if (!hasChosenCareer && !finishSetup) {
       setActiveCareerId(careerId)
@@ -233,15 +234,15 @@ function App() {
 
   async function persistStatus(transform) {
     const context = progress.current
-    if (!context || !isCurrentSession(context.token)) return
+    if (!context || !isCurrentSession(context.token) || !bridge.canWrite()) return
     try {
       await enqueueWrite(async () => {
         if (!isCurrentSession(context.token)) return
         const nextMap = transform(context.map)
-        await saveUserStatus(context.token.uid, context.careerId, nextMap)
+        context.revision = await context.source.save(nextMap, context.revision)
         context.map = nextMap
         if (!isCurrentSession(context.token)) return
-        cacheStatus(context.token.uid, context.careerId, nextMap)
+        cacheStatus(context.token.uid, context.source.key, nextMap)
         if (progress.current === context) setStatusMap(nextMap)
       })
     } catch (error) {
@@ -323,8 +324,23 @@ function startWithCareer() {
   return changeCareer(activeCareerId, true)
 }
 
+if ((profileLoading || (bridge.phase === 'blocked' && !bridge.source))
+  && (['frozen', 'invalid'].includes(bridge.authority) || bridge.phase === 'blocked')) {
+  return <main className="app-shell">
+    <Header user={user} activity={activity} onActivityNavigate={result => setActivePage(result.destination === 'friends' ? 'amigos' : 'planificador')} />
+    <section className="side-card" role="status">
+      <p>{bridge.authority === 'frozen' ? 'Estamos actualizando tu cuenta. Volvé a intentar en unos instantes.'
+        : 'No pudimos verificar el estado de tu cuenta. La edición está suspendida para proteger tus datos.'}</p>
+      <button onClick={bridge.retry}>Reintentar</button>
+    </section>
+    <FriendsPage user={user} socialProfile={socialProfile} careerId={null} academicSharing={false} />
+    <JointPlanHistory user={user} />
+  </main>
+}
 
-if (profileLoading || (hasChosenCareer && statusLoading)) {
+
+if ((profileLoading || (hasChosenCareer && activeCareer && (statusLoading || statusScope !== bridge.key)))
+  && !['frozen', 'invalid'].includes(bridge.authority) && bridge.phase !== 'blocked') {
   return (
     <main className="app-shell">
       <section className="placeholder-page">
@@ -335,7 +351,7 @@ if (profileLoading || (hasChosenCareer && statusLoading)) {
   )
 }
 
-if (!hasChosenCareer) {
+if (!hasChosenCareer && bridge.authority === 'legacy') {
   return (
     <main className="app-shell">
       <WelcomeSetup
@@ -358,11 +374,18 @@ if (!hasChosenCareer) {
         else { setActivityIntent({ token: ++activitySequence.current, planId: result.planId || '', notice: result.notice || '' }); setActivePage('planificador') }
       }} />
       {activityNotice && <p role="status" className="activity-navigation-notice">{activityNotice}<button type="button" onClick={() => setActivityNotice('')}>Cerrar</button></p>}
-      <CareerSelector
-  	careers={careers}
-  	activeCareerId={activeCareerId}
-    setActiveCareerId={changeCareer}
-      />
+      {bridge.authority === 'instances' ? <InstanceSelection bridge={bridge} careers={careers} /> :
+        <fieldset disabled={!bridge.capabilities.select} style={{ border: 0, padding: 0, margin: 0 }}>
+          <CareerSelector careers={careers} activeCareerId={activeCareerId} setActiveCareerId={changeCareer} />
+        </fieldset>}
+      {['frozen', 'invalid'].includes(bridge.authority) && <section role="status" className="side-card">
+        <p>{bridge.authority === 'frozen' ? 'Estamos actualizando tu cuenta. Volvé a intentar en unos instantes.'
+          : 'No pudimos verificar el estado de tu cuenta. La edición está suspendida para proteger tus datos.'}</p>
+        <button onClick={bridge.retry}>Reintentar</button>
+      </section>}
+      {bridge.phase === 'blocked' && <p role="status">Tu cuenta requiere revisión. La edición está suspendida.</p>}
+      {personalProjection.retainedDraft && <p role="status">Conservamos en esta sesión un borrador de la planificación anterior. No se trasladó ni guardó automáticamente en tu nueva trayectoria.</p>}
+      {!activeCareer && <p role="status">No hay una trayectoria disponible seleccionada. Elegí una para ver su progreso.</p>}
 
       <nav className="top-nav">
   	<button
@@ -403,20 +426,23 @@ if (!hasChosenCareer) {
         </button>
       </nav>
 
-      {activePage === 'projection' && (
+      <div inert={!bridge.capabilities.academicWrite || !activeCareer}>
+      {activeCareer && activePage === 'projection' && (
         ['loading', 'load-error'].includes(personalProjection.phase)
           ? <section className="side-card"><p role="status">{personalProjection.phase === 'loading' ? 'Cargando planificación…'
             : personalProjection.error === 'INCOMPATIBLE_PROJECTION_VERSION' ? 'Esta planificación usa una versión no compatible. No se modificó.'
               : 'No se pudo cargar la planificación. No se crearon ni reemplazaron datos.'}</p>
             {personalProjection.phase === 'load-error' && <button onClick={personalProjection.retry}>Reintentar carga</button>}</section>
-          : <CareerProjectionPage key={`${user.uid}:${activeCareerId}:${Boolean(personalProjection.scenario)}`} career={activeCareer} statusMap={statusMap} persistence={personalProjection} />
+          : <CareerProjectionPage key={`${bridge.key}:${Boolean(personalProjection.scenario)}`} career={activeCareer} statusMap={statusMap} persistence={personalProjection} />
       )}
 
+      </div>
       {activePage === 'amigos' && (
-        <FriendsPage key={user.uid} user={user} socialProfile={socialProfile} careerId={activeCareerId} />
+        <FriendsPage key={user.uid} user={user} socialProfile={socialProfile} careerId={activeCareerId} academicSharing={bridge.capabilities.legacySocial} />
       )}
 
-   {activePage === 'dashboard' && (
+      <div inert={!bridge.capabilities.academicWrite || !activeCareer}>
+   {activeCareer && activePage === 'dashboard' && (
      <>
       <Dashboard
   	stats={stats}
@@ -430,9 +456,9 @@ if (!hasChosenCareer) {
      </>
 )}
 
-{activePage === 'materias' && (
+{activeCareer && activePage === 'materias' && (
       <SubjectsPanel
-        key={activeCareerId}
+        key={bridge.key}
         reset={reset}
         careerName={`${activeCareer.name} · Plan ${activeCareer.plan}`}
   	view={view}
@@ -452,7 +478,7 @@ if (!hasChosenCareer) {
       />
 )}
 
-{activePage === 'mapa' && (
+{activeCareer && activePage === 'mapa' && (
   <CareerMap
   subjects={subjects}
   statusMap={statusMap}
@@ -464,10 +490,11 @@ if (!hasChosenCareer) {
 />
 )}
 
-{activePage === 'planificador' && (
+{activeCareer && activePage === 'planificador' && (
   <PlannerPage
-    key={`${user.uid}:${activeCareerId}`}
+    key={bridge.key}
     user={user}
+    academicSocial={bridge.capabilities.legacySocial}
     activityIntent={activityIntent}
     onActivityConsumed={() => setActivityIntent(null)}
     career={activeCareer}
@@ -481,6 +508,8 @@ if (!hasChosenCareer) {
     setDesiredCount={planner.setDesiredCount}
   />
 )}
+      </div>
+      {(!activeCareer || !bridge.capabilities.academicWrite) && activePage === 'planificador' && <JointPlanHistory user={user} activityIntent={activityIntent} onActivityConsumed={() => setActivityIntent(null)} />}
     </main>
   )
 }

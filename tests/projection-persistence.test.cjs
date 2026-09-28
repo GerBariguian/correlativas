@@ -12,6 +12,29 @@ const scenario = (capacity = 4) => ({ startPeriod: { year: 2027, term: '1C' }, i
 const plain = x => JSON.parse(JSON.stringify(x))
 const tick = async () => { for (let i = 0; i < 12; i++) await Promise.resolve() }
 const deferred = () => { let resolve, reject; const promise = new Promise((a,b) => { resolve=a; reject=b }); return { promise, resolve, reject } }
+
+test('authority suspension cancels debounce, retains draft and requires explicit retry after resume', async () => {
+  const f = fixture({ scenario: scenario(), revisionToken: 'revision-token-original' })
+  await f.controller.load(); f.controller.change(scenario(7))
+  f.controller.setSuspended(true)
+  assert.equal(f.jobs.size, 0)
+  assert.equal(f.controller.getState().scenario.initialCapacity, 7)
+  assert.equal(f.controller.getState().phase, 'error')
+  f.controller.change(scenario(10)); await f.controller.reset(); await f.controller.retry()
+  assert.equal(f.count(), 0); assert.equal(f.controller.getState().scenario.initialCapacity, 7)
+  f.controller.setSuspended(false); await tick(); assert.equal(f.count(), 0)
+  await f.controller.retry(); assert.equal(f.remote().scenario.initialCapacity, 7)
+})
+test('freeze rejects a queued in-flight save and never transfers a draft to another repository', async () => {
+  const old = fixture(), next = fixture(), gate = deferred()
+  await old.controller.load(); old.gate(gate); old.controller.change(scenario(7))
+  old.controller.setSuspended(true); gate.resolve(); await tick()
+  await next.controller.load()
+  assert.equal(old.remote(), null); assert.equal(next.remote(), null)
+  assert.equal(old.controller.getState().scenario.initialCapacity, 7)
+  assert.equal(next.controller.getState().scenario, null)
+  assert.equal(next.count(), 0)
+})
 function fixture(data = null) {
   let remote = data, count = 0, loadError = null, saveGate = null, resetError = null
   const jobs = new Map(); let id=0

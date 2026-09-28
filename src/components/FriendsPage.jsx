@@ -23,7 +23,7 @@ function Person({ profile, children }) {
   )
 }
 
-export default function FriendsPage({ user, socialProfile, careerId }) {
+export default function FriendsPage({ user, socialProfile, careerId, academicSharing = true }) {
   const [email, setEmail] = useState('')
   const [result, setResult] = useState(null)
   const [searched, setSearched] = useState(false)
@@ -122,7 +122,8 @@ export default function FriendsPage({ user, socialProfile, careerId }) {
 
   return (
     <section className="friends-page">
-      <ProgressSharingSettings user={user} careerId={careerId} />
+      {academicSharing ? <ProgressSharingSettings user={user} careerId={careerId} />
+        : <p role="status">Compartir avance está temporalmente suspendido durante la transición multicarrera. Tus amistades se conservan.</p>}
       <div className="side-card">
         <h2>Amigos</h2>
         <p>Buscá por el email completo de Google que la otra persona usa en Correlativas.</p>

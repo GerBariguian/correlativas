@@ -7,7 +7,7 @@ export function createProjectionController(repository, notify = () => {}, clock 
   clearTimeout: id => globalThis.clearTimeout(id),
 }) {
   let state = { phase: 'loading', scenario: null, error: null }, revision = null, confirmed = null
-  let alive = true, timer = null, flight = null, resetting = false, ready = false, loading = false
+  let alive = true, suspended = false, timer = null, flight = null, resetting = false, ready = false, loading = false
   const emit = patch => { if (alive) { state = { ...state, ...patch }; notify() } }
   let timerGeneration = 0
   const cancel = () => {
@@ -44,11 +44,11 @@ export function createProjectionController(repository, notify = () => {}, clock 
     }
   }
   async function flush() {
-    if (!alive || !ready || resetting || flight || state.phase === 'conflict' || !state.scenario) return
+    if (!alive || suspended || !ready || resetting || flight || state.phase === 'conflict' || !state.scenario) return
     const scenario = state.scenario, key = projectionKey(scenario)
     if (key === confirmed) { emit({ phase: 'saved', error: null }); return }
     emit({ phase: 'saving', error: null })
-    const operation = repository.save(scenario, revision, () => alive)
+    const operation = repository.save(scenario, revision, () => alive && !suspended)
     flight = operation
     let success = false
     try {
@@ -57,16 +57,22 @@ export function createProjectionController(repository, notify = () => {}, clock 
       revision = next; confirmed = key; success = true
     } catch (error) { emit({ phase: errorPhase(error), error: error.message }) }
     finally { flight = null }
-    if (alive && success && !resetting) {
+    if (alive && success && !resetting && !suspended) {
       if (projectionKey(state.scenario) === confirmed) emit({ phase: 'saved' })
       else { emit({ phase: 'saving' }); schedule() }
     }
   }
   const api = {
+    setSuspended(value) {
+      if (suspended === value) return
+      suspended = value
+      if (value) cancel()
+      emit({ suspended: value, ...(value && state.phase === 'saving' ? { phase: 'error', error: 'ACADEMIC_AUTOSAVE_PAUSED' } : {}) })
+    },
     getState: () => state,
     load,
     change(scenario) {
-      if (!alive || !ready || resetting) return
+      if (!alive || suspended || !ready || resetting) return
       const next = normalizeProjectionScenario(scenario)
       if (state.scenario && projectionKey(state.scenario) === projectionKey(next)) return
       const first = state.scenario === null
@@ -77,13 +83,13 @@ export function createProjectionController(repository, notify = () => {}, clock 
     },
     retry() { if (state.phase === 'load-error') return load(); if (state.phase === 'error') return state.resetFailed ? api.reset() : flush() },
     async reset() {
-      if (!alive || !ready || resetting || state.phase === 'conflict') return
+      if (!alive || suspended || !ready || resetting || state.phase === 'conflict') return
       resetting = true; cancel(); emit({ phase: 'resetting' })
       if (flight) { try { await flight } catch { /* flush records the failure */ } }
-      if (!alive) return
+      if (!alive || suspended) { resetting = false; return }
       if (state.phase === 'conflict') { resetting = false; return }
       try {
-        await repository.reset(revision, () => alive)
+        await repository.reset(revision, () => alive && !suspended)
         if (!alive) return
         revision = null; confirmed = null
         emit({ scenario: null, phase: 'empty', error: null, resetFailed: false })

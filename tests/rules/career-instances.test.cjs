@@ -109,7 +109,8 @@ test('MC Rules two IDs in one batch cannot share a membership', async () => {
 test('MC Rules navigation fields do not affect reads, writes or uniqueness', async () => {
   const c = db(); await create(c)
   for (const selection of [null, 'catalog', 'opaque', 'other-user-instance']) {
-    await setDoc(doc(c, 'users/alice'), { activeCareerId: selection, activeCareerInstanceId: selection })
+    // Seed navigation independently: client selection writes now have their own authority contract.
+    await seed(env, { 'users/alice': { activeCareerId: selection, activeCareerInstanceId: selection } })
     await allow(getDocFromServer(doc(c, ip())))
     await deny(getDocFromServer(doc(db('bob'), ip())))
     await deny(archive(db('bob'))); await allow(archive(c)); await allow(restore(c))
