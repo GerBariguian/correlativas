@@ -1,0 +1,2 @@
+/firestore.migration-users-hotfix.rules -text
+/tests/rules/fixtures/firestore.production-before-v116.rules.txt -text
