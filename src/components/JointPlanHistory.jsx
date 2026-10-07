@@ -12,7 +12,7 @@ export default function JointPlanHistory({ user, activityIntent, onActivityConsu
   }, [activityIntent, data.state, data.plans, onActivityConsumed])
   return <section className="side-card">
     <h2>Historia de planes conjuntos</h2>
-    <p>La comparación académica, compartir avance y las modificaciones de planes están temporalmente suspendidas durante la transición multicarrera.</p>
+    <p>Estos planes anteriores se conservan como historia. Las nuevas invitaciones y participaciones se gestionan en Planes conjuntos.</p>
     <label>Plan <select value={id} onChange={event => setId(event.target.value)}>
       <option value="">Elegir un plan</option>
       {data.plans.map(plan => <option key={plan.id} value={plan.id}>{plan.name || 'Plan conjunto'}{plan.closed ? ' · Cerrado' : ''}</option>)}

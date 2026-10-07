@@ -318,3 +318,4 @@ test('a new session for the same uid cannot finish old progress or consent write
     assert.equal(records.size, 0)
   }
 })
+require('./instance-planning.test.cjs')

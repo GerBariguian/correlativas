@@ -25,7 +25,14 @@ export function decodeCareerMetadata(uid, careerInstanceId, data) {
     validateCareerPersistenceId(careerInstanceId)
     validateCareerPersistenceId(data?.catalogId)
     const instance = validateCareerInstance({ uid, careerInstanceId, catalogId: data.catalogId, lifecycle: data.lifecycle })
-    if (!exact(data, ['schemaVersion', 'catalogId', 'lifecycle', 'createdAt', 'updatedAt', 'archivedAt'])
+    const keys = ['schemaVersion', 'catalogId', 'lifecycle', 'createdAt', 'updatedAt', 'archivedAt']
+    if (Object.hasOwn(data, 'sharing')) keys.push('sharing')
+    const sharing = data.sharing
+    if (!exact(data, keys)
+      || (sharing !== undefined && (!exact(sharing, ['enabled', 'consentVersion', 'epoch', 'updatedAt'])
+        || typeof sharing.enabled !== 'boolean' || ![null, 1, 2].includes(sharing.consentVersion)
+        || !Number.isSafeInteger(sharing.epoch) || sharing.epoch < 0 || !stamp(sharing.updatedAt)
+        || (sharing.enabled && (sharing.consentVersion === null || data.lifecycle !== 'active'))))
       || data.schemaVersion !== 1 || !stamp(data.createdAt) || !stamp(data.updatedAt)
       || compare(data.createdAt, data.updatedAt) > 0
       || (data.lifecycle === 'active' ? data.archivedAt !== null

@@ -1,0 +1,25 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),sdk=require('firebase/firestore')
+const h=require('./helpers.cjs'),{load,fixture,P,root,time}=require('../joint-c-invite-harness.cjs')
+const resource=/1000\s+expressions|service[ -]call error|resource[ -]exhaust/i
+function values(v){if(Array.isArray(v))return v.map(values);if(v&&typeof v==='object'){if(Object.keys(v).sort().join()==='nanoseconds,seconds')return new sdk.Timestamp(v.seconds,v.nanoseconds);return Object.fromEntries(Object.entries(v).map(([k,x])=>[k,values(x)]))}return v}
+test('RC-1 global legacy/v2 boundary before cycles',async t=>{
+ const e=await h.initialize(),clients=new Map()
+ const db=u=>{if(!clients.has(u))clients.set(u,e.authenticatedContext(u,h.claims(u)).firestore());return clients.get(u)}
+ async function denied(fn){let error;try{await fn()}catch(x){error=x}assert.ok(error);const classification=/service[ -]call error/i.test(error.message)?'SERVICE CALL BLOCKED':resource.test(error.message)?'RESOURCE BLOCKED':'LOGICAL DENY';t.diagnostic(JSON.stringify({classification,code:error.code,message:error.message}));assert.equal(error.code,'permission-denied');assert.equal(classification,'LOGICAL DENY')}
+ function legacy(){return {...h.plan('german',['juan'],['german']),invitedBy:{juan:'german'}}}
+ function v2(){return {schemaVersion:2,ownerId:'alice',catalogId:'catalog',inviteeIds:['bob'],memberIds:['alice'],participants:{alice:{careerInstanceId:'ia',bindingState:'resolved'},bob:{careerInstanceId:null,bindingState:'unresolved'}},name:'Plan',invitedBy:{bob:'alice'},closed:false,deleting:false,createdAt:h.TIME,updatedAt:h.TIME}}
+ async function setup(){await e.clearFirestore();await h.baseline(e);await h.seed(e,{...values(fixture()),'friendships/german:juan':h.friendship('german','juan'),'friendships/german:pedro':h.friendship('german','pedro'),'jointPlans/legacy':legacy(),'jointPlans/v2':v2()})}
+ const update=(u,p,d)=>sdk.updateDoc(sdk.doc(db(u),'jointPlans/'+p),{...d,updatedAt:sdk.serverTimestamp()})
+ function notice(batch,u,actor,p){batch.set(sdk.doc(db(actor),`users/${u}/activityInbox/jp_${p}`),{schemaVersion:1,type:'JOINT_PLAN_INVITATION',actorUid:actor,target:{kind:'jointPlan',id:p},createdAt:sdk.serverTimestamp(),readAt:null})}
+ try{
+ for(const family of ['legacy','v2']){
+ await t.test(family+' CREATE with invitation denied without freeze',async()=>{await setup();const actor=family==='legacy'?'german':'alice',u=family==='legacy'?'juan':'bob',p=family+'new',b=sdk.writeBatch(db(actor));b.set(sdk.doc(db(actor),'jointPlans/'+p),{...(family==='legacy'?legacy():v2()),createdAt:sdk.serverTimestamp(),updatedAt:sdk.serverTimestamp()});notice(b,u,actor,p);await denied(()=>b.commit())})
+ await t.test(family+' incremental invitation denied without freeze',async()=>{await setup();const actor=family==='legacy'?'german':'alice',u=family==='legacy'?'pedro':'carol',p=family,b=sdk.writeBatch(db(actor)),old=family==='legacy'?legacy():v2();const d={inviteeIds:[...old.inviteeIds,u],invitedBy:{...old.invitedBy,[u]:actor},updatedAt:sdk.serverTimestamp()};if(family==='v2')d.participants={...old.participants,[u]:{careerInstanceId:null,bindingState:'unresolved'}};b.update(sdk.doc(db(actor),'jointPlans/'+p),d);notice(b,u,actor,p);await denied(()=>b.commit())})
+ await t.test(family+' JOIN denied without freeze',async()=>{await setup();if(family==='legacy'){const before=(await sdk.getDoc(sdk.doc(db('juan'),'jointPlans/legacy'))).data();assert.deepEqual(before.memberIds,['german']);assert.ok(before.inviteeIds.includes('juan'))}await denied(()=>family==='legacy'?update('juan','legacy',{memberIds:['german','juan']}):update('bob','v2',{memberIds:['alice','bob'],participants:{...v2().participants,bob:{careerInstanceId:'i_bob',bindingState:'resolved'}}}))})
+ await t.test(family+' historical read and owner close preserved',async()=>{await setup();const u=family==='legacy'?'german':'alice';assert.ok((await sdk.getDoc(sdk.doc(db(u),'jointPlans/'+family))).exists());await update(u,family,{closed:true});assert.equal((await sdk.getDoc(sdk.doc(db(u),'jointPlans/'+family))).data().closed,true)})
+ }
+ await t.test('legacy rename and historical membership preserved',async()=>{await setup();await h.seed(e,{'jointPlans/legacy':{...legacy(),memberIds:['german','juan']}});await update('juan','legacy',{name:'Renamed'});assert.deepEqual((await sdk.getDoc(sdk.doc(db('juan'),'jointPlans/legacy'))).data().memberIds,['german','juan'])})
+ await t.test('legacy leave preserved',async()=>{await setup();await h.seed(e,{'jointPlans/legacy':{...legacy(),memberIds:['german','juan']}});const b=sdk.writeBatch(db('juan'));b.update(sdk.doc(db('juan'),'jointPlans/legacy'),{memberIds:['german'],inviteeIds:[],invitedBy:{},updatedAt:sdk.serverTimestamp()});b.delete(sdk.doc(db('juan'),'users/juan/activityInbox/jp_legacy'));await b.commit()})
+ await t.test('native C CREATE remains available',async()=>{await setup();const api=load(sdk,{currentUser:{uid:'alice'}},db('alice'));const result=await api.createJointCPlan('alice','ia','catalog');assert.ok(result)})
+ }finally{await e.cleanup()}
+})

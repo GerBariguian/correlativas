@@ -12,6 +12,18 @@ function harness() {
  return {auth,listeners,writes,api,repo:api.activityRepository('a'),set:v=>record=v,after:f=>afterRead=f,retries:n=>callbacks=n}
 }
 function snapshot(records,metadata={fromCache:false,hasPendingWrites:false}) {return {docs:records.map(([id,value])=>({id,data:()=>value})),size:records.length,metadata}}
+
+test('versioned inbox accepts cycle/occurrence notices and readAt updates only exact instance',async()=>{
+ const h=harness(),cycle='cycle00000000001',plan='plan000000000001',occurrence='invite0000000001'
+ const records=[['fr_'+cycle,{schemaVersion:2,type:'FRIEND_REQUEST',actorUid:'actor',target:{kind:'friendship',id:'a:actor'},friendshipCycleId:cycle,createdAt:{seconds:100,nanoseconds:0},readAt:null}],
+  ['sp_'+plan+'_'+occurrence,{schemaVersion:3,type:'SLOT_INVITATION',actorUid:'actor',planId:plan,occurrence,cycle,createdAt:{seconds:101,nanoseconds:0},readAt:null}]]
+ let received;h.repo.subscribe('recent',r=>{received=r},e=>{throw Error(e)});h.listeners[0].next(snapshot(records))
+ assert.equal(received.items.length,2);assert.deepEqual(received.diagnostics,[]);assert.equal(h.writes.length,0)
+ const item=received.items.find(i=>i.schemaVersion===3);h.set(records[1][1])
+ assert.equal(await h.repo.markRead(item.itemId,item.instanceKey),'marked');assert.deepEqual(Object.keys(h.writes[0][1]),['readAt'])
+ h.set({...records[1][1],readAt:{seconds:102,nanoseconds:0}})
+ assert.equal(await h.repo.markRead(item.itemId,item.instanceKey),'alreadyRead');assert.equal(h.writes.length,1)
+})
 test('activity repository owns two bounded queries and adapts timestamps',()=>{
  const h=harness();h.repo.subscribe('recent',()=>{},()=>{});h.repo.subscribe('unread',()=>{},()=>{})
  assert.equal(h.listeners[0].q[0],'users/a/activityInbox')

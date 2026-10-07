@@ -1,0 +1,699 @@
+[
+  {
+    "label": "subject base empty",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "label": "assignment #1 owner -> one",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "label": "assignment #2 owner -> two",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "label": "assignment #3 owner -> owner",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "label": "assignment #4 owner -> three",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "label": "assignment #5 owner -> four",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "label": "second base",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "label": "non-owner one -> two",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "label": "non-owner creates empty base",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "negative": "duplicate/replay",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'update' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "alternate edge id",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "base duplicate",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L700:26 for 'create' @ L700, false for 'update' @ L702, false for 'update' @ L702",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "wrong slot",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "invalid slot",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "old occurrence",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "wrong binding",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "wrong instance",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "wrong revision",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "wrong UID",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "spoof actor",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "unknown UID/sixth member",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "unauthorized actor",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "missing base",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, Null value error. for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "wrong catalog",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "label": "archive target through lifecycle Rules",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "negative": "archived target",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "label": "other member continues",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "label": "restore same instance",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "label": "restored target assign",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "label": "unassign local",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "label": "reactivate current edge",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "negative": "stale unassign revision",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'update' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "wrong unassign actor",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'update' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "wrong unassign occupancy",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'update' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "old client missing revision",
+    "expressions": false,
+    "service": false,
+    "evaluation": false,
+    "message": "7 PERMISSION_DENIED: \nfalse for 'create' @ L726, false for 'update' @ L726",
+    "category": "A"
+  },
+  {
+    "negative": "base schema mutation",
+    "expressions": false,
+    "service": false,
+    "evaluation": false,
+    "message": "7 PERMISSION_DENIED: \nfalse for 'update' @ L702",
+    "category": "A"
+  },
+  {
+    "negative": "unauthorized base creation",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L700:26 for 'create' @ L700, false for 'update' @ L702, false for 'create' @ L700",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "frozen target",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "frozen actor",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "label": "authority restored",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "label": "release A1",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "negative": "pending invitee cannot read edges",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "\nevaluation error at L727:30 for 'list' @ L727, false for 'list' @ L727",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "old occupant A1 on absent edge",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "label": "new occupant B1",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "negative": "A1 cannot revive after A2 on absent edge",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "label": "A2 needs new edge",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "label": "unassign historical A1 only",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "negative": "replay historical unassign",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'update' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "reactivate historical A1",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'update' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "other plan occupancy",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "other plan slot path",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "label": "member lists subject edges",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "negative": "outsider reads edges",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "\nevaluation error at L727:30 for 'list' @ L727, Null value error. for 'list' @ L727",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "anonymous reads base",
+    "expressions": false,
+    "service": false,
+    "evaluation": false,
+    "message": "\nfalse for 'get' @ L701",
+    "category": "A"
+  },
+  {
+    "negative": "membership not private progress",
+    "expressions": false,
+    "service": false,
+    "evaluation": false,
+    "message": "\nfalse for 'get' @ L285",
+    "category": "A"
+  },
+  {
+    "negative": "membership not other career",
+    "expressions": false,
+    "service": false,
+    "evaluation": false,
+    "message": "\nfalse for 'get' @ L195",
+    "category": "A"
+  },
+  {
+    "negative": "membership not academic sharing",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "\nevaluation error at L252:23 for 'get' @ L252, false for 'get' @ L285, false for 'get' @ L252, false for 'get' @ L285",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "membership not legacy statusMap",
+    "expressions": false,
+    "service": false,
+    "evaluation": false,
+    "message": "\nfalse for 'get' @ L138",
+    "category": "A"
+  },
+  {
+    "negative": "released user cannot read edges",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "\nevaluation error at L727:30 for 'list' @ L727, Null value error. for 'list' @ L727",
+    "category": "D-evaluation"
+  },
+  {
+    "race": "duplicate",
+    "outcomes": [
+      "rejected",
+      "fulfilled"
+    ]
+  },
+  {
+    "race": "reactivate vs stale unassign",
+    "outcomes": [
+      "fulfilled",
+      "rejected"
+    ]
+  },
+  {
+    "label": "independent targets both commit",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "race": "base creation",
+    "outcomes": [
+      "rejected",
+      "fulfilled"
+    ]
+  },
+  {
+    "negative": "assignment after concurrent release",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "label": "replacement after release race",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "negative": "stale slot after replacement",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "race": "release vs assignment",
+    "outcomes": [
+      "fulfilled",
+      "fulfilled"
+    ]
+  },
+  {
+    "negative": "post-race archive freshness",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "race": "archive vs assignment",
+    "outcomes": [
+      "fulfilled",
+      "fulfilled"
+    ]
+  },
+  {
+    "label": "owner closes parent without fanout",
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "negative": "closed assign",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'create' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "negative": "closed unassign",
+    "expressions": false,
+    "service": false,
+    "evaluation": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, false for 'update' @ L726",
+    "category": "D-evaluation"
+  },
+  {
+    "padding": "first-owner",
+    "additional": 0,
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "first-owner",
+    "additional": 1,
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "first-owner",
+    "additional": 2,
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "first-owner",
+    "additional": 3,
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "first-owner",
+    "additional": 4,
+    "pass": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, Service call error. Function: [getAfter], Argument: [path_value {\n  segments {\n    simple: \"databases\"\n  }\n  segments {\n    simple: \"(default)\"\n  }\n  segments {\n    simple: \"documents\"\n  }\n  segments {\n    simple: \"users\"\n  }\n  segments {\n    simple: \"four\"\n  }\n  segments {\n    simple: \"careerInstances\"\n  }\n  segments {\n    simple: \"i_four\"\n  }\n}\n]. for 'create' @ L726"
+  },
+  {
+    "padding": "fifth-owner",
+    "additional": 0,
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "fifth-owner",
+    "additional": 1,
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "fifth-owner",
+    "additional": 2,
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "fifth-owner",
+    "additional": 3,
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "fifth-owner",
+    "additional": 4,
+    "pass": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, Service call error. Function: [getAfter], Argument: [path_value {\n  segments {\n    simple: \"databases\"\n  }\n  segments {\n    simple: \"(default)\"\n  }\n  segments {\n    simple: \"documents\"\n  }\n  segments {\n    simple: \"users\"\n  }\n  segments {\n    simple: \"four\"\n  }\n  segments {\n    simple: \"careerInstances\"\n  }\n  segments {\n    simple: \"i_four\"\n  }\n}\n]. for 'create' @ L726"
+  },
+  {
+    "padding": "non-owner",
+    "additional": 0,
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "non-owner",
+    "additional": 1,
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "non-owner",
+    "additional": 2,
+    "pass": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "non-owner",
+    "additional": 3,
+    "pass": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L726:35 for 'create' @ L726, evaluation error at L726:35 for 'update' @ L726, Service call error. Function: [getAfter], Argument: [path_value {\n  segments {\n    simple: \"databases\"\n  }\n  segments {\n    simple: \"(default)\"\n  }\n  segments {\n    simple: \"documents\"\n  }\n  segments {\n    simple: \"users\"\n  }\n  segments {\n    simple: \"four\"\n  }\n  segments {\n    simple: \"careerInstances\"\n  }\n  segments {\n    simple: \"i_four\"\n  }\n}\n]. for 'create' @ L726"
+  }
+]

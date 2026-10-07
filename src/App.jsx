@@ -2,6 +2,7 @@ import useAcademicBridge from './hooks/useAcademicBridge'
 import InstanceSelection from './components/InstanceSelection'
 import MyCareers from './components/MyCareers'
 import JointPlanHistory from './components/JointPlanHistory'
+import JointCWorkspace from './components/JointCWorkspace'
 import useActivity from './hooks/useActivity'
 import CareerSelector from './components/CareerSelector'
 import CareerProjectionPage from './components/CareerProjectionPage'
@@ -372,7 +373,7 @@ if (!hasChosenCareer && bridge.authority === 'legacy') {
         if (auth.currentUser !== user) return
         setActivityNotice(result.notice || '')
         if (result.destination === 'friends') { setActivityIntent(null); setActivePage('amigos') }
-        else { setActivityIntent({ token: ++activitySequence.current, planId: result.planId || '', notice: result.notice || '' }); setActivePage('planificador') }
+        else { setActivityIntent({ ...result, token: ++activitySequence.current }); setActivePage('planificador') }
       }} />
       {activityNotice && <p role="status" className="activity-navigation-notice">{activityNotice}<button type="button" onClick={() => setActivityNotice('')}>Cerrar</button></p>}
       {bridge.authority === 'instances' ? <InstanceSelection bridge={bridge} careers={careers} onManage={() => setActivePage('careers')} /> :
@@ -498,7 +499,7 @@ if (!hasChosenCareer && bridge.authority === 'legacy') {
     key={bridge.key}
     user={user}
     academicSocial={bridge.capabilities.legacySocial}
-    activityIntent={activityIntent}
+    activityIntent={null}
     onActivityConsumed={() => setActivityIntent(null)}
     career={activeCareer}
     statusMap={statusMap}
@@ -512,7 +513,7 @@ if (!hasChosenCareer && bridge.authority === 'legacy') {
   />
 )}
       </div>
-      {(!activeCareer || !bridge.capabilities.academicWrite) && activePage === 'planificador' && <JointPlanHistory user={user} activityIntent={activityIntent} onActivityConsumed={() => setActivityIntent(null)} />}
+      {activePage === 'planificador' && <JointCWorkspace key={`${user.uid}:${bridge.key}`} user={user} bridge={bridge} activityIntent={activityIntent} onActivityConsumed={() => setActivityIntent(null)} />}
     </main>
   )
 }

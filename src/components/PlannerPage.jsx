@@ -18,7 +18,6 @@ export default function PlannerPage({ academicSocial = true, ...props }) {
   const { user, career, statusMap, activityIntent, onActivityConsumed, ...plannerProps } = props
   return <section className="planning-ui">
     <Planner {...plannerProps} statusMap={statusMap} scopeKey={`${user.uid}:${career.id}`} />
-    <JointPlanHistory user={user} activityIntent={activityIntent} onActivityConsumed={onActivityConsumed} />
   </section>
 }
 
@@ -58,7 +57,7 @@ function LegacyPlannerPage({ user, career, statusMap, activityIntent, onActivity
     if (!data.selected || data.selected.closed || data.selected.deleting || !data.selected.memberIds.includes(user.uid)) {
       setPlanId(data.plans.find((p) => !p.closed && !p.deleting && p.memberIds.includes(user.uid))?.id || '')
     }
-    setRequest({ code, matchingIds }); setNotice('')
+    setView('joint'); setNotice('Las invitaciones y modificaciones de estos planes anteriores están suspendidas. Usá Planes conjuntos para un plan nuevo.')
   }
   const comparePeople = planComparison ? planPeople : comparison
   return <section className="planning-ui">
@@ -80,7 +79,6 @@ function LegacyPlannerPage({ user, career, statusMap, activityIntent, onActivity
       {(friends.state === 'error' || comparePeople.some((p) => ['unavailable', 'stale'].includes(p.state))) && <button className="planning-secondary" onClick={() => setAttempt((n) => n + 1)}>Reintentar</button>}
       {comparePeople.length >= 2 ? <PlanningComparison career={career} participants={comparePeople} onPlan={addSubject} /> : !planComparison && <p>Seleccioná al menos un amigo para comparar.</p>}
     </>}
-    {view === 'joint' && <JointPlanPanel user={user} career={career} data={data} people={planPeople} friends={friends} nameOf={nameOf} titleOf={titleOf} planId={planId} onPlanChange={setPlanId} onRetry={() => setAttempt((n) => n + 1)} onAdd={addSubject} onCompare={() => { setPlanComparison(true); setView('comparison') }} showCreate={showCreate} setShowCreate={(open) => { setShowCreate(open); if (!open) setDeferred(null) }} onCreated={(id) => { setPlanId(id); setShowCreate(false); if (deferred) { setRequest(deferred); setDeferred(null) } }} />}
-    {request && <AddPlanSubjectDialog user={user} career={career} request={request} plans={data.plans} plan={data.selected} onPlanChange={setPlanId} titleOf={titleOf} nameOf={nameOf} people={planPeople} rows={data.rows} rowsState={data.rowsState} onClose={() => setRequest(null)} onCreate={() => { setDeferred(request); setRequest(null); setView('joint'); setShowCreate(true) }} onSaved={() => { setRequest(null); setNotice('Materia guardada en el plan.'); setView('joint') }} />}
+    {view === 'joint' && <JointPlanHistory user={user} />}
   </section>
 }

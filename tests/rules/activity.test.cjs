@@ -99,7 +99,7 @@ test('activity transaction retries use source state and do not duplicate notices
 
 function service(client,uid) {
  const fs=require('node:fs'),sdk=require('firebase/firestore')
- const source=['src/socialMaintenance.js','src/activityLogic.js','src/jointPlanLogic.js','src/services/friends.js','src/services/jointPlans.js'].map(file=>fs.readFileSync(file,'utf8').replace(/import[\s\S]*?from ['"][^'"]+['"]\s*/g,'').replace(/export /g,'')).join('\n')
+ const source=[...require('../joint-join-harness.cjs').dependencies,'src/socialMaintenance.js','src/activityLogic.js','src/jointPlanLogic.js','src/services/friends.js','src/services/jointPlans.js'].map(file=>fs.readFileSync(file,'utf8').replace(/import[\s\S]*?from ['"][^'"]+['"]\s*/g,'').replace(/export /g,'')).join('\n')
  // Same JS realm as the real SDK: VM objects are rejected as custom prototypes.
  return new Function('sdk','db','auth', 'const {'+Object.keys(sdk).join(',')+'}=sdk;\n'+source+'\nreturn {sendFriendRequest,respondToFriendRequest,createJointPlan,updatePlanMembership,inviteJointParticipant,closeJointPlan,deleteJointPlan}') (sdk,client,{currentUser:{uid,emailVerified:true}})
 }

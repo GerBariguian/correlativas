@@ -1,0 +1,55 @@
+// ISOLATED DESIGN FIXTURE. Not deployment Rules. Activity is intentionally not modeled here.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function actor() { return request.auth != null; }
+    function shape(d, id) {
+      return d.keys().hasOnly(['participants', 'senderId', 'recipientId', 'status', 'cycleId'])
+        && d.participants is list && d.participants.size() == 2
+        && d.participants[0] != d.participants[1]
+        && d.participants[0].matches('^[A-Za-z0-9_-]+$')
+        && d.participants[1].matches('^[A-Za-z0-9_-]+$')
+        && id == d.participants[0] + ':' + d.participants[1]
+        && d.senderId in d.participants && d.recipientId in d.participants
+        && d.senderId != d.recipientId
+        && d.cycleId.matches('^[A-Za-z0-9_-]{16,64}$');
+    }
+    function fresh(d, id) {
+      let c = /databases/$(database)/documents/usedFriendshipCycles/$(d.cycleId);
+      return d.status == 'pending' && d.senderId == request.auth.uid
+        && !exists(c) && getAfter(c).data.relationshipId == id
+        && getAfter(c).data.participants == d.participants;
+    }
+    match /friendships/{id} {
+      allow read: if actor() && request.auth.uid in id.split(':');
+      allow create: if actor() && shape(request.resource.data, id)
+        && !existsAfter(/databases/$(database)/documents/friendships/$(request.resource.data.participants[1] + ':' + request.resource.data.participants[0]))
+        && fresh(request.resource.data, id);
+      allow update: if actor() && shape(request.resource.data, id)
+        && request.auth.uid in resource.data.participants
+        && request.resource.data.participants == resource.data.participants
+        && ((resource.data.status in ['withdrawn', 'rejected'] && fresh(request.resource.data, id))
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+            && ((resource.data.status == 'pending' && request.auth.uid == resource.data.recipientId
+                && request.resource.data.status in ['accepted', 'rejected'])
+              || (resource.data.status in ['pending', 'accepted'] && request.resource.data.status == 'withdrawn'))));
+      allow delete: if false;
+    }
+    match /usedFriendshipCycles/{cycle} {
+      allow read: if false;
+      allow create: if actor()
+        && request.resource.data.keys().hasOnly(['relationshipId', 'participants'])
+        && request.resource.data.participants is list && request.resource.data.participants.size() == 2
+        && request.auth.uid in request.resource.data.participants
+        && certifies(cycle, request.resource.data);
+      allow update, delete: if false;
+      function certifies(cycle, d) {
+        let p = /databases/$(database)/documents/friendships/$(d.relationshipId);
+        let a = getAfter(p).data;
+        return a.cycleId == cycle && a.participants == d.participants
+          && a.status == 'pending' && a.senderId == request.auth.uid
+          && (!exists(p) || (get(p).data.status in ['withdrawn', 'rejected'] && get(p).data.cycleId != cycle));
+      }
+    }
+  }
+}

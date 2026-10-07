@@ -1,0 +1,132 @@
+    // ISOLATED C. No release/reassignment in this feasibility gate.
+    function slotId(s) { return s in ['slot1','slot2','slot3','slot4']; }
+    function opaqueId(s) { return s is string && s.matches('^[A-Za-z0-9]{16,40}$'); }
+    function slotAuthority(u) {
+      let d=getAfter(/databases/$(database)/documents/migrationUsers/$(u)).data;
+      return validAuthority(d,u) && d.authority == 'instances' && d.phase == 'complete';
+    }
+    function slotBinding(u,i,c) {
+      let d=getAfter(/databases/$(database)/documents/users/$(u)/careerInstances/$(i)).data;
+      return d.schemaVersion == 1 && d.lifecycle == 'active' && d.catalogId == c;
+    }
+    function slotFriend(a,u,c) {
+      let f=getAfter(/databases/$(database)/documents/friendships/$(a+':'+u));
+      let b=getAfter(/databases/$(database)/documents/friendships/$(u+':'+a));
+      return (f != null && b == null && f.data.status == 'accepted' && f.data.cycleId == c)
+        || (b != null && f == null && b.data.status == 'accepted' && b.data.cycleId == c);
+    }
+    match /jointPlans/{planId} {
+      function parent() { return getAfter(/databases/$(database)/documents/jointPlans/$(planId)).data; }
+      function openPlan(p) { return p.schemaVersion == 30 && !p.closed && !p.deleting; }
+      function actorBinding(p,u) {
+        let index=getAfter(/databases/$(database)/documents/jointPlans/$(planId)/inviteeIndex/$(u)).data;
+        let s=getAfter(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(index.slotId)).data;
+        return slotId(index.slotId) && s.uid == u && s.status == 'member'
+          && slotBinding(u,s.binding,p.catalogId);
+      }
+      function actorValid(p) {
+        return slotAuthority(request.auth.uid) && (p.ownerId == request.auth.uid
+          ? slotBinding(request.auth.uid,p.ownerInstanceId,p.catalogId) : actorBinding(p,request.auth.uid));
+      }
+      function blank(s) {
+        return s.keys().hasAll(['status','uid','revision','occurrence','cycle','invitedBy','binding','joinedOccurrence','updatedAt'])
+          && s.keys().hasOnly(['status','uid','revision','occurrence','cycle','invitedBy','binding','joinedOccurrence','updatedAt'])
+          && s.status == 'empty' && s.uid == null && s.revision == 0 && s.occurrence == null
+          && s.cycle == null && s.invitedBy == null && s.binding == null && s.joinedOccurrence == null && s.updatedAt == request.time;
+      }
+      function initialSlot(s) {
+        return blank(getAfter(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(s)).data);
+      }
+      allow create: if socialUser() && opaqueId(planId)
+        && request.resource.data.keys().hasAll(['schemaVersion','ownerId','ownerInstanceId','catalogId','closed','deleting','createdAt'])
+        && request.resource.data.keys().hasOnly(['schemaVersion','ownerId','ownerInstanceId','catalogId','closed','deleting','createdAt'])
+        && openPlan(request.resource.data) && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.catalogId is string && request.resource.data.ownerInstanceId is string
+        && request.resource.data.createdAt == request.time && actorValid(request.resource.data)
+        && !exists(/databases/$(database)/documents/jointPlanTombstones/$(planId))
+        && initialSlot('slot1') && initialSlot('slot2') && initialSlot('slot3') && initialSlot('slot4');
+      allow get: if socialUser() && (resource.data.ownerId == request.auth.uid
+        || exists(/databases/$(database)/documents/jointPlans/$(planId)/inviteeIndex/$(request.auth.uid)));
+      allow update, delete, list: if false;
+      match /slots/{s} {
+        function indexed(u) {
+          return getAfter(/databases/$(database)/documents/jointPlans/$(planId)/inviteeIndex/$(u)).data.slotId == s;
+        }
+        function activation() {
+          let a=request.resource.data;
+          let b=resource.data;
+          let p=parent();
+          let o=getAfter(/databases/$(database)/documents/jointPlans/$(planId)/invitationOccurrences/$(a.occurrence)).data;
+          return openPlan(p) && actorValid(p) && a.uid != p.ownerId
+            && a.diff(b).affectedKeys().hasOnly(['status','uid','revision','occurrence','cycle','invitedBy','updatedAt'])
+            && a.status == 'pending' && a.binding == null && a.joinedOccurrence == null
+            && a.uid is string && a.uid.matches('^[A-Za-z0-9_-]+$') && indexed(a.uid)
+            && a.revision == b.revision+1 && a.revision <= 9007199254740991
+            && opaqueId(a.occurrence) && a.occurrence != b.occurrence && a.updatedAt == request.time
+            && a.invitedBy == request.auth.uid
+            && (b.status == 'empty' || (b.status == 'pending' && a.uid == b.uid && a.invitedBy == b.invitedBy && a.cycle != b.cycle))
+            && o.slotId == s && o.uid == a.uid && o.invitedBy == a.invitedBy && o.cycle == a.cycle
+            && o.revision == a.revision && o.createdAt == request.time
+            && !exists(/databases/$(database)/documents/jointPlans/$(planId)/invitationOccurrences/$(a.occurrence));
+        }
+        function joining() {
+          let a=request.resource.data;
+          let b=resource.data;
+          let p=parent();
+          let o=get(/databases/$(database)/documents/jointPlans/$(planId)/invitationOccurrences/$(b.occurrence)).data;
+          return openPlan(p) && b.status == 'pending' && b.uid == request.auth.uid && indexed(request.auth.uid)
+            && a.diff(b).affectedKeys().hasOnly(['status','binding','joinedOccurrence','updatedAt'])
+            && a.status == 'member' && a.joinedOccurrence == b.occurrence && a.updatedAt == request.time
+            && a.binding is string && slotAuthority(request.auth.uid) && slotBinding(request.auth.uid,a.binding,p.catalogId)
+            && o.slotId == s && o.uid == request.auth.uid && o.invitedBy == b.invitedBy && o.cycle == b.cycle
+            && slotFriend(b.invitedBy,request.auth.uid,b.cycle);
+        }
+        allow create: if socialUser() && slotId(s) && blank(request.resource.data)
+          && !exists(/databases/$(database)/documents/jointPlans/$(planId))
+          && parent().ownerId == request.auth.uid && parent().createdAt == request.time;
+        allow update: if socialUser() && slotId(s) && (activation() || joining());
+        allow get: if socialUser() && (parent().ownerId == request.auth.uid || resource.data.uid == request.auth.uid || actorValid(parent()));
+        allow delete,list: if false;
+      }
+      match /inviteeIndex/{u} {
+        allow create: if socialUser() && request.resource.data.keys().hasAll(['slotId'])
+          && request.resource.data.keys().hasOnly(['slotId']) && slotId(request.resource.data.slotId)
+          && get(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(request.resource.data.slotId)).data.status == 'empty'
+          && getAfter(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(request.resource.data.slotId)).data.uid == u
+          && getAfter(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(request.resource.data.slotId)).data.status == 'pending';
+        allow get: if socialUser() && (u == request.auth.uid || parent().ownerId == request.auth.uid);
+        allow update,delete,list: if false;
+      }
+      match /invitationOccurrences/{o} {
+        function occurrence() {
+          let d=request.resource.data;
+          let b=get(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(d.slotId)).data;
+          let a=getAfter(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(d.slotId)).data;
+          let path=/databases/$(database)/documents/users/$(d.uid)/activityInbox/$('sp_'+planId+'_'+o);
+          return opaqueId(o) && d.keys().hasAll(['slotId','uid','invitedBy','cycle','revision','createdAt'])
+            && d.keys().hasOnly(['slotId','uid','invitedBy','cycle','revision','createdAt'])
+            && slotId(d.slotId) && d.invitedBy == request.auth.uid && d.createdAt == request.time
+            && a.occurrence == o && b.occurrence != o && a.uid == d.uid && a.cycle == d.cycle
+            && a.invitedBy == d.invitedBy && a.revision == d.revision
+            && slotAuthority(d.uid) && slotFriend(d.invitedBy,d.uid,d.cycle)
+            && !exists(path) && getAfter(path).data.occurrence == o;
+        }
+        allow create: if socialUser() && activityCreationEnabled() && occurrence();
+        allow get: if socialUser() && request.auth.uid in [resource.data.uid,resource.data.invitedBy];
+        allow update,delete,list: if false;
+      }
+    }
+    match /users/{u}/activityInbox/{id} {
+      function slotNotice() {
+        let d=request.resource.data;
+        let path=/databases/$(database)/documents/jointPlans/$(d.planId)/invitationOccurrences/$(d.occurrence);
+        let o=getAfter(path).data;
+        return d.keys().hasAll(['schemaVersion','type','planId','occurrence','actorUid','cycle','createdAt','readAt'])
+          && d.keys().hasOnly(['schemaVersion','type','planId','occurrence','actorUid','cycle','createdAt','readAt'])
+          && d.schemaVersion == 30 && d.type == 'SLOT_INVITATION' && opaqueId(d.planId) && opaqueId(d.occurrence)
+          && id == 'sp_'+d.planId+'_'+d.occurrence && d.actorUid == request.auth.uid && u != request.auth.uid
+          && d.createdAt == request.time && d.readAt == null && !exists(path)
+          && o.uid == u && o.invitedBy == d.actorUid && o.cycle == d.cycle && o.createdAt == request.time;
+      }
+      allow create: if socialUser() && activityCreationEnabled() && slotNotice();
+    }

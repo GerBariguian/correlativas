@@ -4,6 +4,12 @@ import {
 } from 'firebase/firestore'
 import { auth, db } from '../firebase'
 import { activityId, newActivity } from '../activityLogic'
+import { friendshipCycleActivityId, newFriendshipCycleActivity } from '../activityLogic'
+import {
+  canonicalFriendshipId, validateFriendshipCycleId, decodeFriendshipCycle,
+  buildFriendshipCycleRequest, buildFriendshipCycleResponse, buildFriendshipCycleWithdrawal,
+  buildAcceptedLegacyFriendshipUpgrade, decodeAcceptedLegacyFriendship,
+} from '../friendshipCycleLogic'
 import { assertSocialCreationAvailable } from '../socialMaintenance'
 
 export function normalizeEmail(value) {
@@ -164,4 +170,111 @@ export async function respondToFriendRequest(uid, id, status) {
     if (status === 'accepted') transaction.set(doc(db, 'users', snapshot.data().senderId, 'activityInbox', activityId('FRIEND_REQUEST_ACCEPTED', id)),
       newActivity('FRIEND_REQUEST_ACCEPTED', uid, id, serverTimestamp()))
   })
+}
+
+// Isolated cycle protocol: not connected to the legacy UI. Structural builders
+// do not authorize writes. Rules must enforce immutable, create-only reservations.
+function cycleSession(uid) {
+  if (typeof uid !== 'string' || !/^[A-Za-z0-9_-]+$/.test(uid)) throw new Error('INVALID_UID')
+  requireUser(uid)
+  const user = auth.currentUser
+  return () => {
+    requireUser(uid)
+    if (auth.currentUser !== user) throw new Error('La sesión cambió. Intentá nuevamente.')
+  }
+}
+
+export function generateFriendshipCycleId() {
+  // 128 random bits, no timestamp/user semantics and no weak fallback.
+  const bytes = new Uint8Array(16)
+  globalThis.crypto.getRandomValues(bytes)
+  return validateFriendshipCycleId(Array.from(bytes, b => b.toString(16).padStart(2, '0')).join(''))
+}
+
+export async function sendFriendshipCycleRequest(uid, recipientId, cycleId) {
+  const checkSession = cycleSession(uid)
+  assertSocialCreationAvailable()
+  const id = canonicalFriendshipId(uid, recipientId)
+  validateFriendshipCycleId(cycleId)
+  const ref = doc(db, 'friendships', id)
+  const reverse = doc(db, 'friendships', id.split(':').reverse().join(':'))
+  await runTransaction(db, async transaction => {
+    checkSession()
+    const current = await transaction.get(ref)
+    const reversed = await transaction.get(reverse)
+    checkSession()
+    // No conversion of legacy relationships (including their reverse orientation).
+    if (reversed.exists()) throw new Error('FRIENDSHIP_REVERSE_EXISTS')
+    const next = buildFriendshipCycleRequest({ senderId: uid, recipientId, cycleId,
+      previous: current.exists() ? current.data() : null, reservations: [] })
+    // [] is not evidence of freshness. A used certificate makes this entire commit
+    // fail in Rules; certificates are deliberately not readable by the client.
+    transaction.set(ref, next.friendship)
+    transaction.set(doc(db, 'usedFriendshipCycles', cycleId), next.reservation.data)
+    transaction.set(doc(db, 'users', recipientId, 'activityInbox', friendshipCycleActivityId('FRIEND_REQUEST', cycleId)),
+      newFriendshipCycleActivity('FRIEND_REQUEST', uid, id, cycleId, serverTimestamp()))
+  })
+  checkSession()
+  return { relationshipId: id, cycleId }
+}
+
+async function transitionFriendshipCycle(uid, otherUid, cycleId, status) {
+  const checkSession = cycleSession(uid)
+  if (status === 'accepted') assertSocialCreationAvailable()
+  const id = canonicalFriendshipId(uid, otherUid)
+  validateFriendshipCycleId(cycleId)
+  await runTransaction(db, async transaction => {
+    checkSession()
+    const ref = doc(db, 'friendships', id)
+    const snapshot = await transaction.get(ref)
+    checkSession()
+    if (!snapshot.exists()) throw new Error('FRIENDSHIP_CYCLE_NOT_FOUND')
+    const before = decodeFriendshipCycle(id, snapshot.data())
+    if (before.cycleId !== cycleId) throw new Error('STALE_FRIENDSHIP_CYCLE')
+    const next = status === 'withdrawn'
+      ? buildFriendshipCycleWithdrawal(id, before, uid)
+      : buildFriendshipCycleResponse(id, before, uid, status)
+    if (before.status === next.status) return // Only the contracted withdrawal no-op.
+    transaction.update(ref, { status: next.status })
+    if (status === 'accepted') {
+      transaction.set(doc(db, 'users', before.senderId, 'activityInbox', friendshipCycleActivityId('FRIEND_ACCEPTED', cycleId)),
+        newFriendshipCycleActivity('FRIEND_ACCEPTED', uid, id, cycleId, serverTimestamp()))
+    }
+  })
+  checkSession()
+  return { relationshipId: id, cycleId, status }
+}
+
+export async function respondToFriendshipCycle(uid, otherUid, cycleId, status) {
+  if (!['accepted', 'rejected'].includes(status)) throw new Error('INVALID_RESPONSE')
+  return transitionFriendshipCycle(uid, otherUid, cycleId, status)
+}
+
+export function withdrawFriendshipCycle(uid, otherUid, cycleId) {
+  return transitionFriendshipCycle(uid, otherUid, cycleId, 'withdrawn')
+}
+
+// Explicit bridge: never called by request, invite, reads or Activity.
+export async function upgradeAcceptedLegacyFriendship(uid, otherUid) {
+  const check = cycleSession(uid)
+  assertSocialCreationAvailable()
+  const id = canonicalFriendshipId(uid, otherUid), inverse = id.split(':').reverse().join(':')
+  let cycleId
+  await runTransaction(db, async tx => {
+    check()
+    const canonicalRef = doc(db, 'friendships', id), inverseRef = doc(db, 'friendships', inverse)
+    const a = await tx.get(canonicalRef), b = await tx.get(inverseRef)
+    check()
+    if (a.exists() === b.exists()) throw new Error('LEGACY_FRIENDSHIP_AMBIGUOUS_OR_MISSING')
+    const source = a.exists() ? a : b, sourceId = a.exists() ? id : inverse
+    // Validate BEFORE generating an identity, including on transaction retries.
+    decodeAcceptedLegacyFriendship(sourceId, source.data(), uid)
+    cycleId ??= generateFriendshipCycleId()
+    const next = buildAcceptedLegacyFriendshipUpgrade(sourceId, source.data(), uid, cycleId)
+    tx.set(canonicalRef, next.friendship)
+    tx.set(doc(db, 'usedFriendshipCycles', cycleId), next.reservation.data)
+    if (b.exists()) tx.delete(inverseRef)
+  })
+  check()
+  return { relationshipId:id, cycleId, status:'accepted' }
 }

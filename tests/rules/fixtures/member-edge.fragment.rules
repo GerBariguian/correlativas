@@ -1,0 +1,69 @@
+      function edgeRefShape(r) {
+        return r is map && r.keys().hasAll(['slotId','instanceId','occurrence','slotRevision'])
+          && r.keys().hasOnly(['slotId','instanceId','occurrence','slotRevision'])
+          && r.instanceId is string && r.instanceId.size() > 0;
+      }
+      function edgeSlot(u,r) {
+        let s=getAfter(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(r.slotId)).data;
+        return slotId(r.slotId) && s.uid == u && s.status == 'member'
+          && s.binding == r.instanceId && s.occurrence == r.occurrence
+          && s.joinedOccurrence == r.occurrence && s.revision == r.slotRevision;
+      }
+      function edgeOperational(p,u,r) {
+        return edgeRefShape(r) && slotAuthority(u)
+          && (u == p.ownerId
+            ? r.slotId == 'owner' && r.instanceId == p.ownerInstanceId && r.occurrence == 'owner' && r.slotRevision == 0
+            : opaqueId(r.occurrence) && edgeSlot(u,r))
+          && slotBinding(u,r.instanceId,p.catalogId);
+      }
+      function edgeReader() {
+        let p=parent();
+        return p.schemaVersion == 30 && !p.deleting && slotAuthority(request.auth.uid)
+          && (p.ownerId == request.auth.uid || edgeJoinedReader());
+      }
+      function edgeJoinedReader() {
+        let idx=get(/databases/$(database)/documents/jointPlans/$(planId)/inviteeIndex/$(request.auth.uid)).data;
+        let s=get(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(idx.slotId)).data;
+        return slotId(idx.slotId) && s.uid == request.auth.uid && s.status == 'member';
+      }
+      match /subjects/{code} {
+        function edgeBase() {
+          let p=parent();
+          let d=request.resource.data;
+          return openPlan(p) && d.keys().hasAll(['schemaVersion','code','createdByUid','createdAt','creatorRef'])
+            && d.keys().hasOnly(['schemaVersion','code','createdByUid','createdAt','creatorRef'])
+            && d.schemaVersion == 31 && d.code == code && code.size() > 0 && code.size() <= 100
+            && d.createdByUid == request.auth.uid && d.createdAt == request.time
+            && edgeOperational(p,request.auth.uid,d.creatorRef);
+        }
+        allow create: if socialUser() && edgeBase();
+        allow get,list: if socialUser() && edgeReader();
+        allow update,delete: if false;
+        match /memberEdges/{edgeId} {
+          function edgeWrite() {
+            let p=parent();
+            let base=getAfter(/databases/$(database)/documents/jointPlans/$(planId)/subjects/$(code)).data;
+            let d=request.resource.data;
+            return openPlan(p) && base.schemaVersion == 31 && base.code == code
+              && d.keys().hasAll(['schemaVersion','uid','targetRef','state','revision','createdByUid','createdAt','updatedByUid','updatedAt','actorRef'])
+              && d.keys().hasOnly(['schemaVersion','uid','targetRef','state','revision','createdByUid','createdAt','updatedByUid','updatedAt','actorRef'])
+              && d.schemaVersion == 31 && d.uid is string && d.uid.matches('^[A-Za-z0-9_-]+$')
+              && edgeId == d.uid+':'+d.targetRef.occurrence
+              && d.revision is int && d.revision > 0 && d.revision <= 9007199254740991
+              && d.updatedByUid == request.auth.uid && d.updatedAt == request.time
+              && edgeOperational(p,request.auth.uid,d.actorRef)
+              && (resource == null
+                ? d.state == 'assigned' && d.revision == 1 && d.createdByUid == request.auth.uid && d.createdAt == request.time
+                : d.uid == resource.data.uid && d.targetRef == resource.data.targetRef
+                  && d.createdByUid == resource.data.createdByUid && d.createdAt == resource.data.createdAt
+                  && d.revision == resource.data.revision+1
+                  && ((resource.data.state == 'assigned' && d.state == 'unassigned')
+                    || (resource.data.state == 'unassigned' && d.state == 'assigned')))
+              && (d.state == 'unassigned' || (d.uid == request.auth.uid
+                ? d.targetRef == d.actorRef : edgeOperational(p,d.uid,d.targetRef)));
+          }
+          allow create,update: if socialUser() && edgeWrite();
+          allow get,list: if socialUser() && edgeReader();
+          allow delete: if false;
+        }
+      }

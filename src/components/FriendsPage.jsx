@@ -6,6 +6,7 @@ import ProgressSharingSettings from './ProgressSharingSettings'
 import {
   findUserByEmail, friendsError, loadSocialProfiles,
   respondToFriendRequest, sendFriendRequest, subscribeFriendships,
+  sendFriendshipCycleRequest, respondToFriendshipCycle, withdrawFriendshipCycle, generateFriendshipCycleId,
 } from '../services/friends'
 
 function Person({ profile, children }) {
@@ -56,7 +57,7 @@ export default function FriendsPage({ user, socialProfile, careerId, academicSha
     const unsubscribe = subscribeFriendships(user.uid, async (items) => {
       const request = ++version
       try {
-        const visible = items.filter((item) => item.status !== 'rejected')
+        const visible = items.filter((item) => !['rejected','withdrawn'].includes(item.status))
         const people = await loadSocialProfiles(visible.flatMap((item) => item.participants.filter((uid) => uid !== user.uid)))
         if (cancelled || !current() || request !== version) return
         setRelationships(items)
@@ -118,12 +119,12 @@ export default function FriendsPage({ user, socialProfile, careerId, academicSha
   const received = relationships.filter((item) => item.status === 'pending' && item.recipientId === user.uid)
   const sent = relationships.filter((item) => item.status === 'pending' && item.senderId === user.uid)
   const friends = relationships.filter((item) => item.status === 'accepted')
-  const relationship = result && relationships.find((item) => item.participants.includes(result.uid))
+  const relationship = result && relationships.find((item) => item.participants.includes(result.uid) && !(item.cycleId && ['withdrawn','rejected'].includes(item.status)))
 
   return (
     <section className="friends-page">
       {academicSharing ? <ProgressSharingSettings user={user} careerId={careerId} />
-        : <p role="status">Compartir avance está temporalmente suspendido durante la transición multicarrera. Tus amistades se conservan.</p>}
+        : <p role="status">Compartir avance se configura por trayectoria en Planes conjuntos. Tus amistades son independientes de esa configuración.</p>}
       <div className="side-card">
         <h2>Amigos</h2>
         <p>Buscá por el email completo de Google que la otra persona usa en Correlativas.</p>
@@ -141,7 +142,7 @@ export default function FriendsPage({ user, socialProfile, careerId, academicSha
           </form>
           {searched && !result && <p role="status">No encontramos ese usuario. Debe haber ingresado a Correlativas con esta versión.</p>}
           {result && <Person profile={result}>
-            {result.uid === user.uid ? <span>Este es tu perfil</span> : relationship ? <span>{relationship.status === 'accepted' ? 'Ya son amigos' : relationship.status === 'rejected' ? 'Solicitud rechazada' : relationship.recipientId === user.uid ? 'Tenés una solicitud recibida' : 'Solicitud enviada'}</span> : <button className="reset" disabled={busy || socialMaintenance} onClick={() => mutate(() => sendFriendRequest(user.uid, result.uid), 'Solicitud enviada.')}>
+            {result.uid === user.uid ? <span>Este es tu perfil</span> : relationship ? <span>{relationship.status === 'accepted' ? 'Ya son amigos' : relationship.status === 'rejected' ? 'Solicitud rechazada' : relationship.recipientId === user.uid ? 'Tenés una solicitud recibida' : 'Solicitud enviada'}</span> : <button className="reset" disabled={busy || socialMaintenance} onClick={() => mutate(() => sendFriendshipCycleRequest(user.uid, result.uid, generateFriendshipCycleId()), 'Solicitud enviada.')}>
               Enviar solicitud
             </button>}
           </Person>}
@@ -154,14 +155,14 @@ export default function FriendsPage({ user, socialProfile, careerId, academicSha
           <h2>Solicitudes recibidas</h2>
           {loading ? <p role="status">Cargando...</p> : !received.length && <p>No tenés solicitudes recibidas.</p>}
           {received.map((item) => <Person key={item.id} profile={profiles[item.senderId]}>
-            <button className="reset" disabled={busy || socialMaintenance} onClick={() => mutate(() => respondToFriendRequest(user.uid, item.id, 'accepted'), 'Solicitud aceptada.')}>Aceptar</button>
-            <button className="reset" disabled={busy} onClick={() => mutate(() => respondToFriendRequest(user.uid, item.id, 'rejected'), 'Solicitud rechazada.')}>Rechazar</button>
+            <button className="reset" disabled={busy || socialMaintenance} onClick={() => mutate(() => item.cycleId ? respondToFriendshipCycle(user.uid, item.senderId, item.cycleId, 'accepted') : respondToFriendRequest(user.uid, item.id, 'accepted'), 'Solicitud aceptada.')}>Aceptar</button>
+            <button className="reset" disabled={busy} onClick={() => mutate(() => item.cycleId ? respondToFriendshipCycle(user.uid, item.senderId, item.cycleId, 'rejected') : respondToFriendRequest(user.uid, item.id, 'rejected'), 'Solicitud rechazada.')}>Rechazar</button>
           </Person>)}
         </div>
         <div className="side-card">
           <h2>Mis amigos</h2>
           {loading ? <p role="status">Cargando...</p> : !friends.length && <p>Todavía no agregaste amigos.</p>}
-          {friends.map((item) => <Person key={item.id} profile={profiles[item.participants.find((uid) => uid !== user.uid)]} />)}
+          {friends.map((item) => <Person key={item.id} profile={profiles[item.participants.find((uid) => uid !== user.uid)]}>{item.cycleId && <button className="planning-secondary" disabled={busy} onClick={() => { if (window.confirm('¿Retirar esta amistad?')) mutate(() => withdrawFriendshipCycle(user.uid, item.participants.find(uid => uid !== user.uid), item.cycleId), 'Amistad retirada.') }}>Retirar amistad</button>}</Person>)}
         </div>
         {sent.length > 0 && <div className="side-card">
           <h2>Solicitudes enviadas</h2>

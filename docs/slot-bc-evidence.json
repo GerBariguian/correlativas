@@ -1,0 +1,49 @@
+{
+  "gate": "1/2 owner maximum",
+  "ids": [
+    "owner",
+    "one",
+    "two",
+    "three",
+    "four"
+  ],
+  "proof": {
+    "owner": {
+      "uid": "owner",
+      "instanceId": "i_owner",
+      "revision": null,
+      "occurrence": null
+    },
+    "slot1": {
+      "uid": "one",
+      "instanceId": "i_one",
+      "revision": 1,
+      "occurrence": "subjectocc000001"
+    },
+    "slot2": {
+      "uid": "two",
+      "instanceId": "i_two",
+      "revision": 1,
+      "occurrence": "subjectocc000002"
+    },
+    "slot3": {
+      "uid": "three",
+      "instanceId": "i_three",
+      "revision": 1,
+      "occurrence": "subjectocc000003"
+    },
+    "slot4": {
+      "uid": "four",
+      "instanceId": "i_four",
+      "revision": 1,
+      "occurrence": "subjectocc000004"
+    }
+  },
+  "pass": false,
+  "code": "permission-denied",
+  "expressions": true,
+  "service": false,
+  "message": "7 PERMISSION_DENIED: \nevaluation error at L730:33 for 'create' @ L730, evaluation error at L730:33 for 'update' @ L730, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L707, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L707, false for 'create' @ L730, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L707",
+  "subjectsExists": false,
+  "subjectChecksExists": false
+}

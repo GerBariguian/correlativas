@@ -115,3 +115,5 @@ test('activity normalization detaches immutable inputs and tolerates corrupt nei
   assert.deepEqual(plain(api.sortActivityItems([])),[])
   assert.deepEqual(plain(api.filterActivityItems([],'all')),[])
 })
+
+require('./activity-versioned.test.cjs')

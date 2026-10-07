@@ -1,0 +1,23 @@
+{
+  "node": "S2-E1-P",
+  "status": "BLOCKED_ENVIRONMENT",
+  "executedTests": 0,
+  "P1-P8": "NOT_RUN",
+  "N1-N13": "NOT_RUN_NOT_CLASSIFIED",
+  "C1-C4": "NOT_RUN",
+  "R1-R4": "NOT_RUN",
+  "resourceExhaustionInValidPaths": "NOT_DETERMINED",
+  "padding": "NOT_RUN",
+  "rulesAssembly": "PASS",
+  "syntax": "PASS",
+  "productRulesSHA256": "13e158ba7274ae63342adc46d3b87ec245019e1569f033bb21415e48dda3a59c",
+  "environment": {
+    "project": "demo-correlativas-rules",
+    "endpoint": "127.0.0.1:8088",
+    "initialSandboxAttempt": "Cannot execute Java (EPERM)",
+    "defaultElevatedAttempt": "Emulator exits before tests: Unable to establish loopback connection; UnixDomainSockets.connect Invalid argument",
+    "processOnlyIPv4Attempt": "Emulator exits before tests",
+    "processOnlyWindowsSelectorAttempt": "Emulator exits before tests"
+  },
+  "scope": "Isolated prototype only. Product C block excluded in memory before historical prototype assembly; no product Rules validation implied."
+}

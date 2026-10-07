@@ -1,0 +1,73 @@
+      // Fixed seats transport untrusted references, never operational certificates.
+      function refUid(r) { return r == null ? null : r.uid; }
+      function referenceShape(r) {
+        return r == null || (r is map
+          && r.keys().hasAll(['uid','instanceId','revision','occurrence'])
+          && r.keys().hasOnly(['uid','instanceId','revision','occurrence'])
+          && r.uid is string && r.uid.matches('^[A-Za-z0-9_-]+$')
+          && r.instanceId is string && r.instanceId.size() > 0);
+      }
+      function currentSeat(s,r) {
+        let d=getAfter(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(s)).data;
+        return d.status == 'member' && d.uid == r.uid && d.binding == r.instanceId
+          && d.revision == r.revision && d.occurrence == r.occurrence
+          && d.joinedOccurrence == r.occurrence;
+      }
+      function optionalSeat(s,r) { return r == null || currentSeat(s,r); }
+      function refAuthority(r) { return r == null || slotAuthority(r.uid); }
+      function refInstance(p,r) { return r == null || slotBinding(r.uid,r.instanceId,p.catalogId); }
+      function proofShape(w,ids,p) {
+        let uids=[refUid(w.owner),refUid(w.slot1),refUid(w.slot2),refUid(w.slot3),refUid(w.slot4)].removeAll([null]);
+        return w is map && w.keys().hasAll(['owner','slot1','slot2','slot3','slot4'])
+          && w.keys().hasOnly(['owner','slot1','slot2','slot3','slot4'])
+          && referenceShape(w.owner) && referenceShape(w.slot1) && referenceShape(w.slot2)
+          && referenceShape(w.slot3) && referenceShape(w.slot4)
+          && uids.toSet().size() == uids.size()
+          && uids.toSet() == ids.toSet().union([request.auth.uid].toSet())
+          && (w.owner == null || (w.owner.uid == p.ownerId && w.owner.instanceId == p.ownerInstanceId
+            && w.owner.revision == null && w.owner.occurrence == null));
+      }
+      match /subjectChecks/{code} {
+        function checkedBC() {
+          let p=parent();
+          let before=get(/databases/$(database)/documents/jointPlans/$(planId)/subjects/$(code));
+          let after=getAfter(/databases/$(database)/documents/jointPlans/$(planId)/subjects/$(code)).data;
+          let d=request.resource.data;
+          let w=d.proof;
+          return openPlan(p)
+            && d.keys().hasAll(['revision','actorUid','updatedAt','proof'])
+            && d.keys().hasOnly(['revision','actorUid','updatedAt','proof'])
+            && d.revision is int && d.revision > 0 && d.revision <= 9007199254740991
+            && (resource == null ? d.revision == 1 : d.revision == resource.data.revision+1)
+            && d.actorUid == request.auth.uid && d.updatedAt == request.time
+            && (before == null || before.data != after) && after.updatedAt == request.time
+            && proofShape(w,after.proposedParticipantIds,p)
+            && optionalSeat('slot1',w.slot1) && optionalSeat('slot2',w.slot2)
+            && optionalSeat('slot3',w.slot3) && optionalSeat('slot4',w.slot4)
+            && refAuthority(w.slot2) && refAuthority(w.slot3) && refAuthority(w.slot4);
+        }
+        allow create,update: if socialUser() && checkedBC();
+      }
+      match /subjects/{code} {
+        function subjectBC() {
+          let p=parent();
+          let before=get(/databases/$(database)/documents/jointPlans/$(planId)/subjectChecks/$(code));
+          let after=getAfter(/databases/$(database)/documents/jointPlans/$(planId)/subjectChecks/$(code)).data;
+          let d=request.resource.data;
+          let ids=d.proposedParticipantIds;
+          let w=after.proof;
+          return openPlan(p)
+            && (before == null ? after.revision == 1 : after.revision == before.data.revision+1)
+            && after.actorUid == request.auth.uid && after.updatedAt == request.time
+            && d.keys().hasAll(['code','proposedParticipantIds','addedByUid','createdAt','updatedAt'])
+            && d.keys().hasOnly(['code','proposedParticipantIds','addedByUid','createdAt','updatedAt'])
+            && d.code == code && code.size() > 0 && code.size() <= 100 && d.updatedAt == request.time
+            && (resource == null ? d.addedByUid == request.auth.uid && d.createdAt == request.time
+              : d.addedByUid == resource.data.addedByUid && d.createdAt == resource.data.createdAt)
+            && ids is list && ids.size() >= 2 && ids.size() <= 5 && ids.toSet().size() == ids.size()
+            && refInstance(p,w.owner) && refInstance(p,w.slot1) && refInstance(p,w.slot2)
+            && refInstance(p,w.slot3) && refInstance(p,w.slot4)
+            && refAuthority(w.owner) && refAuthority(w.slot1);
+        }
+        allow create,update: if socialUser() && subjectBC();
+      }

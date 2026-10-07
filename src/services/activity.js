@@ -1,6 +1,6 @@
 ﻿import { collection, doc, query, where, orderBy, documentId, limit, onSnapshot, Timestamp, runTransaction, serverTimestamp } from 'firebase/firestore'
 import { auth, db } from '../firebase'
-import { normalizeActivityItems, normalizeActivityItem, sortActivityItems, normalizeActivityTimestamp, ACTIVITY_HORIZON_SECONDS } from '../activityLogic'
+import { normalizeActivityItems, normalizeVersionedActivityItem, sortActivityItems, normalizeActivityTimestamp, ACTIVITY_HORIZON_SECONDS } from '../activityLogic'
 
 export const ACTIVITY_RECENT_LIMIT = 30
 export const ACTIVITY_UNREAD_LIMIT = 51
@@ -45,7 +45,7 @@ export function activityRepository(uid) {
     },
     async markRead(itemId, expectedInstanceKey) {
       check()
-      if (typeof itemId !== 'string' || itemId.includes('/') || !/^(fr_|fa_|jp_)[A-Za-z0-9_:-]+$/.test(itemId)
+      if (typeof itemId !== 'string' || itemId.includes('/') || !/^(fr_|fa_|jp_|sp_)[A-Za-z0-9_:-]+$/.test(itemId)
         || typeof expectedInstanceKey !== 'string') throw failure('invalid-argument')
       const attempt = denied => runTransaction(db, async tx => {
         check()
@@ -53,7 +53,7 @@ export function activityRepository(uid) {
         const snapshot = await tx.get(ref)
         check()
         if (!snapshot.exists()) return 'missing'
-        const parsed = normalizeActivityItem(itemId, snapshot.data())
+        const parsed = normalizeVersionedActivityItem(itemId, snapshot.data())
         if (!parsed.ok) throw failure('invalid-document')
         if (parsed.item.instanceKey !== expectedInstanceKey) return 'stale'
         if (parsed.item.isRead) return 'alreadyRead'

@@ -45,7 +45,12 @@ export function careerInstancesRepository({ db, auth }, uid, product = null) {
       if (product && lifecycle === 'archived' && profile.activeCareerInstanceId === id) {
         tx.update(doc(db, 'users', uid), { activeCareerInstanceId: null, updatedAt: serverTimestamp() })
       }
-      tx.update(target, { lifecycle, archivedAt: lifecycle === 'archived' ? serverTimestamp() : null, updatedAt: serverTimestamp() })
+      const consent = current.metadata.sharing
+      const revoked = lifecycle === 'archived' && consent
+        ? { sharing: { ...consent, enabled: false, epoch: consent.epoch + 1, updatedAt: serverTimestamp() } } : {}
+      if (revoked.sharing && !Number.isSafeInteger(revoked.sharing.epoch)) throw careerPersistenceError('INVALID_CAREER_DOCUMENT')
+      tx.update(target, { lifecycle, archivedAt: lifecycle === 'archived' ? serverTimestamp() : null,
+        ...revoked, updatedAt: serverTimestamp() })
     })
     return id
   })

@@ -3,6 +3,7 @@ import { Bell, X } from 'lucide-react'
 import { auth } from '../firebase'
 import { activateActivity, activityBellLabel } from '../activityPresentation'
 import ActivityItem from './ActivityItem'
+import { resolveActivityDestination } from '../services/jointCProduct'
 
 export default function ActivityBell({ user, activity, onNavigate }) {
   const [open, setOpen] = useState(false)
@@ -25,7 +26,13 @@ export default function ActivityBell({ user, activity, onNavigate }) {
   async function activate(item) {
     if (pending.current || !controller || auth.currentUser !== user) return
     pending.current = true; setBusy(true); setNotice('')
-    const result = await activateActivity(item, controller.markRead)
+    let result
+    try {
+      const resolved = await resolveActivityDestination(user.uid, item)
+      const read = await activateActivity(item, controller.markRead)
+      result = read.cancelled || !read.destination ? read : !resolved.destination ? resolved
+        : read.notice ? { destination:resolved.destination, notice:read.notice } : resolved
+    } catch { result = { notice:'Esta actividad ya no está disponible.' } }
     pending.current = false
     if (!live.current || auth.currentUser !== user) return
     setBusy(false)

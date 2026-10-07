@@ -1,8 +1,11 @@
 ﻿export function activityCopy(item, actor) {
   const name = typeof actor === 'string' && actor.trim() ? actor.trim() : 'Alguien'
   switch (item.type) {
+    case 'FRIEND_REQUEST':
     case 'FRIEND_REQUEST_RECEIVED': return `${name} te envió una solicitud de amistad`
+    case 'FRIEND_ACCEPTED':
     case 'FRIEND_REQUEST_ACCEPTED': return `${name} aceptó tu solicitud de amistad`
+    case 'SLOT_INVITATION':
     case 'JOINT_PLAN_INVITATION': return `${name} te invitó a un Plan conjunto`
     default: return 'Actividad no disponible'
   }
@@ -34,9 +37,9 @@ export async function activateActivity(item, markRead, timeoutMs = 8000) {
   finally { globalThis.clearTimeout(timer) }
   if (result.status === 'cancelled') return { cancelled: true }
   if (['stale', 'missing'].includes(result.status)) return { notice: 'Esta actividad ya no está disponible.' }
-  const destination = item.target.kind === 'friendship' ? 'friends' : 'joint'
+  const destination = item.target?.kind === 'friendship' ? 'friends' : 'joint'
   if (!['marked','alreadyRead'].includes(result.status)) return { destination, notice: 'No se pudo confirmar la lectura. Podés revisar la sección de destino.' }
-  return { destination, planId: destination === 'joint' ? item.target.id : undefined }
+  return { destination, planId: destination === 'joint' ? item.planId || item.target?.id : undefined }
 }
 
 // Uses only the Planner's authorized, current-career list. Never fetches a hidden target.

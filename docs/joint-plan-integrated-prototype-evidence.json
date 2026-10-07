@@ -1,0 +1,499 @@
+{
+  "experimental": true,
+  "records": [
+    {
+      "label": "legacy JOIN before freeze control",
+      "negative": false,
+      "accepted": true,
+      "category": "PASS",
+      "code": null,
+      "message": ""
+    },
+    {
+      "label": "invalid owner binding blocks construction before writes",
+      "category": "PASS",
+      "layer": "administrative validator"
+    },
+    {
+      "label": "protected construction",
+      "negative": false,
+      "accepted": true,
+      "category": "PASS",
+      "code": null,
+      "message": ""
+    },
+    {
+      "label": "same legacy JOIN after freeze",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L628:24 for 'update' @ L628, evaluation error at L631:24 for 'update' @ L631, evaluation error at L797:24 for 'update' @ L797, false for 'update' @ L628, false for 'update' @ L631, false for 'update' @ L797"
+    },
+    {
+      "label": "rerun same generation",
+      "negative": false,
+      "accepted": true,
+      "category": "PASS",
+      "code": null,
+      "message": ""
+    },
+    {
+      "label": "staged member source read",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "\nevaluation error at L626:21 for 'get' @ L626, false for 'get' @ L626"
+    },
+    {
+      "label": "staged subject write",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L745:26 for 'create' @ L745, false for 'update' @ L747, false for 'create' @ L745"
+    },
+    {
+      "label": "staged NEW direct batch",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L685:26 for 'create' @ L685, evaluation error at L688:26 for 'update' @ L688, evaluation error at L693:26 for 'create' @ L693, false for 'update' @ L705, evaluation error at L791:26 for 'create' @ L791, false for 'update' @ L793, evaluation error at L316:26 for 'create' @ L316, evaluation error at L820:24 for 'create' @ L820, evaluation error at L877:24 for 'create' @ L877, false for 'update' @ L317, evaluation error at L552:24 for 'create' @ L552, false for 'update' @ L551, false for 'create' @ L552, false for 'update' @ L688"
+    },
+    {
+      "label": "staged JOIN direct write",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L688:26 for 'update' @ L688, false for 'update' @ L688"
+    },
+    {
+      "label": "staged edge direct write",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L771:35 for 'create' @ L771, evaluation error at L771:35 for 'update' @ L771, false for 'create' @ L771"
+    },
+    {
+      "label": "client publication",
+      "negative": true,
+      "accepted": false,
+      "category": "A",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: No matching allow statements"
+    },
+    {
+      "label": "unresolved publication blocked by protected validator",
+      "category": "PASS",
+      "layer": "administrative validator"
+    },
+    {
+      "label": "actual joined member missing binding blocks publication",
+      "category": "PASS",
+      "layer": "administrative validator"
+    },
+    {
+      "label": "protected publication",
+      "negative": false,
+      "accepted": true,
+      "category": "PASS",
+      "code": null,
+      "message": ""
+    },
+    {
+      "label": "imported member source access without friendship",
+      "negative": false,
+      "accepted": true,
+      "category": "PASS",
+      "code": null,
+      "message": ""
+    },
+    {
+      "label": "imported member subject",
+      "negative": false,
+      "accepted": true,
+      "category": "PASS",
+      "code": null,
+      "message": ""
+    },
+    {
+      "label": "imported member edge",
+      "negative": false,
+      "accepted": true,
+      "category": "PASS",
+      "code": null,
+      "message": ""
+    },
+    {
+      "label": "legacy pending direct JOIN",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L688:26 for 'update' @ L688, false for 'update' @ L688"
+    },
+    {
+      "label": "old client source mutation memberIds",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L628:24 for 'update' @ L628, evaluation error at L631:24 for 'update' @ L631, evaluation error at L797:24 for 'update' @ L797, false for 'update' @ L628, false for 'update' @ L631, false for 'update' @ L797"
+    },
+    {
+      "label": "old client source mutation inviteeIds",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L628:24 for 'update' @ L628, evaluation error at L631:24 for 'update' @ L631, evaluation error at L797:24 for 'update' @ L797, false for 'update' @ L628, false for 'update' @ L631, false for 'update' @ L797"
+    },
+    {
+      "label": "old client source mutation schemaVersion",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L628:24 for 'update' @ L628, evaluation error at L631:24 for 'update' @ L631, evaluation error at L797:24 for 'update' @ L797, false for 'update' @ L628, false for 'update' @ L631, false for 'update' @ L797"
+    },
+    {
+      "label": "genuine C NEW after cutover",
+      "negative": false,
+      "accepted": true,
+      "category": "PASS",
+      "code": null,
+      "message": ""
+    },
+    {
+      "label": "owner subject control without delete",
+      "negative": false,
+      "accepted": true,
+      "category": "PASS",
+      "code": null,
+      "message": ""
+    },
+    {
+      "label": "parent deletion half",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L628:24 for 'update' @ L628, evaluation error at L631:24 for 'update' @ L631, evaluation error at L797:24 for 'update' @ L797, false for 'update' @ L628, Null value error. for 'update' @ L631, false for 'update' @ L797"
+    },
+    {
+      "label": "tombstone deletion half",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L533:24 for 'create' @ L533, false for 'update' @ L532, false for 'create' @ L533"
+    },
+    {
+      "label": "non-owner delete",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L628:24 for 'update' @ L628, evaluation error at L631:24 for 'update' @ L631, evaluation error at L797:24 for 'update' @ L797, evaluation error at L533:24 for 'create' @ L533, false for 'update' @ L532, false for 'update' @ L628, false for 'update' @ L631, false for 'update' @ L797"
+    },
+    {
+      "label": "delete + subject combined",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L628:24 for 'update' @ L628, evaluation error at L631:24 for 'update' @ L631, evaluation error at L797:24 for 'update' @ L797, evaluation error at L533:24 for 'create' @ L533, false for 'update' @ L532, evaluation error at L745:26 for 'create' @ L745, false for 'update' @ L747, false for 'create' @ L745"
+    },
+    {
+      "label": "owner terminal + tombstone",
+      "negative": false,
+      "accepted": true,
+      "category": "PASS",
+      "code": null,
+      "message": ""
+    },
+    {
+      "label": "deleted NEW direct batch",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L685:26 for 'create' @ L685, evaluation error at L688:26 for 'update' @ L688, evaluation error at L693:26 for 'create' @ L693, false for 'update' @ L705, evaluation error at L791:26 for 'create' @ L791, false for 'update' @ L793, evaluation error at L316:26 for 'create' @ L316, evaluation error at L820:24 for 'create' @ L820, evaluation error at L877:24 for 'create' @ L877, false for 'update' @ L317, evaluation error at L552:24 for 'create' @ L552, false for 'update' @ L551, false for 'create' @ L552, false for 'update' @ L688"
+    },
+    {
+      "label": "deleted REINVITE direct batch",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L685:26 for 'create' @ L685, evaluation error at L688:26 for 'update' @ L688, evaluation error at L791:26 for 'create' @ L791, false for 'update' @ L793, evaluation error at L316:26 for 'create' @ L316, evaluation error at L820:24 for 'create' @ L820, evaluation error at L877:24 for 'create' @ L877, false for 'update' @ L317, false for 'create' @ L316, false for 'create' @ L820, false for 'create' @ L877, false for 'update' @ L688"
+    },
+    {
+      "label": "deleted JOIN",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L688:26 for 'update' @ L688, false for 'update' @ L688"
+    },
+    {
+      "label": "deleted subject",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L745:26 for 'create' @ L745, false for 'update' @ L747, false for 'create' @ L745"
+    },
+    {
+      "label": "deleted edge",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L771:35 for 'update' @ L771, false for 'update' @ L771"
+    },
+    {
+      "label": "deleted residual ref source",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "\nevaluation error at L626:21 for 'get' @ L626, false for 'get' @ L626"
+    },
+    {
+      "label": "deleted resurrection",
+      "negative": true,
+      "accepted": false,
+      "category": "A",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nfalse for 'create' @ L618, false for 'update' @ L628, false for 'update' @ L631, false for 'update' @ L797"
+    },
+    {
+      "label": "deleted legacy resurrection",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L628:24 for 'update' @ L628, evaluation error at L631:24 for 'update' @ L631, evaluation error at L797:24 for 'update' @ L797, false for 'update' @ L628, false for 'update' @ L631, false for 'update' @ L797"
+    },
+    {
+      "label": "residual child read jointPlans/plan000000000001/slots/slot2",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "\nevaluation error at L689:23 for 'get' @ L689, false for 'get' @ L689"
+    },
+    {
+      "label": "residual child read jointPlans/plan000000000001/invitationOccurrences/occurrence000001",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "\nevaluation error at L792:23 for 'get' @ L792, false for 'get' @ L792"
+    },
+    {
+      "label": "residual child read jointPlans/plan000000000001/subjects/S",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "\nevaluation error at L746:28 for 'get' @ L746, false for 'get' @ L746"
+    },
+    {
+      "label": "residual child read jointPlans/plan000000000001/subjects/S/memberEdges/one:import_importedmember01",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "\nevaluation error at L772:30 for 'get' @ L772, false for 'get' @ L772"
+    },
+    {
+      "label": "private residual ref still readable but not authority",
+      "negative": false,
+      "accepted": true,
+      "category": "PASS",
+      "code": null,
+      "message": ""
+    },
+    {
+      "label": "same legacy JOIN after destination deletion",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L628:24 for 'update' @ L628, evaluation error at L631:24 for 'update' @ L631, evaluation error at L797:24 for 'update' @ L797, false for 'update' @ L628, false for 'update' @ L631, false for 'update' @ L797"
+    },
+    {
+      "label": "missing parent retained tombstone rejects recreation",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L618:24 for 'create' @ L618, evaluation error at L628:24 for 'update' @ L628, evaluation error at L631:24 for 'update' @ L631, evaluation error at L797:24 for 'update' @ L797, false for 'create' @ L618"
+    },
+    {
+      "label": "missing parent residual child not authority",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L745:26 for 'create' @ L745, false for 'update' @ L747, Null value error. for 'create' @ L745"
+    },
+    {
+      "label": "residual documents retained",
+      "category": "PASS"
+    },
+    {
+      "label": "imported member RELEASE",
+      "negative": false,
+      "accepted": true,
+      "category": "PASS",
+      "code": null,
+      "message": ""
+    },
+    {
+      "label": "released imported slot state",
+      "layer": "observation",
+      "state": {
+        "status": "empty",
+        "uid": null,
+        "revision": 2,
+        "occurrence": null,
+        "cycle": null,
+        "invitedBy": null,
+        "binding": null,
+        "joinedOccurrence": null,
+        "updatedAt": {
+          "type": "firestore/timestamp/1.0",
+          "seconds": 1790901972,
+          "nanoseconds": 818000000
+        }
+      }
+    },
+    {
+      "label": "import occupancy token cannot become invitation ID",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L685:26 for 'create' @ L685, evaluation error at L688:26 for 'update' @ L688, evaluation error at L693:26 for 'create' @ L693, false for 'update' @ L705, false for 'create' @ L791, false for 'update' @ L793"
+    },
+    {
+      "label": "NEW into released imported slot",
+      "negative": false,
+      "accepted": true,
+      "category": "PASS",
+      "code": null,
+      "message": ""
+    },
+    {
+      "label": "genuine JOIN into reused slot",
+      "negative": false,
+      "accepted": true,
+      "category": "PASS",
+      "code": null,
+      "message": ""
+    },
+    {
+      "label": "new occupant subject with current genuine occurrence",
+      "negative": false,
+      "accepted": true,
+      "category": "PASS",
+      "code": null,
+      "message": ""
+    },
+    {
+      "label": "new occupant member edge",
+      "negative": false,
+      "accepted": true,
+      "category": "PASS",
+      "code": null,
+      "message": ""
+    },
+    {
+      "label": "current B cannot authorize historical A target",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L771:35 for 'create' @ L771, evaluation error at L771:35 for 'update' @ L771, false for 'create' @ L771"
+    },
+    {
+      "label": "stale imported A JOIN",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L688:26 for 'update' @ L688, false for 'update' @ L688"
+    },
+    {
+      "label": "stale imported A subject",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L745:26 for 'create' @ L745, false for 'update' @ L747, false for 'create' @ L745"
+    },
+    {
+      "label": "stale imported A edge",
+      "negative": true,
+      "accepted": false,
+      "category": "D",
+      "code": "permission-denied",
+      "message": "7 PERMISSION_DENIED: \nevaluation error at L771:35 for 'create' @ L771, evaluation error at L771:35 for 'update' @ L771, false for 'create' @ L771"
+    },
+    {
+      "label": "rerun after reuse preserves B and historical provenance",
+      "negative": false,
+      "accepted": true,
+      "category": "PASS",
+      "code": null,
+      "message": ""
+    },
+    {
+      "label": "resource baseline NEW slot2",
+      "negative": false,
+      "accepted": true,
+      "category": "PASS",
+      "code": null,
+      "message": ""
+    },
+    {
+      "label": "resource baseline NEW slot3",
+      "negative": false,
+      "accepted": true,
+      "category": "PASS",
+      "code": null,
+      "message": ""
+    },
+    {
+      "label": "resource baseline non-owner NEW slot4",
+      "negative": false,
+      "accepted": true,
+      "category": "PASS",
+      "code": null,
+      "message": ""
+    },
+    {
+      "label": "resource baseline genuine REINVITE",
+      "negative": false,
+      "accepted": true,
+      "category": "PASS",
+      "code": null,
+      "message": ""
+    },
+    {
+      "label": "resource baseline genuine JOIN",
+      "negative": false,
+      "accepted": true,
+      "category": "PASS",
+      "code": null,
+      "message": ""
+    }
+  ]
+}

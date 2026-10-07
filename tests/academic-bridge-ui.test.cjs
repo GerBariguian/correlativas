@@ -35,18 +35,21 @@ test('instance selector keeps null with several careers and writes only explicit
   bridge.capabilities.select = false; tree = h.render(props)
   assert.equal(nodes(tree).find(n => n.type === 'select').props.disabled, true)
 })
-test('restricted planner has personal planning and history, without mounting academic-social hooks', () => {
+test('restricted planner has personal planning; C workspace owns history without mounting legacy academic hooks', () => {
   const h = harness('src/components/PlannerPage.jsx', 'PlannerPage', { Planner: 'personal', JointPlanHistory: 'history',
     usePlanningParticipants: () => { throw Error('academic sharing mounted') }, useJointPlans: () => { throw Error('legacy joint mounted') } })
   const tree = h.render({ academicSocial: false, user: { uid: 'u' }, career: { id: 'cat' }, subjects: [], statusMap: {} })
-  assert.ok(nodes(tree).some(n => n.type === 'personal')); assert.ok(nodes(tree).some(n => n.type === 'history'))
+  assert.ok(nodes(tree).some(n => n.type === 'personal'))
+  assert.ok(!nodes(tree).some(n => n.type === 'history'))
+  assert.match(fs.readFileSync('src/components/JointCWorkspace.jsx', 'utf8'), /<JointPlanHistory user=\{user\}/)
+  assert.match(fs.readFileSync('src/App.jsx', 'utf8'), /<JointCWorkspace /)
 })
 test('read-only history does not auto-select a plan and exposes no mutation controls', () => {
   const h = harness('src/components/JointPlanHistory.jsx', 'JointPlanHistory', { useJointPlans: () => ({ state: 'ready', plans: [{ id: 'p', name: 'History' }], rows: null }) })
   const tree = h.render({ user: { uid: 'u' } })
   assert.equal(nodes(tree).find(n => n.type === 'select').props.value, '')
   assert.equal(nodes(tree).filter(n => n.type === 'button').length, 0)
-  assert.match(text(tree), /temporalmente suspendidas/)
+  assert.match(text(tree), /se conservan como historia/)
 })
 
 test('archiving suspends only that instance autosave; restore does not schedule a save or select it', () => {

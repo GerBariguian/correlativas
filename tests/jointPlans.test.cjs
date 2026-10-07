@@ -56,6 +56,7 @@ function setup() {
       await action({
         get: async (ref) => {
           assert.equal(writes.length, 0)
+          if (ref.startsWith('migrationUsers/')) return { exists: () => false, data: () => undefined }
           if (ref.startsWith('friendships/')) {
             const ids = ref.split('/')[1].split(':')
             return { exists: () => accepted(...ids), data: () => accepted(...ids) ? { status: 'accepted' } : undefined }
@@ -106,7 +107,7 @@ function setup() {
     },
   }
   vm.createContext(api)
-  for (const name of ['src/socialMaintenance.js', 'src/activityLogic.js', 'src/jointPlanLogic.js', 'src/services/jointPlans.js']) {
+  for (const name of [...require('./joint-join-harness.cjs').dependencies, 'src/socialMaintenance.js', 'src/activityLogic.js', 'src/jointPlanLogic.js', 'src/services/jointPlans.js']) {
     vm.runInContext(source(name).replace(/import[\s\S]*?from ['"][^'"]+['"]\s*/g, '').replace(/export /g, ''), api)
   }
   return { api, auth, records, relationships, listeners, canRead, clone, fail: (value) => { fail = value },
@@ -397,3 +398,17 @@ test('legacy plans and courses can be read, renamed and edited without erasing e
   assert.equal(records.get('jointPlans/old/subjects/A').createdAt, 1)
   assert.deepEqual(records.get('jointPlans/old').memberIds, ['alice', 'bob'])
 })
+
+// Explicit C access regressions share the existing module test entry point.
+require('./joint-plan-c-access.test.cjs')
+require('./joint-plan-c-discovery.test.cjs')
+require('./joint-plan-c-create.test.cjs')
+require('./joint-plan-c-release.test.cjs')
+require('./joint-plan-c-occurrence.test.cjs')
+require('./joint-plan-c-occurrence-read.test.cjs')
+require('./joint-plan-c-join.test.cjs')
+require('./joint-plan-c-invite.test.cjs')
+require('./joint-plan-c-member-edge-path.test.cjs')
+require('./joint-plan-c-member-edge-service.test.cjs')
+require('./joint-plan-c-subject-read.test.cjs')
+require('./joint-plan-c-edge-transition.test.cjs')

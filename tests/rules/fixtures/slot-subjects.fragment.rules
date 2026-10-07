@@ -1,0 +1,52 @@
+      // Minimal translation of the existing two-write protocol. No roster or history scan.
+      function currentMember(p,u) {
+        let index=getAfter(/databases/$(database)/documents/jointPlans/$(planId)/inviteeIndex/$(u)).data;
+        let slot=getAfter(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(index.slotId)).data;
+        return slotId(index.slotId) && slot.uid == u && slot.status == 'member';
+      }
+      function subjectMember(p,u) { return p.ownerId == u || currentMember(p,u); }
+      function subjectBinding(p,u) {
+        return p.ownerId == u ? slotBinding(u,p.ownerInstanceId,p.catalogId) : actorBinding(p,u);
+      }
+      function subjectBindingAt(p,ids,n) { return ids.size() <= n || ids[n] == request.auth.uid || subjectBinding(p,ids[n]); }
+      function subjectAuthorityAt(ids,n) { return ids.size() <= n || ids[n] == request.auth.uid || slotAuthority(ids[n]); }
+      match /subjectChecks/{code} {
+        function checked() {
+          let p=parent();
+          let before=get(/databases/$(database)/documents/jointPlans/$(planId)/subjects/$(code));
+          let after=getAfter(/databases/$(database)/documents/jointPlans/$(planId)/subjects/$(code)).data;
+          let d=request.resource.data;
+          let added=after.proposedParticipantIds.removeAll(before == null ? [] : before.data.proposedParticipantIds);
+          return openPlan(p) && subjectMember(p,request.auth.uid) && slotAuthority(request.auth.uid)
+            && d.keys().hasAll(['revision','actorUid','updatedAt']) && d.keys().hasOnly(['revision','actorUid','updatedAt'])
+            && d.revision is int && d.revision > 0 && d.revision <= 9007199254740991
+            && (resource == null ? d.revision == 1 : d.revision == resource.data.revision+1)
+            && d.actorUid == request.auth.uid && d.updatedAt == request.time
+            && (before == null || before.data != after) && after.updatedAt == request.time
+            && subjectAuthorityAt(added,0) && subjectAuthorityAt(added,1) && subjectAuthorityAt(added,2)
+            && subjectAuthorityAt(added,3) && subjectAuthorityAt(added,4);
+        }
+        allow create,update: if socialUser() && checked();
+      }
+      match /subjects/{code} {
+        function subject() {
+          let p=parent();
+          let before=get(/databases/$(database)/documents/jointPlans/$(planId)/subjectChecks/$(code));
+          let after=getAfter(/databases/$(database)/documents/jointPlans/$(planId)/subjectChecks/$(code)).data;
+          let d=request.resource.data;
+          let ids=d.proposedParticipantIds;
+          let added=ids.removeAll(resource == null ? [] : resource.data.proposedParticipantIds);
+          return openPlan(p) && subjectMember(p,request.auth.uid) && subjectBinding(p,request.auth.uid)
+            && (before == null ? after.revision == 1 : after.revision == before.data.revision+1)
+            && after.actorUid == request.auth.uid && after.updatedAt == request.time
+            && d.keys().hasAll(['code','proposedParticipantIds','addedByUid','createdAt','updatedAt'])
+            && d.keys().hasOnly(['code','proposedParticipantIds','addedByUid','createdAt','updatedAt'])
+            && d.code == code && code.size() > 0 && code.size() <= 100 && d.updatedAt == request.time
+            && (resource == null ? d.addedByUid == request.auth.uid && d.createdAt == request.time
+              : d.addedByUid == resource.data.addedByUid && d.createdAt == resource.data.createdAt)
+            && ids is list && ids.size() >= 2 && ids.size() <= 5 && ids.toSet().size() == ids.size()
+            && subjectBindingAt(p,added,0) && subjectBindingAt(p,added,1) && subjectBindingAt(p,added,2)
+            && subjectBindingAt(p,added,3) && subjectBindingAt(p,added,4);
+        }
+        allow create,update: if socialUser() && subject();
+      }

@@ -13,6 +13,64 @@ export function newActivity(type, actorUid, id, serverTime) {
   if (typeof actorUid !== 'string' || !/^[A-Za-z0-9_-]+$/.test(actorUid) || serverTime == null) throw new Error('INVALID_ACTIVITY')
   return { schemaVersion: ACTIVITY_SCHEMA, type, actorUid, createdAt: serverTime, target: activityTarget(type, id), readAt: null }
 }
+
+// Isolated versioned wire contracts. Decoding is structural, never authorization.
+// IDs/time are supplied by adapters; no cycle, occurrence or clock is generated here.
+const cycleActivityToken = value => typeof value === 'string' && /^[A-Za-z0-9_-]{16,64}$/.test(value)
+const occurrenceActivityToken = value => typeof value === 'string' && /^[A-Za-z0-9]{16,40}$/.test(value)
+function versionedActivityActor(actorUid, serverTime) {
+  if (typeof actorUid !== 'string' || !/^[A-Za-z0-9_-]+$/.test(actorUid) || serverTime == null) throw new Error('INVALID_ACTIVITY')
+}
+export function friendshipCycleActivityId(type, cycleId) {
+  if (!['FRIEND_REQUEST', 'FRIEND_ACCEPTED'].includes(type) || !cycleActivityToken(cycleId)) throw new Error('INVALID_ACTIVITY_ID')
+  return (type === 'FRIEND_REQUEST' ? 'fr_' : 'fa_') + cycleId
+}
+export function newFriendshipCycleActivity(type, actorUid, relationshipId, cycleId, serverTime) {
+  friendshipCycleActivityId(type, cycleId)
+  versionedActivityActor(actorUid, serverTime)
+  const target = activityTarget('FRIEND_REQUEST_RECEIVED', relationshipId)
+  const participants = relationshipId.split(':')
+  if (participants[0] >= participants[1]) throw new Error('INVALID_ACTIVITY_TARGET')
+  return { schemaVersion: 2, type, actorUid, createdAt: serverTime, target, readAt: null, friendshipCycleId: cycleId }
+}
+export function invitationOccurrenceActivityId(planId, occurrenceId) {
+  if (!occurrenceActivityToken(planId) || !occurrenceActivityToken(occurrenceId)) throw new Error('INVALID_ACTIVITY_ID')
+  return `sp_${planId}_${occurrenceId}`
+}
+export function newInvitationOccurrenceActivity(actorUid, planId, occurrenceId, cycleId, serverTime) {
+  invitationOccurrenceActivityId(planId, occurrenceId)
+  versionedActivityActor(actorUid, serverTime)
+  if (!cycleActivityToken(cycleId)) throw new Error('INVALID_ACTIVITY_CYCLE')
+  return { schemaVersion: 3, type: 'SLOT_INVITATION', planId, occurrence: occurrenceId,
+    actorUid, cycle: cycleId, createdAt: serverTime, readAt: null }
+}
+
+// Explicit opt-in decoder: legacy inbox/presentation is not switched in this node.
+export function normalizeVersionedActivityItem(itemId, data) {
+  const invalid = diagnostic => ({ ok: false, diagnostic })
+  try {
+    if (data?.schemaVersion === 1) return normalizeActivityItem(itemId, data)
+    let payload, expectedId
+    if (data?.schemaVersion === 2) {
+      if (!exactKeys(data, ['schemaVersion', 'type', 'actorUid', 'createdAt', 'target', 'readAt', 'friendshipCycleId'])
+        || !exactKeys(data.target, ['kind', 'id']) || data.target.kind !== 'friendship') return invalid('INVALID_FIELDS')
+      payload = newFriendshipCycleActivity(data.type, data.actorUid, data.target.id, data.friendshipCycleId, data.createdAt)
+      expectedId = friendshipCycleActivityId(data.type, data.friendshipCycleId)
+    } else if (data?.schemaVersion === 3) {
+      if (!exactKeys(data, ['schemaVersion', 'type', 'planId', 'occurrence', 'actorUid', 'cycle', 'createdAt', 'readAt'])
+        || data.type !== 'SLOT_INVITATION') return invalid('INVALID_FIELDS')
+      payload = newInvitationOccurrenceActivity(data.actorUid, data.planId, data.occurrence, data.cycle, data.createdAt)
+      expectedId = invitationOccurrenceActivityId(data.planId, data.occurrence)
+    } else return invalid('UNSUPPORTED_SCHEMA')
+    if (itemId !== expectedId) return invalid('INVALID_ITEM_ID')
+    const createdAt = normalizeActivityTimestamp(data.createdAt)
+    if (!createdAt) return invalid('INVALID_CREATED_AT')
+    const readAt = data.readAt === null ? null : normalizeActivityTimestamp(data.readAt)
+    if (data.readAt !== null && !readAt) return invalid('INVALID_READ_AT')
+    const item = { ...payload, itemId, createdAt, readAt, isRead: readAt !== null }
+    return { ok: true, item: { ...item, instanceKey: getActivityInstanceKey(item) } }
+  } catch { return invalid('INVALID_DOCUMENT') }
+}
 // IDs identify a slot. A plan reinvitation has a new server createdAt after removal.
 // Future read commands must compare the observed createdAt in a transaction before
 // marking the slot, so a stale command cannot mark a later invitation as read.
@@ -68,7 +126,7 @@ export function normalizeActivityItems(entries) {
   const items = [], diagnostics = []
   entries.forEach((entry, index) => {
     let result
-    try { result = normalizeActivityItem(entry?.itemId, entry?.data) }
+    try { result = normalizeVersionedActivityItem(entry?.itemId, entry?.data) }
     catch { result = { ok: false, diagnostic: 'INVALID_DOCUMENT' } }
     if (result.ok) items.push(result.item)
     else diagnostics.push({ index, diagnostic: result.diagnostic })

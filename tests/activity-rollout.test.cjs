@@ -35,7 +35,7 @@ function services(paused) {
   let calls = 0
   const sdk = { doc: () => 'ref', collection: () => 'collection', serverTimestamp: () => ({}),
     runTransaction: async () => { calls++; throw new Error('TRANSACTION_REACHED') } }
-  const code = ['src/socialMaintenance.js', 'src/activityLogic.js', 'src/jointPlanLogic.js', 'src/services/friends.js', 'src/services/jointPlans.js'].map(file => clean(read(file))).join('\n')
+  const code = ['src/socialMaintenance.js', 'src/activityLogic.js', 'src/jointPlanLogic.js', ...require('./joint-join-harness.cjs').dependencies, 'src/services/friends.js', 'src/services/jointPlans.js'].map(file => clean(read(file))).join('\n')
   const api = new Function('__SOCIAL_MAINTENANCE__', 'sdk', 'db', 'auth', `const {doc,collection,serverTimestamp,runTransaction}=sdk;\n${code}\nreturn {sendFriendRequest,respondToFriendRequest,createJointPlan,inviteJointParticipant,updatePlanMembership,deleteJointPlan,renameJointPlan,closeJointPlan,socialMaintenanceMessage,friendsError}`)(paused, sdk, {}, { currentUser: { uid: 'a', emailVerified: true } })
   return { api, calls: () => calls }
 }

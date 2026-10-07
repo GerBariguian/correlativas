@@ -37,15 +37,29 @@ if (java.error || java.status !== 0) throw new Error(`Cannot execute Java (${jav
 console.log(`Rules tests: ${project}, ${host}; ${java.stderr.trim().split('\n')[0]}`)
 console.log('firestore.rules SHA256:', createHash('sha256').update(readFileSync(join(root, 'firestore.rules'))).digest('hex'))
 const cli = require.resolve('firebase-tools/lib/bin/firebase.js')
-const suites = process.argv.includes('--activity-only') ? 'tests/rules/activity.test.cjs'
+const suites = process.argv.includes('--joint-c-only') ? 'tests/rules/joint-plan-c.test.cjs'
+  : process.argv.includes('--activity-only') ? 'tests/rules/activity.test.cjs'
+  : process.argv.includes('--social-join-service-only') ? 'tests/rules/joint-join-service.test.cjs'
+  : process.argv.includes('--social-join-diagnostic-only') ? 'tests/rules/joint-join-diagnostic.test.cjs tests/rules/joint-create-access-probe.test.cjs'
+  : process.argv.includes('--instance-sharing-only') ? 'tests/rules/instance-sharing.test.cjs'
+  : process.argv.includes('--social-invite-real-only') ? 'tests/rules/joint-invite-real.test.cjs'
+  : process.argv.includes('--social-create-real-only') ? 'tests/rules/joint-create-real.test.cjs tests/rules/joint-create-access-probe.test.cjs'
+  : process.argv.includes('--social-expressions-only') ? 'tests/rules/joint-create-expressions.test.cjs'
+  : process.argv.includes('--social-create-distributed-only') ? 'tests/rules/joint-create-distributed.test.cjs tests/rules/joint-create-access-probe.test.cjs'
+  : process.argv.includes('--social-create-distributed-regressions-only') ? 'tests/rules/firestore.test.cjs tests/rules/activity.test.cjs tests/rules/joint-subject-integration.test.cjs'
+  : process.argv.includes('--social-budget-only') ? 'tests/rules/multicareer-social-budget.test.cjs'
+  : process.argv.includes('--social-prototype-only') ? 'tests/rules/multicareer-social-budget.test.cjs tests/rules/joint-subject-atomic-prototype.test.cjs'
+  : process.argv.includes('--social-integration-only') ? 'tests/rules/joint-subject-integration.test.cjs'
+  : process.argv.includes('--social-create-budget-only') ? 'tests/rules/joint-create-budget.test.cjs'
+  : process.argv.includes('--social-create-integration-only') ? 'tests/rules/joint-create-integration.test.cjs'
   : process.argv.includes('--lifecycle-only') ? 'tests/rules/career-lifecycle.test.cjs'
   : process.argv.includes('--bridge-only') ? 'tests/rules/academic-bridge.test.cjs'
   : process.argv.includes('--migration-only') ? 'tests/rules/migration.test.cjs'
   : process.argv.includes('--career-only') ? 'tests/rules/career-instances.test.cjs'
-  : 'tests/rules/firestore.test.cjs tests/rules/activity.test.cjs tests/rules/activity-rollout.test.cjs tests/rules/career-instances.test.cjs tests/rules/migration.test.cjs tests/rules/academic-bridge.test.cjs tests/rules/career-lifecycle.test.cjs';
+  : 'tests/rules/firestore.test.cjs tests/rules/activity.test.cjs tests/rules/activity-rollout.test.cjs tests/rules/career-instances.test.cjs tests/rules/migration.test.cjs tests/rules/academic-bridge.test.cjs tests/rules/career-lifecycle.test.cjs tests/rules/joint-subject-integration.test.cjs tests/rules/joint-create-integration.test.cjs tests/rules/joint-create-real.test.cjs';
 const child = spawn(process.execPath, [cli, 'emulators:exec', '--only', 'firestore', '--project', project,
   '--config', 'firebase.rules-test.json', '--non-interactive',
-  `node --test --test-concurrency=1 --test-timeout=120000 ${suites}`],
+  `node ${process.argv.includes('--social-create-distributed-regressions-only') ? '--require ./tests/rules/fixtures/joint-create-distributed-register.cjs ' : ''}--test --test-concurrency=1 --test-timeout=120000 ${suites}`],
 { cwd: root, env, stdio: 'inherit', windowsHide: true })
 child.on('error', error => { console.error(error); process.exitCode = 1 })
 child.on('exit', code => { process.exitCode = code ?? 1 })

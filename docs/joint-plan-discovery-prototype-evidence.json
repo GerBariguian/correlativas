@@ -1,0 +1,778 @@
+[
+  {
+    "label": "CREATE + owner ref",
+    "negative": false,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": "",
+    "category": "PASS"
+  },
+  {
+    "label": "NEW #1 + recipient ref",
+    "negative": false,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": "",
+    "category": "PASS"
+  },
+  {
+    "label": "NEW #2 + recipient ref",
+    "negative": false,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": "",
+    "category": "PASS"
+  },
+  {
+    "label": "NEW #3 + recipient ref",
+    "negative": false,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": "",
+    "category": "PASS"
+  },
+  {
+    "label": "NEW #4 + recipient ref",
+    "negative": false,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": "",
+    "category": "PASS"
+  },
+  {
+    "label": "owner lists own refs",
+    "negative": false,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": "",
+    "category": "PASS"
+  },
+  {
+    "label": "recipient lists own refs",
+    "negative": false,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": "",
+    "category": "PASS"
+  },
+  {
+    "label": "owner reads own ref",
+    "negative": false,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": "",
+    "category": "PASS"
+  },
+  {
+    "label": "recipient reads own ref",
+    "negative": false,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": "",
+    "category": "PASS"
+  },
+  {
+    "label": "foreign list",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "\nfalse for 'list' @ L549",
+    "category": "A"
+  },
+  {
+    "label": "foreign get",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "\nfalse for 'get' @ L549",
+    "category": "A"
+  },
+  {
+    "label": "authorized source read",
+    "negative": false,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": "",
+    "category": "PASS"
+  },
+  {
+    "label": "REINVITE C2 retains ref",
+    "negative": false,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": "",
+    "category": "PASS"
+  },
+  {
+    "label": "stale cycle reinvite despite ref",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, evaluation error at L775:26 for 'create' @ L775, false for 'update' @ L777, evaluation error at L316:26 for 'create' @ L316, evaluation error at L792:24 for 'create' @ L792, evaluation error at L849:24 for 'create' @ L849, false for 'update' @ L317, false for 'create' @ L775",
+    "category": "D"
+  },
+  {
+    "label": "stale JOIN despite ref",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L672:26 for 'update' @ L672, false for 'update' @ L672",
+    "category": "D"
+  },
+  {
+    "label": "JOIN without ref write",
+    "negative": false,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": "",
+    "category": "PASS"
+  },
+  {
+    "label": "archived without ref write",
+    "negative": false,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": "",
+    "category": "PASS"
+  },
+  {
+    "label": "archived source controls subject creation",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L729:26 for 'create' @ L729, false for 'update' @ L731, false for 'create' @ L729",
+    "category": "D"
+  },
+  {
+    "label": "active without ref write",
+    "negative": false,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": "",
+    "category": "PASS"
+  },
+  {
+    "label": "active source controls subject creation",
+    "negative": false,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": "",
+    "category": "PASS"
+  },
+  {
+    "label": "read/delete Activity independent",
+    "negative": false,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": "",
+    "category": "PASS"
+  },
+  {
+    "label": "release leaves residual ref",
+    "negative": false,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": "",
+    "category": "PASS"
+  },
+  {
+    "label": "residual ref not source access",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "\nevaluation error at L617:21 for 'get' @ L617, false for 'get' @ L617",
+    "category": "D"
+  },
+  {
+    "label": "residual ref not JOIN",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L672:26 for 'update' @ L672, false for 'update' @ L672",
+    "category": "D"
+  },
+  {
+    "label": "residual ref not Subjects read",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "\nevaluation error at L730:28 for 'get' @ L730, Null value error. for 'get' @ L730",
+    "category": "D"
+  },
+  {
+    "label": "NEW returning UID preserves immutable ref",
+    "negative": false,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": "",
+    "category": "PASS"
+  },
+  {
+    "label": "close no ref fanout",
+    "negative": false,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": "",
+    "category": "PASS"
+  },
+  {
+    "label": "ref update",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nfalse for 'update' @ L550",
+    "category": "A"
+  },
+  {
+    "label": "ref delete",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nfalse for 'delete' @ L550",
+    "category": "A"
+  },
+  {
+    "label": "unrelated uid ref",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L551:24 for 'create' @ L551, false for 'update' @ L550, Null value error. for 'create' @ L551",
+    "category": "D"
+  },
+  {
+    "label": "foreign uid ref write",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L551:24 for 'create' @ L551, false for 'update' @ L550, Null value error. for 'create' @ L551",
+    "category": "D"
+  },
+  {
+    "label": "ref nonexistent plan",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L551:24 for 'create' @ L551, false for 'update' @ L550, Null value error. for 'create' @ L551",
+    "category": "D"
+  },
+  {
+    "label": "ref legacy",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L551:24 for 'create' @ L551, false for 'update' @ L550, false for 'create' @ L551",
+    "category": "D"
+  },
+  {
+    "label": "plan without owner ref",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L609:24 for 'create' @ L609, evaluation error at L619:24 for 'update' @ L619, evaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, evaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, evaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, evaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, false for 'create' @ L669, Null value error. for 'create' @ L609",
+    "category": "D"
+  },
+  {
+    "label": "ref without plan",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L551:24 for 'create' @ L551, false for 'update' @ L550, Null value error. for 'create' @ L551",
+    "category": "D"
+  },
+  {
+    "label": "malformed standalone ref schemaVersion,createdAt",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L551:24 for 'create' @ L551, false for 'update' @ L550, false for 'create' @ L551",
+    "category": "D"
+  },
+  {
+    "label": "malformed standalone ref schemaVersion,createdAt,planId",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L551:24 for 'create' @ L551, false for 'update' @ L550, false for 'create' @ L551",
+    "category": "D"
+  },
+  {
+    "label": "malformed standalone ref schemaVersion,createdAt",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nfalse for 'create' @ L551, false for 'update' @ L550",
+    "category": "A"
+  },
+  {
+    "label": "replay CREATE",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L609:24 for 'create' @ L609, evaluation error at L619:24 for 'update' @ L619, evaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, evaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, evaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, evaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, evaluation error at L551:24 for 'create' @ L551, false for 'update' @ L550, false for 'update' @ L550",
+    "category": "D"
+  },
+  {
+    "label": "NEW omission noRef",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, evaluation error at L677:26 for 'create' @ L677, false for 'update' @ L689, evaluation error at L775:26 for 'create' @ L775, false for 'update' @ L777, evaluation error at L316:26 for 'create' @ L316, evaluation error at L792:24 for 'create' @ L792, evaluation error at L849:24 for 'create' @ L849, false for 'update' @ L317, false for 'create' @ L316, false for 'create' @ L792, false for 'create' @ L849, Null value error. for 'create' @ L677",
+    "category": "D"
+  },
+  {
+    "label": "NEW omission noActivity",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, evaluation error at L677:26 for 'create' @ L677, false for 'update' @ L689, evaluation error at L775:26 for 'create' @ L775, false for 'update' @ L777, evaluation error at L551:24 for 'create' @ L551, false for 'update' @ L550, false for 'create' @ L677, false for 'create' @ L551, Null value error. for 'create' @ L775",
+    "category": "D"
+  },
+  {
+    "label": "NEW omission noSlot",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L677:26 for 'create' @ L677, false for 'update' @ L689, evaluation error at L775:26 for 'create' @ L775, false for 'update' @ L777, evaluation error at L316:26 for 'create' @ L316, evaluation error at L792:24 for 'create' @ L792, evaluation error at L849:24 for 'create' @ L849, false for 'update' @ L317, evaluation error at L551:24 for 'create' @ L551, false for 'update' @ L550, false for 'create' @ L316, false for 'create' @ L792, false for 'create' @ L849, false for 'create' @ L677",
+    "category": "D"
+  },
+  {
+    "label": "NEW omission noIndex",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, evaluation error at L775:26 for 'create' @ L775, false for 'update' @ L777, evaluation error at L316:26 for 'create' @ L316, evaluation error at L792:24 for 'create' @ L792, evaluation error at L849:24 for 'create' @ L849, false for 'update' @ L317, evaluation error at L551:24 for 'create' @ L551, false for 'update' @ L550, false for 'create' @ L316, false for 'create' @ L792, false for 'create' @ L849, Null value error. for 'create' @ L551",
+    "category": "D"
+  },
+  {
+    "label": "NEW omission noOccurrence",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, evaluation error at L677:26 for 'create' @ L677, false for 'update' @ L689, evaluation error at L316:26 for 'create' @ L316, evaluation error at L792:24 for 'create' @ L792, evaluation error at L849:24 for 'create' @ L849, false for 'update' @ L317, evaluation error at L551:24 for 'create' @ L551, false for 'update' @ L550, false for 'create' @ L316, Null value error. for 'create' @ L792, false for 'create' @ L849",
+    "category": "D"
+  },
+  {
+    "label": "NEW omission refData",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, evaluation error at L677:26 for 'create' @ L677, false for 'update' @ L689, evaluation error at L775:26 for 'create' @ L775, false for 'update' @ L777, evaluation error at L316:26 for 'create' @ L316, evaluation error at L792:24 for 'create' @ L792, evaluation error at L849:24 for 'create' @ L849, false for 'update' @ L317, evaluation error at L551:24 for 'create' @ L551, false for 'update' @ L550, false for 'create' @ L316, false for 'create' @ L792, false for 'create' @ L849, false for 'create' @ L677",
+    "category": "D"
+  },
+  {
+    "label": "NEW omission refData",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, evaluation error at L677:26 for 'create' @ L677, false for 'update' @ L689, evaluation error at L775:26 for 'create' @ L775, false for 'update' @ L777, evaluation error at L316:26 for 'create' @ L316, evaluation error at L792:24 for 'create' @ L792, evaluation error at L849:24 for 'create' @ L849, false for 'update' @ L317, evaluation error at L551:24 for 'create' @ L551, false for 'update' @ L550, false for 'create' @ L316, false for 'create' @ L792, false for 'create' @ L849, false for 'create' @ L677",
+    "category": "D"
+  },
+  {
+    "label": "NEW omission refData",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, evaluation error at L677:26 for 'create' @ L677, false for 'update' @ L689, evaluation error at L775:26 for 'create' @ L775, false for 'update' @ L777, evaluation error at L316:26 for 'create' @ L316, evaluation error at L792:24 for 'create' @ L792, evaluation error at L849:24 for 'create' @ L849, false for 'update' @ L317, false for 'create' @ L551, false for 'update' @ L550",
+    "category": "D"
+  },
+  {
+    "race": "equivalent NEW",
+    "outcomes": [
+      "fulfilled",
+      "rejected"
+    ]
+  },
+  {
+    "label": "concurrent equivalent NEW",
+    "negative": false,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": "",
+    "category": "PASS"
+  },
+  {
+    "label": "replay NEW/ref",
+    "negative": true,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": false,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, evaluation error at L775:26 for 'create' @ L775, false for 'update' @ L777, evaluation error at L316:26 for 'create' @ L316, evaluation error at L792:24 for 'create' @ L792, evaluation error at L849:24 for 'create' @ L849, false for 'update' @ L317, false for 'update' @ L317",
+    "category": "D"
+  },
+  {
+    "padding": "CREATE",
+    "additional": 0,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "CREATE",
+    "additional": 1,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "CREATE",
+    "additional": 2,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "CREATE",
+    "additional": 3,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "CREATE",
+    "additional": 4,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "CREATE",
+    "additional": 5,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "CREATE",
+    "additional": 6,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "CREATE",
+    "additional": 7,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "CREATE",
+    "additional": 8,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L609:24 for 'create' @ L609, evaluation error at L619:24 for 'update' @ L619, evaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, evaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, evaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, evaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, evaluation error at L551:24 for 'create' @ L551, false for 'update' @ L550, false for 'create' @ L551, false for 'create' @ L669, Service call error. Function: [get], Argument: [path_value {\n  segments {\n    simple: \"databases\"\n  }\n  segments {\n    simple: \"(default)\"\n  }\n  segments {\n    simple: \"documents\"\n  }\n  segments {\n    simple: \"discoveryPadding\"\n  }\n  segments {\n    simple: \"p7\"\n  }\n}\n]. for 'create' @ L609"
+  },
+  {
+    "padding": "NEW1",
+    "additional": 0,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "NEW1",
+    "additional": 1,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "NEW1",
+    "additional": 2,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "NEW1",
+    "additional": 3,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "NEW1",
+    "additional": 4,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "NEW1",
+    "additional": 5,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "NEW1",
+    "additional": 6,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "NEW1",
+    "additional": 7,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "NEW1",
+    "additional": 8,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "NEW1",
+    "additional": 9,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "NEW1",
+    "additional": 10,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, evaluation error at L677:26 for 'create' @ L677, false for 'update' @ L689, evaluation error at L775:26 for 'create' @ L775, false for 'update' @ L777, evaluation error at L316:26 for 'create' @ L316, evaluation error at L792:24 for 'create' @ L792, evaluation error at L849:24 for 'create' @ L849, false for 'update' @ L317, evaluation error at L551:24 for 'create' @ L551, false for 'update' @ L550, Service call error. Function: [get], Argument: [path_value {\n  segments {\n    simple: \"databases\"\n  }\n  segments {\n    simple: \"(default)\"\n  }\n  segments {\n    simple: \"documents\"\n  }\n  segments {\n    simple: \"discoveryPadding\"\n  }\n  segments {\n    simple: \"p9\"\n  }\n}\n]. for 'create' @ L677"
+  },
+  {
+    "padding": "NEW4",
+    "additional": 0,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "NEW4",
+    "additional": 1,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "NEW4",
+    "additional": 2,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "NEW4",
+    "additional": 3,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "NEW4",
+    "additional": 4,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "NEW4",
+    "additional": 5,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "NEW4",
+    "additional": 6,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "NEW4",
+    "additional": 7,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "NEW4",
+    "additional": 8,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "NEW4",
+    "additional": 9,
+    "accepted": true,
+    "code": null,
+    "expressions": false,
+    "service": false,
+    "message": ""
+  },
+  {
+    "padding": "NEW4",
+    "additional": 10,
+    "accepted": false,
+    "code": "permission-denied",
+    "expressions": false,
+    "service": true,
+    "message": "7 PERMISSION_DENIED: \nevaluation error at L669:26 for 'create' @ L669, evaluation error at L672:26 for 'update' @ L672, evaluation error at L677:26 for 'create' @ L677, false for 'update' @ L689, evaluation error at L775:26 for 'create' @ L775, false for 'update' @ L777, evaluation error at L316:26 for 'create' @ L316, evaluation error at L792:24 for 'create' @ L792, evaluation error at L849:24 for 'create' @ L849, false for 'update' @ L317, evaluation error at L551:24 for 'create' @ L551, false for 'update' @ L550, Service call error. Function: [get], Argument: [path_value {\n  segments {\n    simple: \"databases\"\n  }\n  segments {\n    simple: \"(default)\"\n  }\n  segments {\n    simple: \"documents\"\n  }\n  segments {\n    simple: \"discoveryPadding\"\n  }\n  segments {\n    simple: \"p9\"\n  }\n}\n]. for 'create' @ L677"
+  }
+]

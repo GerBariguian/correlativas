@@ -70,9 +70,19 @@ service cloud.firestore {
       return validAuthority(d, uid) && d.authority == 'instances' && d.phase == 'complete';
     }
     function metadataWritable(uid) { return legacyAuthority(uid) || instanceAuthority(uid); }
+    function socialAuthorityAvailable(uid) {
+      let c = get(/databases/$(database)/documents/migrationUsers/$(uid));
+      return c == null || (validAuthority(c.data, uid)
+        && ((c.data.authority == 'legacy' && c.data.phase == 'pending')
+          || (c.data.authority == 'instances' && c.data.phase == 'complete')));
+    }
     function legacyAt(ids, index) { return ids.size() <= index || legacyAuthority(ids[index]); }
+    // Protected per-plan freeze is independent of every participant's user authority.
+    function legacySourceWritable(planId) {
+      return !existsAfter(/databases/$(database)/documents/jointPlanLegacyControls/$(planId));
+    }
     function legacyPlan(data) {
-      return legacyAuthority(data.ownerId) && legacyAt(data.inviteeIds, 0)
+      return data.get('schemaVersion', 0) != 3 && legacyAuthority(data.ownerId) && legacyAt(data.inviteeIds, 0)
         && legacyAt(data.inviteeIds, 1) && legacyAt(data.inviteeIds, 2) && legacyAt(data.inviteeIds, 3);
     }
 
@@ -137,6 +147,33 @@ service cloud.firestore {
         return value is string && value.matches('^[A-Za-z0-9_-]{1,100}$');
       }
       match /careerInstances/{instanceId} {
+        function validInstanceConsent(s) {
+          return s is map && s.keys().hasAll(['enabled', 'consentVersion', 'epoch', 'updatedAt'])
+            && s.keys().hasOnly(['enabled', 'consentVersion', 'epoch', 'updatedAt'])
+            && s.enabled is bool && s.epoch is int && s.epoch >= 0 && s.epoch <= 9007199254740991
+            && s.consentVersion in [null, 1, 2] && (!s.enabled || s.consentVersion in [1, 2])
+            && s.updatedAt is timestamp;
+        }
+        function lifecycleConsent() {
+          let old = resource.data.get('sharing', null);
+          let next = request.resource.data.get('sharing', null);
+          return old == null ? next == null : (request.resource.data.lifecycle == 'archived'
+            ? !next.enabled && next.epoch == old.epoch + 1 && next.consentVersion == old.consentVersion && next.updatedAt == request.time
+            : next == old && !next.enabled);
+        }
+        function consentTransition() {
+          let d = request.resource.data;
+          let previous = resource.data.get('sharing', {'epoch': 0});
+          let s = d.sharing;
+          return resource.data.lifecycle == 'active' && d.lifecycle == 'active'
+            && d.diff(resource.data).affectedKeys().hasOnly(['sharing', 'updatedAt'])
+            && s.epoch == previous.epoch + 1 && s.updatedAt == request.time
+            && (!s.enabled || currentPublishedConsent(s));
+        }
+        function currentPublishedConsent(s) {
+          let d = getAfter(/databases/$(database)/documents/users/$(uid)/careerInstances/$(instanceId)/sharing/snapshot).data;
+          return d.schemaVersion == 3 && d.consentEpoch == s.epoch && d.updatedAt == request.time;
+        }
         // Product archive cannot leave this instance selected, even in a malicious batch.
         // Legacy metadata compatibility remains unchanged; no bootstrap permission.
         function validLifecycleSelection() {
@@ -151,7 +188,8 @@ service cloud.firestore {
         function validInstance() {
           let d = request.resource.data;
           return d.keys().hasAll(['schemaVersion', 'catalogId', 'lifecycle', 'createdAt', 'updatedAt', 'archivedAt'])
-            && d.keys().hasOnly(['schemaVersion', 'catalogId', 'lifecycle', 'createdAt', 'updatedAt', 'archivedAt'])
+            && d.keys().hasOnly(['schemaVersion', 'catalogId', 'lifecycle', 'createdAt', 'updatedAt', 'archivedAt', 'sharing'])
+            && (!('sharing' in d) || (validInstanceConsent(d.sharing) && (d.lifecycle != 'archived' || !d.sharing.enabled)))
             && d.schemaVersion is int && d.schemaVersion == 1
             && instanceKey(instanceId) && instanceKey(d.catalogId) && instanceId != d.catalogId
             && d.lifecycle in ['active', 'archived']
@@ -160,16 +198,66 @@ service cloud.firestore {
         }
         allow read: if signedIn() && request.auth.uid == uid;
         allow create: if signedIn() && request.auth.uid == uid && metadataWritable(uid) && validInstance()
+          && (!('sharing' in request.resource.data) || (!request.resource.data.sharing.enabled
+            && request.resource.data.sharing.epoch == 0 && request.resource.data.sharing.consentVersion == null
+            && request.resource.data.sharing.updatedAt == request.time))
           && request.resource.data.lifecycle == 'active' && request.resource.data.createdAt == request.time
           && !exists(/databases/$(database)/documents/users/$(uid)/catalogMemberships/$(request.resource.data.catalogId))
           && getAfter(/databases/$(database)/documents/users/$(uid)/catalogMemberships/$(request.resource.data.catalogId)).data.careerInstanceId == instanceId;
-        allow update: if signedIn() && request.auth.uid == uid && metadataWritable(uid) && validInstance()
+        allow update: if signedIn() && request.auth.uid == uid && request.resource.data.lifecycle != resource.data.lifecycle
+          && metadataWritable(uid) && validInstance()
           && validLifecycleSelection()
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lifecycle', 'archivedAt', 'updatedAt'])
+          && lifecycleConsent()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lifecycle', 'archivedAt', 'updatedAt', 'sharing'])
           && ((resource.data.lifecycle == 'active' && request.resource.data.lifecycle == 'archived')
             || (resource.data.lifecycle == 'archived' && request.resource.data.lifecycle == 'active'))
           && get(/databases/$(database)/documents/users/$(uid)/catalogMemberships/$(resource.data.catalogId)).data.careerInstanceId == instanceId;
+        allow update: if socialUser() && request.auth.uid == uid && instanceAuthority(uid)
+          && validInstance() && consentTransition();
         allow delete: if false;
+      }
+      match /careerInstances/{instanceId}/sharing/{snapshotId} {
+        function metadataAfter() { return getAfter(/databases/$(database)/documents/users/$(uid)/careerInstances/$(instanceId)).data; }
+        function validSharedCodes(c) {
+          return c is list && c.size() <= 1000 && c.toSet().size() == c.size()
+            && (c.size() == 0 || (c.join('|').split('[|]') == c
+              && c.join('|').matches('^[A-Za-z0-9._-]{1,32}([|][A-Za-z0-9._-]{1,32})*$')));
+        }
+        function currentSnapshot(d, m, p) {
+          return d.schemaVersion == 3 && d.logicVersion == '1'
+            && d.sourceProgressRevision == (p == null ? 0 : p.data.revision)
+            && d.sourceUpdatedAt == (p == null ? m.createdAt : p.data.updatedAt)
+            && d.consentEpoch == m.sharing.epoch
+            && (m.sharing.consentVersion == 2 ? 'pendingFinalCodes' in d : !('pendingFinalCodes' in d));
+        }
+        function validSnapshot() {
+          let d = request.resource.data;
+          let m = metadataAfter();
+          let p = getAfter(/databases/$(database)/documents/users/$(uid)/careerInstances/$(instanceId)/academic/progress);
+          return m.lifecycle == 'active' && m.sharing.enabled && currentSnapshot(d, m, p)
+            && d.keys().hasAll(['schemaVersion', 'approvedCodes', 'availableToCourseCodes', 'sourceProgressRevision', 'sourceUpdatedAt', 'consentEpoch', 'logicVersion', 'catalogVersion', 'updatedAt'])
+            && d.keys().hasOnly(['schemaVersion', 'approvedCodes', 'availableToCourseCodes', 'pendingFinalCodes', 'sourceProgressRevision', 'sourceUpdatedAt', 'consentEpoch', 'logicVersion', 'catalogVersion', 'updatedAt'])
+            && d.updatedAt == request.time && d.catalogVersion is string && d.catalogVersion.size() <= 150
+            && d.catalogVersion.matches('^' + m.catalogId + ':[a-f0-9]+$')
+            && d.sourceProgressRevision is int && d.consentEpoch is int
+            && validSharedCodes(d.approvedCodes) && validSharedCodes(d.availableToCourseCodes)
+            && d.approvedCodes.toSet().intersection(d.availableToCourseCodes.toSet()).size() == 0
+            && (!('pendingFinalCodes' in d) || (validSharedCodes(d.pendingFinalCodes)
+              && d.pendingFinalCodes.toSet().intersection(d.approvedCodes.toSet()).size() == 0
+              && d.pendingFinalCodes.toSet().intersection(d.availableToCourseCodes.toSet()).size() == 0));
+        }
+        function sharedSnapshot() {
+          let m = get(/databases/$(database)/documents/users/$(uid)/careerInstances/$(instanceId)).data;
+          let p = get(/databases/$(database)/documents/users/$(uid)/careerInstances/$(instanceId)/academic/progress);
+          return instanceAuthority(uid) && instanceAuthority(request.auth.uid)
+            && m.lifecycle == 'active' && m.sharing.enabled && acceptedPlanningFriend(uid)
+            && compatibleReader(m.catalogId) && currentSnapshot(resource.data, m, p);
+        }
+        allow get: if snapshotId == 'snapshot' && signedIn() && (request.auth.uid == uid || (socialUser() && sharedSnapshot()));
+        allow list: if false;
+        allow create, update: if snapshotId == 'snapshot' && socialUser() && request.auth.uid == uid
+          && instanceAuthority(uid) && validSnapshot();
+        allow delete: if snapshotId == 'snapshot' && signedIn() && request.auth.uid == uid && instanceAuthority(uid);
       }
       // Owner + lifecycle authorize these children; navigation never does.
       match /careerInstances/{instanceId}/{kind}/{documentId} {
@@ -209,6 +297,14 @@ service cloud.firestore {
       }
       match /catalogMemberships/{catalogId} {
         allow read: if signedIn() && request.auth.uid == uid;
+        function compatibleFriend() {
+          let m = get(/databases/$(database)/documents/users/$(uid)/careerInstances/$(resource.data.careerInstanceId)).data;
+          return instanceAuthority(uid) && instanceAuthority(request.auth.uid)
+            && acceptedPlanningFriend(uid) && compatibleReader(catalogId)
+            && resource.data.schemaVersion == 1 && m.schemaVersion == 1
+            && m.catalogId == catalogId && m.lifecycle == 'active';
+        }
+        allow get: if socialUser() && compatibleFriend();
         allow create: if signedIn() && request.auth.uid == uid && metadataWritable(uid)
           && request.resource.data.keys().hasAll(['schemaVersion', 'careerInstanceId'])
           && request.resource.data.keys().hasOnly(['schemaVersion', 'careerInstanceId'])
@@ -249,20 +345,32 @@ service cloud.firestore {
         function friendNotice(type, id) {
           let path = /databases/$(database)/documents/friendships/$(id);
           let after = getAfter(path).data;
-          return type == 'FRIEND_REQUEST_RECEIVED'
+          return !('cycleId' in after) && (type == 'FRIEND_REQUEST_RECEIVED'
             ? itemId == 'fr_' + id && !exists(path) && after.status == 'pending'
               && after.senderId == request.auth.uid && after.recipientId == uid
             : itemId == 'fa_' + id && get(path).data.status == 'pending' && after.status == 'accepted'
-              && after.recipientId == request.auth.uid && after.senderId == uid;
+              && after.recipientId == request.auth.uid && after.senderId == uid);
         }
         function planInvitation(id) {
           let path = /databases/$(database)/documents/jointPlans/$(id);
           let after = getAfter(path).data;
-          return legacyAuthority(uid) && legacyAuthority(request.auth.uid)
+          return (after.get('schemaVersion', 0) == 2
+              ? instanceAuthority(request.auth.uid) && socialAuthorityAvailable(uid)
+              : legacyAuthority(uid) && legacyAuthority(request.auth.uid))
             && itemId == 'jp_' + id && uid in after.inviteeIds
             && after.get('invitedBy', {}).get(uid, after.ownerId) == request.auth.uid
             && (!exists(path) || !(uid in get(path).data.inviteeIds))
-            && acceptedPlanningFriend(uid);
+            && acceptedPlanningFriend(uid)
+            // CREATE v2: the mandatory notice proves this UID's pending binding.
+            // Keep this predicate and the parent's invitationRequired atomic link together.
+            && (after.get('schemaVersion', 0) != 2 || exists(path)
+              || validCreationRecipient(after));
+        }
+        function validCreationRecipient(p) {
+          let b = p.participants[uid];
+          return b.keys().hasAll(['careerInstanceId', 'bindingState'])
+            && b.keys().hasOnly(['careerInstanceId', 'bindingState'])
+            && b.careerInstanceId == null && b.bindingState == 'unresolved';
         }
         function removingPlan() {
           let id = itemId.replace('^jp_', '');
@@ -348,6 +456,11 @@ service cloud.firestore {
       return (forward != null && forward.data.status == 'accepted')
         || (reverse != null && reverse.data.status == 'accepted');
     }
+    function compatibleReader(catalogId) {
+      let index = get(/databases/$(database)/documents/users/$(request.auth.uid)/catalogMemberships/$(catalogId)).data;
+      let m = get(/databases/$(database)/documents/users/$(request.auth.uid)/careerInstances/$(index.careerInstanceId)).data;
+      return index.schemaVersion == 1 && m.schemaVersion == 1 && m.lifecycle == 'active' && m.catalogId == catalogId;
+    }
 
     match /planningSharing/{uid} {
       allow get: if socialUser() && (request.auth.uid == uid || acceptedPlanningFriend(uid));
@@ -428,12 +541,89 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/jointPlans/$(planId)).data.closed == true
         && get(/databases/$(database)/documents/jointPlans/$(planId)).data.get('deleting', false) == true
         && !existsAfter(/databases/$(database)/documents/jointPlans/$(planId));
+      allow create: if socialUser() && cSlotAuthority(request.auth.uid)
+        && request.resource.data.keys().hasOnly(['deletedAt']) && request.resource.data.deletedAt == request.time
+        && cPlan(get(/databases/$(database)/documents/jointPlans/$(planId)).data)
+        && get(/databases/$(database)/documents/jointPlans/$(planId)).data.ownerId == request.auth.uid
+        && !get(/databases/$(database)/documents/jointPlans/$(planId)).data.deleting
+        && getAfter(/databases/$(database)/documents/jointPlans/$(planId)).data.deleting
+        && getAfter(/databases/$(database)/documents/jointPlans/$(planId)).data.closed;
     }
 
     match /jointPlans/{planId} {
+      // v2 proposal protocol: checks certify only this atomic mutation, never later access.
+      function instancePlan(p) { return p.get('schemaVersion', 0) == 2; }
+      function validInstancePlanShape() {
+        let d = request.resource.data;
+        return d.keys().hasAll(['schemaVersion', 'catalogId', 'ownerId', 'inviteeIds', 'memberIds', 'participants', 'name', 'invitedBy', 'closed', 'deleting', 'createdAt', 'updatedAt'])
+          && d.keys().hasOnly(['schemaVersion', 'catalogId', 'ownerId', 'inviteeIds', 'memberIds', 'participants', 'name', 'invitedBy', 'closed', 'deleting', 'createdAt', 'updatedAt'])
+          && d.schemaVersion is int && d.schemaVersion == 2
+          && d.catalogId is string && d.catalogId.size() > 0 && d.catalogId.size() <= 100
+          && d.ownerId is string && d.ownerId.matches('^[A-Za-z0-9_-]+$')
+          && d.inviteeIds is list && d.inviteeIds.size() <= 4
+          && d.inviteeIds.toSet().size() == d.inviteeIds.size() && !(d.ownerId in d.inviteeIds)
+          && d.memberIds is list && d.memberIds.size() >= 1 && d.memberIds.size() <= 5
+          && d.memberIds.toSet().size() == d.memberIds.size() && d.ownerId in d.memberIds
+          && d.memberIds.toSet().difference(d.inviteeIds.toSet()).hasOnly([d.ownerId])
+          && d.participants is map && d.participants.keys().toSet() == d.inviteeIds.toSet().union([d.ownerId].toSet())
+          && d.invitedBy is map && d.invitedBy.keys().hasOnly(d.inviteeIds) && d.invitedBy.keys().hasAll(d.inviteeIds)
+          && d.name is string && d.name.size() >= 1 && d.name.size() <= 80
+          && d.name.matches('.*[^ ].*') && !d.name.matches('.*[\\x00-\\x1F\\x7F].*')
+          && d.closed is bool && d.deleting is bool && (!d.deleting || d.closed)
+          && d.createdAt is timestamp && d.updatedAt == request.time;
+      }
+      function pendingBindingAt(ids, index) {
+        return ids.size() <= index || (request.resource.data.participants[ids[index]].keys().hasAll(['careerInstanceId', 'bindingState'])
+          && request.resource.data.participants[ids[index]].keys().hasOnly(['careerInstanceId', 'bindingState'])
+          && request.resource.data.participants[ids[index]].careerInstanceId == null
+          && request.resource.data.participants[ids[index]].bindingState == 'unresolved');
+      }
+      function proposalPlan() { return getAfter(/databases/$(database)/documents/jointPlans/$(planId)).data; }
+      function proposalAuthority(uid) {
+        let d = getAfter(/databases/$(database)/documents/migrationUsers/$(uid)).data;
+        return validAuthority(d, uid) && d.authority == 'instances' && d.phase == 'complete';
+      }
+      function operationalBinding(p, uid) {
+        let b = p.participants[uid];
+        let i = getAfter(/databases/$(database)/documents/users/$(uid)/careerInstances/$(b.careerInstanceId)).data;
+        return b.bindingState == 'resolved' && i.schemaVersion == 1
+          && i.lifecycle == 'active' && i.catalogId == p.catalogId;
+      }
+      function bindingAt(p, ids, n) {
+        return ids.size() <= n || ids[n] == request.auth.uid || operationalBinding(p, ids[n]);
+      }
+      function authorityAt(ids, n) {
+        return ids.size() <= n || ids[n] == request.auth.uid || proposalAuthority(ids[n]);
+      }
+      function instanceCleanup(p) {
+        return legacySourceWritable(planId) && instancePlan(p) && p.ownerId == request.auth.uid && p.closed && p.get('deleting', false)
+          && proposalAuthority(request.auth.uid);
+      }
+      match /subjectChecks/{code} {
+        allow get: if socialUser() && instancePlan(proposalPlan())
+          && (request.auth.uid == proposalPlan().ownerId || request.auth.uid in proposalPlan().memberIds);
+        allow list, delete: if socialUser() && instanceCleanup(proposalPlan());
+        allow create, update: if socialUser() && legacySourceWritable(planId) && validSubjectCheck();
+        function validSubjectCheck() {
+          let p = proposalPlan();
+          let before = get(/databases/$(database)/documents/jointPlans/$(planId)/subjects/$(code));
+          let after = getAfter(/databases/$(database)/documents/jointPlans/$(planId)/subjects/$(code)).data;
+          let d = request.resource.data;
+          let added = after.proposedParticipantIds.removeAll(before == null ? [] : before.data.proposedParticipantIds);
+          return instancePlan(p) && openMember(p) && proposalAuthority(request.auth.uid)
+            && d.keys().hasAll(['revision', 'actorUid', 'updatedAt'])
+            && d.keys().hasOnly(['revision', 'actorUid', 'updatedAt'])
+            && d.revision is int && d.revision > 0 && d.revision <= 9007199254740991
+            && (resource == null ? d.revision == 1 : d.revision == resource.data.revision + 1)
+            && d.actorUid == request.auth.uid && d.updatedAt == request.time
+            && (before == null || before.data != after) && after.updatedAt == request.time
+            && authorityAt(added, 0) && authorityAt(added, 1) && authorityAt(added, 2)
+            && authorityAt(added, 3) && authorityAt(added, 4);
+        }
+      }
       function visiblePlan(data) {
-        return request.auth.uid == data.ownerId
-          || request.auth.uid in data.inviteeIds;
+        return data.get('schemaVersion', 0) in [0, 2] && (request.auth.uid == data.ownerId
+          || request.auth.uid in data.inviteeIds);
       }
       function openMember(data) {
         return request.auth.uid in data.memberIds && !data.closed && !data.get('deleting', false);
@@ -469,7 +659,7 @@ service cloud.firestore {
       // Queries must constrain ownerId or inviteeIds; no global plan directory.
       allow get, list: if socialUser() && visiblePlan(resource.data);
       // Client drains subjects while locked, then reserves the ID and deletes atomically.
-      allow delete: if socialUser() && legacyPlan(resource.data) && resource.data.ownerId == request.auth.uid
+      allow delete: if socialUser() && legacySourceWritable(planId) && (instancePlan(resource.data) ? instanceCleanup(resource.data) : legacyPlan(resource.data)) && resource.data.ownerId == request.auth.uid
         && resource.data.closed && resource.data.get('deleting', false)
         && !exists(/databases/$(database)/documents/jointPlanTombstones/$(planId))
         && existsAfter(/databases/$(database)/documents/jointPlanTombstones/$(planId))
@@ -477,8 +667,21 @@ service cloud.firestore {
       function removedInvitationAt(index) {
         return resource.data.inviteeIds.size() <= index || invitationRemoved(resource.data.inviteeIds[index], planId);
       }
-      // The required notice validates both actor and recipient authority.
-      allow create: if socialUser() && validPlan()
+      // RC-1 global rollout boundary: also applies to plans not copied/frozen.
+      function legacyInvitationJoinEnabled() { return false; }
+      // CREATE legacy/v2 introduces invitations, so it is suspended too.
+      allow create: if legacyInvitationJoinEnabled() && socialUser() && validInstancePlanShape()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.memberIds == [request.auth.uid] && request.resource.data.inviteeIds.size() >= 1
+        && !request.resource.data.closed && !request.resource.data.deleting && request.resource.data.createdAt == request.time
+        && request.resource.data.participants[request.auth.uid].keys().hasAll(['careerInstanceId', 'bindingState'])
+        && request.resource.data.participants[request.auth.uid].keys().hasOnly(['careerInstanceId', 'bindingState'])
+        && operationalBinding(request.resource.data, request.auth.uid)
+        && !exists(/databases/$(database)/documents/jointPlanTombstones/$(planId))
+        // Each required fresh notice validates participants[its inbox UID].
+        && validInvitee(request.resource.data.inviteeIds, 0) && validInvitee(request.resource.data.inviteeIds, 1)
+        && validInvitee(request.resource.data.inviteeIds, 2) && validInvitee(request.resource.data.inviteeIds, 3);
+      allow create: if legacyInvitationJoinEnabled() && socialUser() && validPlan()
         && !exists(/databases/$(database)/documents/jointPlanTombstones/$(planId))
         && request.resource.data.ownerId == request.auth.uid
         && request.resource.data.careerId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.activeCareerId
@@ -488,8 +691,44 @@ service cloud.firestore {
         && !request.resource.data.get('deleting', false)
         && validInvitee(request.resource.data.inviteeIds, 0) && validInvitee(request.resource.data.inviteeIds, 1)
         && validInvitee(request.resource.data.inviteeIds, 2) && validInvitee(request.resource.data.inviteeIds, 3);
-      allow update: if socialUser() && legacyPlan(resource.data) && visiblePlan(resource.data) && validPlan()
-        && (closePlan() || beginDeletion() || changeOwnMembership() || renamePlan() || inviteMember());
+      // Until create/invite/join integration, v2 permits only safe owner closure/retirement.
+      allow update: if socialUser() && legacySourceWritable(planId) && instancePlan(resource.data) && proposalAuthority(request.auth.uid)
+        && request.resource.data.updatedAt == request.time && (closePlan() || beginDeletion());
+      allow update: if legacyInvitationJoinEnabled() && socialUser() && instancePlan(resource.data) && validInstancePlanShape()
+        && (inviteInstanceMember() || joinInstanceMember());
+      function joinInstanceMember() {
+        let before = resource.data;
+        let after = request.resource.data;
+        let uid = request.auth.uid;
+        let binding = after.participants[uid];
+        return uid != before.ownerId && uid in before.inviteeIds && !(uid in before.memberIds)
+          && !before.closed && !before.deleting && proposalAuthority(uid)
+          && after.diff(before).affectedKeys().hasOnly(['memberIds', 'participants', 'updatedAt'])
+          && after.memberIds.toSet() == before.memberIds.toSet().union([uid].toSet())
+          && after.participants.diff(before.participants).affectedKeys().hasOnly([uid])
+          && binding.keys().hasAll(['careerInstanceId', 'bindingState'])
+          && binding.keys().hasOnly(['careerInstanceId', 'bindingState'])
+          && (before.participants[uid].bindingState != 'resolved'
+            || before.participants[uid].careerInstanceId == binding.careerInstanceId)
+          && operationalBinding(after, uid);
+      }
+      function inviteInstanceMember() {
+        let before = resource.data;
+        let after = request.resource.data;
+        let added = after.inviteeIds.removeAll(before.inviteeIds);
+        return openMember(before) && proposalAuthority(request.auth.uid)
+          && operationalBinding(before, request.auth.uid)
+          && after.diff(before).affectedKeys().hasOnly(['inviteeIds', 'participants', 'invitedBy', 'updatedAt'])
+          && added.size() == 1 && after.inviteeIds.hasAll(before.inviteeIds)
+          && after.participants.diff(before.participants).affectedKeys().hasOnly([added[0]])
+          && after.invitedBy.diff(before.invitedBy).affectedKeys().hasOnly([added[0]])
+          && pendingBindingAt(added, 0) && validInvitee(added, 0);
+      }
+      // RC-1: membership changes dispatch only to exact removal; additions are disabled.
+      allow update: if socialUser() && legacySourceWritable(planId) && resource.data.get('schemaVersion', 0) == 0
+        && (request.resource.data.diff(resource.data).affectedKeys().hasAny(['memberIds', 'inviteeIds'])
+          ? changeOwnMembership() : (closePlan() || beginDeletion() || renamePlan()))
+        && legacyPlan(resource.data) && visiblePlan(resource.data) && validPlan();
       function renamePlan() {
         return openMember(resource.data)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'updatedAt']);
@@ -522,18 +761,14 @@ service cloud.firestore {
         let uid = request.auth.uid;
         return uid != before.ownerId && uid in before.inviteeIds && !before.get('deleting', false)
           && after.diff(before).affectedKeys().hasOnly(['memberIds', 'inviteeIds', 'invitedBy', 'updatedAt'])
-          && ((!before.closed && after.inviteeIds == before.inviteeIds
-            && after.get('invitedBy', {}) == before.get('invitedBy', {})
-            && after.memberIds.toSet() == before.memberIds.toSet().union([uid].toSet())
-            && before.careerId == get(/databases/$(database)/documents/users/$(uid)).data.activeCareerId)
-          || (invitationRemoved(uid, planId)
-            && after.memberIds.toSet() == before.memberIds.toSet().difference([uid].toSet())
-            && after.get('invitedBy', {}).diff(before.get('invitedBy', {})).affectedKeys().hasOnly([uid])
-            && after.inviteeIds.toSet() == before.inviteeIds.toSet().difference([uid].toSet())));
+          && after.memberIds.toSet() == before.memberIds.toSet().difference([uid].toSet())
+          && after.inviteeIds.toSet() == before.inviteeIds.toSet().difference([uid].toSet())
+          && after.get('invitedBy', {}).diff(before.get('invitedBy', {})).affectedKeys().hasOnly([uid])
+          && invitationRemoved(uid, planId);
       }
       match /subjects/{code} {
         function plan() { return get(/databases/$(database)/documents/jointPlans/$(planId)).data; }
-        function editor() { return legacyPlan(plan()) && openMember(plan()); }
+        function editor() { return legacySourceWritable(planId) && !instancePlan(plan()) && legacyPlan(plan()) && openMember(plan()); }
         allow get, list: if socialUser() && (request.auth.uid == plan().ownerId
           || (!plan().get('deleting', false) && request.auth.uid in plan().memberIds));
         allow create, update: if socialUser() && editor()
@@ -546,6 +781,28 @@ service cloud.firestore {
           && request.resource.data.proposedParticipantIds.toSet().size() == request.resource.data.proposedParticipantIds.size()
           && request.resource.data.proposedParticipantIds.toSet().difference(plan().inviteeIds.toSet()).hasOnly([plan().ownerId])
           && request.resource.data.updatedAt == request.time;
+        allow create, update: if socialUser() && legacySourceWritable(planId) && validInstanceSubject();
+        function validInstanceSubject() {
+          let p = proposalPlan();
+          let before = get(/databases/$(database)/documents/jointPlans/$(planId)/subjectChecks/$(code));
+          let after = getAfter(/databases/$(database)/documents/jointPlans/$(planId)/subjectChecks/$(code)).data;
+          let d = request.resource.data;
+          let ids = d.proposedParticipantIds;
+          let added = ids.removeAll(resource == null ? [] : resource.data.proposedParticipantIds);
+          return instancePlan(p) && openMember(p) && operationalBinding(p, request.auth.uid)
+            && (before == null ? after.revision == 1 : after.revision == before.data.revision + 1)
+            && after.actorUid == request.auth.uid && after.updatedAt == request.time
+            && d.keys().hasAll(['code', 'proposedParticipantIds', 'addedByUid', 'createdAt', 'updatedAt'])
+            && d.keys().hasOnly(['code', 'proposedParticipantIds', 'addedByUid', 'createdAt', 'updatedAt'])
+            && d.code == code && code.size() > 0 && code.size() <= 100 && d.updatedAt == request.time
+            && (resource == null ? d.addedByUid == request.auth.uid && d.createdAt == request.time
+              : d.addedByUid == resource.data.get('addedByUid', p.ownerId)
+                && d.createdAt == resource.data.get('createdAt', resource.data.updatedAt))
+            && ids is list && ids.size() >= 2 && ids.size() <= 5 && ids.toSet().size() == ids.size()
+            && added.toSet().difference(p.inviteeIds.toSet()).hasOnly([p.ownerId])
+            && bindingAt(p, added, 0) && bindingAt(p, added, 1) && bindingAt(p, added, 2)
+            && bindingAt(p, added, 3) && bindingAt(p, added, 4);
+        }
         function validAttribution() {
           let data = request.resource.data;
           return !exists(/databases/$(database)/documents/jointPlans/$(planId)/subjects/$(code))
@@ -553,8 +810,457 @@ service cloud.firestore {
             : data.addedByUid == resource.data.get('addedByUid', plan().ownerId)
               && data.createdAt == resource.data.get('createdAt', resource.data.updatedAt);
         }
-        allow delete: if socialUser() && legacyPlan(plan()) && (editor()
+        allow delete: if socialUser() && legacySourceWritable(planId) && instancePlan(proposalPlan())
+          && (instanceCleanup(proposalPlan()) || (openMember(proposalPlan())
+            && proposalAuthority(request.auth.uid) && operationalBinding(proposalPlan(), request.auth.uid)));
+        allow delete: if socialUser() && legacySourceWritable(planId) && !instancePlan(plan()) && legacyPlan(plan()) && (editor()
           || (request.auth.uid == plan().ownerId && plan().closed && plan().get('deleting', false)));
+      }
+    }
+
+    function cDiscoveryRef(u,p) {
+      let d=getAfter(/databases/$(database)/documents/users/$(u)/jointPlanRefs/$(p)).data;
+      return d.keys().hasAll(['schemaVersion'])
+        && d.keys().hasOnly(['schemaVersion','createdAt'])
+        && d.schemaVersion == 1 && (!('createdAt' in d) || d.createdAt is timestamp);
+    }
+    match /users/{u}/jointPlanRefs/{p} {
+      allow get,list: if signedIn() && request.auth.uid == u;
+      allow delete: if false;
+      allow update: if socialUser() && cDiscoveryRef(u,p)
+        && request.resource.data == resource.data && invited();
+      allow create: if socialUser() && cDiscoveryRef(u,p)
+        && (!('createdAt' in request.resource.data) || request.resource.data.createdAt == request.time) && acquisition();
+      function acquisition() {
+        let path=/databases/$(database)/documents/jointPlans/$(p);
+        let plan=getAfter(path).data;
+        return cPlan(plan) && (plan.ownerId == u
+          ? request.auth.uid == u && !exists(path) && plan.createdAt == request.time
+          : invited());
+      }
+      function invited() {
+        let idx=/databases/$(database)/documents/jointPlans/$(p)/inviteeIndex/$(u);
+        let s=getAfter(idx).data.slotId;
+        let path=/databases/$(database)/documents/jointPlans/$(p)/slots/$(s);
+        let a=getAfter(path).data;
+        return !exists(idx) && cSlotId(s) && get(path).data.status == 'empty'
+          && a.uid == u && a.status == 'pending' && a.invitedBy == request.auth.uid
+          && a.updatedAt == request.time;
+      }
+    }
+    // C schema 3: structural protocol; no service or migration activation in Slice 1.
+    function cPlan(p) { return p.get('schemaVersion', 0) == 3; }
+    function cSlotId(s) { return s in ['slot1','slot2','slot3','slot4']; }
+    function cOpaqueId(s) { return s is string && s.matches('^[A-Za-z0-9]{16,40}$'); }
+    function cSlotAuthority(u) {
+      let d=getAfter(/databases/$(database)/documents/migrationUsers/$(u)).data;
+      return validAuthority(d,u) && d.authority == 'instances' && d.phase == 'complete';
+    }
+    function cSlotBinding(u,i,c) {
+      let d=getAfter(/databases/$(database)/documents/users/$(u)/careerInstances/$(i)).data;
+      return d.schemaVersion == 1 && d.lifecycle == 'active' && d.catalogId == c;
+    }
+    function cSlotFriend(a,u,c) {
+      let f=getAfter(/databases/$(database)/documents/friendships/$(a+':'+u));
+      let b=getAfter(/databases/$(database)/documents/friendships/$(u+':'+a));
+      return (f != null && b == null && f.data.status == 'accepted' && f.data.cycleId == c)
+        || (b != null && f == null && b.data.status == 'accepted' && b.data.cycleId == c);
+    }
+    match /jointPlans/{planId} {
+      function parent() { return getAfter(/databases/$(database)/documents/jointPlans/$(planId)).data; }
+      function cPublished(p) {
+        return cPlan(p) && !existsAfter(/databases/$(database)/documents/jointPlanTombstones/$(planId))
+          && (p.origin == 'native' || (p.origin == 'migrated'
+          && get(/databases/$(database)/documents/jointPlanControls/$(planId)).data.state == 'active'));
+      }
+      function openPlan(p) { return cPublished(p) && !p.closed && !p.deleting; }
+      function actorBinding(p,u) {
+        let index=getAfter(/databases/$(database)/documents/jointPlans/$(planId)/inviteeIndex/$(u)).data;
+        let s=getAfter(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(index.slotId)).data;
+        return cSlotId(index.slotId) && s.uid == u && s.status == 'member'
+          && cSlotBinding(u,s.binding,p.catalogId);
+      }
+      function actorValid(p) {
+        return cSlotAuthority(request.auth.uid) && (p.ownerId == request.auth.uid
+          ? cSlotBinding(request.auth.uid,p.ownerInstanceId,p.catalogId) : actorBinding(p,request.auth.uid));
+      }
+      function blank(s) {
+        return s.keys().hasAll(['status','uid','revision','occurrence','cycle','invitedBy','binding','joinedOccurrence','updatedAt'])
+          && s.keys().hasOnly(['status','uid','revision','occurrence','cycle','invitedBy','binding','joinedOccurrence','updatedAt'])
+          && s.status == 'empty' && s.uid == null && s.revision == 0 && s.occurrence == null
+          && s.cycle == null && s.invitedBy == null && s.binding == null && s.joinedOccurrence == null && s.updatedAt == request.time;
+      }
+      function initialSlot(s) {
+        return blank(getAfter(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(s)).data);
+      }
+      function validCName(name) {
+        return name is string && name.size() >= 1 && name.size() <= 80
+          && name.matches('.*[^\\s].*') && !name.matches('.*[\\x00-\\x1F\\x7F].*');
+      }
+      allow create: if socialUser() && cOpaqueId(planId)
+        && request.resource.data.keys().hasAll(['schemaVersion','origin','ownerId','ownerInstanceId','catalogId','closed','deleting','createdAt'])
+        && request.resource.data.keys().hasOnly(['schemaVersion','origin','ownerId','ownerInstanceId','catalogId','closed','deleting','createdAt','name'])
+        && (!('name' in request.resource.data) || validCName(request.resource.data.name))
+        && request.resource.data.origin == 'native' && openPlan(request.resource.data) && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.catalogId is string && request.resource.data.ownerInstanceId is string
+        && request.resource.data.createdAt == request.time && actorValid(request.resource.data)
+        && !exists(/databases/$(database)/documents/jointPlanTombstones/$(planId))
+        && cDiscoveryRef(request.auth.uid,planId) && initialSlot('slot1') && initialSlot('slot2') && initialSlot('slot3') && initialSlot('slot4');
+      allow get: if socialUser() && cPublished(resource.data) && !resource.data.deleting && (resource.data.ownerId == request.auth.uid
+        || exists(/databases/$(database)/documents/jointPlans/$(planId)/inviteeIndex/$(request.auth.uid)));
+      function terminalOwner() {
+        return cPublished(resource.data) && !resource.data.deleting
+          && resource.data.ownerId == request.auth.uid && cSlotAuthority(request.auth.uid);
+      }
+      // Delete checks publication before the tombstone is created in this commit.
+      function deleteOwner() {
+        let p=resource.data;
+        return cPlan(p) && !p.deleting && p.ownerId == request.auth.uid && cSlotAuthority(request.auth.uid)
+          && (p.origin == 'native' || (p.origin == 'migrated'
+            && get(/databases/$(database)/documents/jointPlanControls/$(planId)).data.state == 'active'))
+          && !exists(/databases/$(database)/documents/jointPlanTombstones/$(planId));
+      }
+      allow update: if socialUser()
+        && (request.resource.data.deleting
+          ? deleteOwner() && request.resource.data.closed
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['closed','deleting'])
+            && getAfter(/databases/$(database)/documents/jointPlanTombstones/$(planId)).data.deletedAt == request.time
+          : terminalOwner() && !resource.data.closed
+            && (request.resource.data.closed
+              ? request.resource.data.diff(resource.data).affectedKeys().hasOnly(['closed'])
+              : request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+                && validCName(request.resource.data.name)));
+      allow delete, list: if false;
+      match /slots/{s} {
+        function indexed(u) {
+          return getAfter(/databases/$(database)/documents/jointPlans/$(planId)/inviteeIndex/$(u)).data.slotId == s;
+        }
+        function activation() {
+          let a=request.resource.data;
+          let b=resource.data;
+          let p=parent();
+          let o=getAfter(/databases/$(database)/documents/jointPlans/$(planId)/invitationOccurrences/$(a.occurrence)).data;
+          return openPlan(p) && actorValid(p) && a.uid != p.ownerId
+            && a.diff(b).affectedKeys().hasOnly(['status','uid','revision','occurrence','cycle','invitedBy','updatedAt'])
+            && a.status == 'pending' && a.binding == null && a.joinedOccurrence == null
+            && a.uid is string && a.uid.matches('^[A-Za-z0-9_-]+$') && indexed(a.uid)
+            && a.revision == b.revision+1 && a.revision <= 9007199254740991
+            && cOpaqueId(a.occurrence) && a.occurrence != b.occurrence && a.updatedAt == request.time
+            && a.invitedBy == request.auth.uid
+            && (b.status == 'empty' || (b.status == 'pending' && a.uid == b.uid && a.invitedBy == b.invitedBy && a.cycle != b.cycle))
+            && o.slotId == s && o.uid == a.uid && o.invitedBy == a.invitedBy && o.cycle == a.cycle
+            && o.revision == a.revision && o.createdAt == request.time
+            && !exists(/databases/$(database)/documents/jointPlans/$(planId)/invitationOccurrences/$(a.occurrence));
+        }
+        function releasing() {
+          let a=request.resource.data;
+          let b=resource.data;
+          let p=parent();
+          return cPublished(p) && !p.deleting && cSlotAuthority(request.auth.uid)
+            && b.uid == request.auth.uid && b.status in ['pending','member']
+            && a.keys() == b.keys() && a.status == 'empty' && a.uid == null
+            && a.revision == b.revision+1 && a.revision <= 9007199254740991
+            && a.occurrence == null && a.cycle == null && a.invitedBy == null
+            && a.binding == null && a.joinedOccurrence == null && a.updatedAt == request.time
+            && get(/databases/$(database)/documents/jointPlans/$(planId)/inviteeIndex/$(b.uid)).data.slotId == s
+            && !existsAfter(/databases/$(database)/documents/jointPlans/$(planId)/inviteeIndex/$(b.uid));
+        }
+        function joining() {
+          let a=request.resource.data;
+          let b=resource.data;
+          let p=parent();
+          let o=get(/databases/$(database)/documents/jointPlans/$(planId)/invitationOccurrences/$(b.occurrence)).data;
+          return openPlan(p) && b.status == 'pending' && b.uid == request.auth.uid && indexed(request.auth.uid)
+            && a.diff(b).affectedKeys().hasOnly(['status','binding','joinedOccurrence','updatedAt'])
+            && a.status == 'member' && a.joinedOccurrence == b.occurrence && a.updatedAt == request.time
+            && a.binding is string && cSlotAuthority(request.auth.uid) && cSlotBinding(request.auth.uid,a.binding,p.catalogId)
+            && o.slotId == s && o.uid == request.auth.uid && o.invitedBy == b.invitedBy && o.cycle == b.cycle
+            && cSlotFriend(b.invitedBy,request.auth.uid,b.cycle);
+        }
+        allow create: if socialUser() && cPlan(parent()) && cSlotId(s) && blank(request.resource.data)
+          && !exists(/databases/$(database)/documents/jointPlans/$(planId))
+          && parent().ownerId == request.auth.uid && parent().createdAt == request.time;
+        allow update: if socialUser() && cSlotId(s) && (request.resource.data.status == 'empty' ? releasing() : (activation() || joining()));
+        allow get: if socialUser() && cPublished(parent()) && !parent().deleting && (parent().ownerId == request.auth.uid || resource.data.uid == request.auth.uid || actorValid(parent()));
+        allow delete,list: if false;
+      }
+      match /inviteeIndex/{u} {
+        allow create: if socialUser() && cPlan(parent()) && request.resource.data.keys().hasAll(['slotId'])
+          && request.resource.data.keys().hasOnly(['slotId']) && cSlotId(request.resource.data.slotId)
+          && get(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(request.resource.data.slotId)).data.status == 'empty'
+          && getAfter(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(request.resource.data.slotId)).data.uid == u
+          && getAfter(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(request.resource.data.slotId)).data.status == 'pending' && cDiscoveryRef(u,planId);
+        allow get: if socialUser() && cPublished(parent()) && !parent().deleting && (u == request.auth.uid || parent().ownerId == request.auth.uid);
+        allow delete: if socialUser() && cPublished(parent()) && !parent().deleting && u == request.auth.uid
+          && get(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(resource.data.slotId)).data.uid == u
+          && getAfter(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(resource.data.slotId)).data.status == 'empty'
+          && getAfter(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(resource.data.slotId)).data.revision
+            == get(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(resource.data.slotId)).data.revision+1;
+        allow update,list: if false;
+      }
+      // C subject bases are immutable; edges retain their historical occupancy.
+      function edgeRefShape(r) {
+        return r is map && r.keys().hasAll(['slotId','instanceId','occurrence','slotRevision'])
+          && r.keys().hasOnly(['slotId','instanceId','occurrence','slotRevision'])
+          && r.instanceId is string && r.instanceId.matches('^[A-Za-z0-9_-]{1,100}$')
+          && r.slotRevision is int && r.slotRevision >= 0 && r.slotRevision <= 9007199254740991
+          && (r.slotId == 'owner' ? r.occurrence == 'owner' && r.slotRevision == 0
+            : cSlotId(r.slotId) && r.slotRevision > 0 && r.occurrence is string
+              && r.occurrence.matches('^(import_)?[A-Za-z0-9]{16,40}$'));
+      }
+      function edgeSlot(u,r) {
+        let s=getAfter(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(r.slotId)).data;
+        return cSlotId(r.slotId) && s.uid == u && s.status == 'member'
+          && s.binding == r.instanceId && s.occurrence == r.occurrence
+          && s.joinedOccurrence == r.occurrence && s.revision == r.slotRevision;
+      }
+      function edgeOperational(p,u,r) {
+        return edgeRefShape(r) && cSlotAuthority(u)
+          && (u == p.ownerId
+            ? r.slotId == 'owner' && r.instanceId == p.ownerInstanceId
+            : edgeSlot(u,r))
+          && cSlotBinding(u,r.instanceId,p.catalogId);
+      }
+      function edgeJoinedReader() {
+        let idx=get(/databases/$(database)/documents/jointPlans/$(planId)/inviteeIndex/$(request.auth.uid)).data;
+        let s=get(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(idx.slotId)).data;
+        return cSlotId(idx.slotId) && s.uid == request.auth.uid && s.status == 'member';
+      }
+      function edgeReader() {
+        let p=parent();
+        return cPublished(p) && !p.deleting && cSlotAuthority(request.auth.uid)
+          && (p.ownerId == request.auth.uid || edgeJoinedReader());
+      }
+      match /subjects/{code} {
+        function baseShape(d) {
+          return d.keys().hasAll(['schemaVersion','code','createdByUid','createdAt','creatorRef'])
+            && d.keys().hasOnly(['schemaVersion','code','createdByUid','createdAt','creatorRef'])
+            && d.schemaVersion is int && d.schemaVersion == 1 && d.code == code && code.size() > 0 && code.size() <= 100
+            && d.createdByUid is string && d.createdByUid.matches('^[A-Za-z0-9_-]{1,100}$')
+            && d.createdAt is timestamp && edgeRefShape(d.creatorRef);
+        }
+        allow create: if socialUser() && openPlan(parent()) && baseShape(request.resource.data)
+          && request.resource.data.createdByUid == request.auth.uid && request.resource.data.createdAt == request.time
+          && edgeOperational(parent(),request.auth.uid,request.resource.data.creatorRef);
+        allow get,list: if socialUser() && edgeReader();
+        allow update,delete: if false;
+        match /memberEdges/{edgeId} {
+          function edgeCreate() {
+            let p=parent();
+            // A base must predate this operation; no combined base+edge creation.
+            let base=get(/databases/$(database)/documents/jointPlans/$(planId)/subjects/$(code)).data;
+            let d=request.resource.data;
+            return openPlan(p) && baseShape(base)
+              && d.keys().hasAll(['schemaVersion','uid','targetRef','state','revision','createdByUid','createdAt','updatedByUid','updatedAt','actorRef'])
+              && d.keys().hasOnly(['schemaVersion','uid','targetRef','state','revision','createdByUid','createdAt','updatedByUid','updatedAt','actorRef'])
+              && d.schemaVersion is int && d.schemaVersion == 1 && d.uid is string && d.uid.matches('^[A-Za-z0-9_-]{1,100}$')
+              && edgeId == d.uid+':'+d.targetRef.occurrence
+              && d.state == 'assigned' && d.revision is int && d.revision == 1
+              && d.createdByUid == request.auth.uid && d.createdAt == request.time
+              && d.updatedByUid == request.auth.uid && d.updatedAt == request.time
+              && edgeOperational(p,request.auth.uid,d.actorRef)
+              && (d.uid == request.auth.uid ? d.targetRef == d.actorRef : edgeOperational(p,d.uid,d.targetRef));
+          }
+          allow create: if socialUser() && edgeCreate();
+          allow get,list: if socialUser() && edgeReader();
+          // Only edgeTransition calls this, AFTER edgeRefShape(targetRef).
+          // Preserve private authority/binding checks without validating the same
+          // immutable reference twice. No new read or client-visible permission.
+          function transitionTargetOperational(p,u,r) {
+            return cSlotAuthority(u)
+              && (u == p.ownerId
+                ? r.slotId == 'owner' && r.instanceId == p.ownerInstanceId
+                : edgeSlot(u,r))
+              && cSlotBinding(u,r.instanceId,p.catalogId);
+          }
+          function edgeTransition() {
+            let p=parent();
+            let before=resource.data;
+            let after=request.resource.data;
+            return openPlan(p)
+              && before.keys().hasAll(['schemaVersion','uid','targetRef','state','revision','createdByUid','createdAt','updatedByUid','updatedAt','actorRef'])
+              && before.keys().hasOnly(['schemaVersion','uid','targetRef','state','revision','createdByUid','createdAt','updatedByUid','updatedAt','actorRef'])
+              && before.schemaVersion is int && before.schemaVersion == 1
+              && before.uid is string && before.uid.matches('^[A-Za-z0-9_-]{1,100}$')
+              && edgeRefShape(before.targetRef) && edgeId == before.uid+':'+before.targetRef.occurrence
+              && before.createdAt is timestamp && before.createdByUid is string
+              && before.revision is int && before.revision >= 1 && before.revision < 9007199254740991
+              && after.diff(before).affectedKeys().hasOnly(['state','revision','updatedByUid','updatedAt','actorRef'])
+              && after.revision is int && after.revision == before.revision + 1
+              && after.updatedByUid == request.auth.uid && after.updatedAt == request.time
+              && baseShape(get(/databases/$(database)/documents/jointPlans/$(planId)/subjects/$(code)).data)
+              && edgeOperational(p,request.auth.uid,after.actorRef)
+              && ((before.state == 'assigned' && after.state == 'unassigned')
+                || (before.state == 'unassigned' && after.state == 'assigned'
+                  && transitionTargetOperational(p,before.uid,before.targetRef)));
+          }
+          allow update: if socialUser() && edgeTransition();
+          allow delete: if false;
+        }
+      }
+
+      match /invitationOccurrences/{o} {
+        function occurrence() {
+          let d=request.resource.data;
+          let b=get(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(d.slotId)).data;
+          let a=getAfter(/databases/$(database)/documents/jointPlans/$(planId)/slots/$(d.slotId)).data;
+          let path=/databases/$(database)/documents/users/$(d.uid)/activityInbox/$('sp_'+planId+'_'+o);
+          return cOpaqueId(o) && d.keys().hasAll(['slotId','uid','invitedBy','cycle','revision','createdAt'])
+            && d.keys().hasOnly(['slotId','uid','invitedBy','cycle','revision','createdAt'])
+            && cSlotId(d.slotId) && d.invitedBy == request.auth.uid && d.createdAt == request.time
+            && a.occurrence == o && b.occurrence != o && a.uid == d.uid && a.cycle == d.cycle
+            && a.invitedBy == d.invitedBy && a.revision == d.revision
+            && cSlotAuthority(d.uid) && cSlotFriend(d.invitedBy,d.uid,d.cycle)
+            && !exists(path) && getAfter(path).data.occurrence == o;
+        }
+        allow create: if socialUser() && cPlan(parent()) && activityCreationEnabled() && occurrence();
+        allow get: if socialUser() && cPublished(parent()) && !parent().deleting && request.auth.uid in [resource.data.uid,resource.data.invitedBy];
+        allow update,delete,list: if false;
+      }
+    }
+    match /users/{u}/activityInbox/{id} {
+      function slotNotice() {
+        let d=request.resource.data;
+        let path=/databases/$(database)/documents/jointPlans/$(d.planId)/invitationOccurrences/$(d.occurrence);
+        let o=getAfter(path).data;
+        return d.keys().hasAll(['schemaVersion','type','planId','occurrence','actorUid','cycle','createdAt','readAt'])
+          && d.keys().hasOnly(['schemaVersion','type','planId','occurrence','actorUid','cycle','createdAt','readAt'])
+          && d.schemaVersion == 3 && d.type == 'SLOT_INVITATION' && cOpaqueId(d.planId) && cOpaqueId(d.occurrence)
+          && id == 'sp_'+d.planId+'_'+d.occurrence && d.actorUid == request.auth.uid && u != request.auth.uid
+          && d.createdAt == request.time && d.readAt == null && !exists(path)
+          && o.uid == u && o.invitedBy == d.actorUid && o.cycle == d.cycle && o.createdAt == request.time;
+      }
+      allow create: if socialUser() && activityCreationEnabled() && slotNotice();
+    }
+
+
+
+    // Protected publication/provenance: no client grants.
+    match /jointPlanControls/{planId} { allow read, write: if false; }
+    match /jointPlanLegacyControls/{planId} { allow read, write: if false; }
+
+    // Versioned friendship is a separate wire contract, never a legacy upgrade.
+    function cycleShape(d, id) {
+      return d.keys().hasAll(['participants', 'senderId', 'recipientId', 'status', 'cycleId'])
+        && d.keys().hasOnly(['participants', 'senderId', 'recipientId', 'status', 'cycleId'])
+        && d.participants is list && d.participants.size() == 2
+        && d.participants[0] is string && d.participants[1] is string
+        && d.participants[0].matches('^[A-Za-z0-9_-]+$')
+        && d.participants[1].matches('^[A-Za-z0-9_-]+$')
+        && d.participants[0] < d.participants[1]
+        && id == d.participants[0] + ':' + d.participants[1]
+        && d.senderId in d.participants && d.recipientId in d.participants
+        && d.senderId != d.recipientId
+        && d.status in ['pending', 'accepted', 'rejected', 'withdrawn']
+        && d.cycleId is string && d.cycleId.matches('^[A-Za-z0-9_-]{16,64}$');
+    }
+    function acceptedLegacySource(d, id) {
+      return d.keys().hasAll(['participants','senderId','recipientId','status','createdAt','updatedAt'])
+        && d.keys().hasOnly(['participants','senderId','recipientId','status','createdAt','updatedAt'])
+        && d.participants is list && d.participants.size() == 2
+        && d.participants[0] is string && d.participants[1] is string
+        && d.participants[0].matches('^[A-Za-z0-9_-]+$') && d.participants[1].matches('^[A-Za-z0-9_-]+$')
+        && d.participants[0] != d.participants[1] && id == d.participants.join(':')
+        && d.senderId in d.participants && d.recipientId in d.participants && d.senderId != d.recipientId
+        && request.auth.uid in d.participants && d.status == 'accepted'
+        && d.createdAt is timestamp && d.updatedAt is timestamp;
+    }
+    function legacyUpgradeSource(id, d) {
+      let direct = /databases/$(database)/documents/friendships/$(id);
+      let reverseId = d.participants[1] + ':' + d.participants[0];
+      let reverse = /databases/$(database)/documents/friendships/$(reverseId);
+      let canonicalExists = exists(direct);
+      let before = canonicalExists ? get(direct).data : get(reverse).data;
+      return (canonicalExists ? !exists(reverse) : exists(reverse))
+        && acceptedLegacySource(before, canonicalExists ? id : reverseId)
+        && before.participants.toSet() == d.participants.toSet()
+        && before.senderId == d.senderId && before.recipientId == d.recipientId
+        && !existsAfter(reverse);
+    }
+    function acceptedLegacyUpgrade(id, d) {
+      let cert = /databases/$(database)/documents/usedFriendshipCycles/$(d.cycleId);
+      return cycleShape(d,id) && d.status == 'accepted' && legacyUpgradeSource(id,d)
+        && !exists(cert) && getAfter(cert).data.relationshipId == id
+        && getAfter(cert).data.participants == d.participants;
+    }
+    function cycleNoticeRequired(uid, itemId) {
+      let path = /databases/$(database)/documents/users/$(uid)/activityInbox/$(itemId);
+      // Its own create rule validates the exact payload and source transition.
+      return !exists(path) && existsAfter(path);
+    }
+    function freshCycle(d, id) {
+      let cert = /databases/$(database)/documents/usedFriendshipCycles/$(d.cycleId);
+      return d.status == 'pending' && d.senderId == request.auth.uid
+        && !existsAfter(/databases/$(database)/documents/friendships/$(d.participants[1] + ':' + d.participants[0]))
+        && !exists(cert) && getAfter(cert).data.relationshipId == id
+        && getAfter(cert).data.participants == d.participants
+        && cycleNoticeRequired(d.recipientId, 'fr_' + d.cycleId);
+    }
+    match /friendships/{id} {
+      allow create, update: if socialUser() && acceptedLegacyUpgrade(id,request.resource.data);
+      allow delete: if socialUser() && acceptedLegacySource(resource.data,id)
+        && resource.data.participants[0] > resource.data.participants[1]
+        && acceptedLegacyUpgrade(resource.data.participants[1] + ':' + resource.data.participants[0],
+          getAfter(/databases/$(database)/documents/friendships/$(resource.data.participants[1] + ':' + resource.data.participants[0])).data);
+      allow create: if socialUser() && cycleShape(request.resource.data, id)
+        && freshCycle(request.resource.data, id);
+      allow update: if socialUser() && cycleShape(resource.data, id)
+        && cycleShape(request.resource.data, id)
+        && request.auth.uid in resource.data.participants
+        && request.resource.data.participants == resource.data.participants
+        && ((resource.data.status in ['withdrawn', 'rejected']
+            && freshCycle(request.resource.data, id))
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+            && ((resource.data.status == 'pending' && request.auth.uid == resource.data.recipientId
+                && request.resource.data.status in ['accepted', 'rejected']
+                && (request.resource.data.status == 'rejected'
+                  || cycleNoticeRequired(resource.data.senderId, 'fa_' + resource.data.cycleId)))
+              || (resource.data.status in ['pending', 'accepted']
+                && request.resource.data.status == 'withdrawn'))));
+    }
+    match /usedFriendshipCycles/{cycleId} {
+      allow read, update, delete: if false;
+      allow create: if socialUser()
+        && cycleId.matches('^[A-Za-z0-9_-]{16,64}$')
+        && request.resource.data.keys().hasAll(['relationshipId', 'participants'])
+        && request.resource.data.keys().hasOnly(['relationshipId', 'participants'])
+        && certifiesCycle(request.resource.data);
+      function certifiesCycle(d) {
+        let path = /databases/$(database)/documents/friendships/$(d.relationshipId);
+        let after = getAfter(path).data;
+        return after.cycleId == cycleId && after.participants == d.participants
+          && ((after.status == 'accepted' && acceptedLegacyUpgrade(d.relationshipId,after))
+            || (after.status == 'pending' && after.senderId == request.auth.uid
+              && (!exists(path) || (get(path).data.status in ['withdrawn', 'rejected']
+                && get(path).data.cycleId != cycleId))));
+      }
+    }
+    match /users/{uid}/activityInbox/{itemId} {
+      allow create: if socialUser() && activityCreationEnabled() && cycleNotice();
+      function cycleNotice() {
+        let n = request.resource.data;
+        return n.keys().hasAll(['schemaVersion', 'type', 'actorUid', 'createdAt', 'target', 'readAt', 'friendshipCycleId'])
+          && n.keys().hasOnly(['schemaVersion', 'type', 'actorUid', 'createdAt', 'target', 'readAt', 'friendshipCycleId'])
+          && n.schemaVersion is int && n.schemaVersion == 2
+          && n.actorUid == request.auth.uid && uid != request.auth.uid
+          && n.createdAt == request.time && n.readAt == null
+          && n.target is map && n.target.keys().hasAll(['kind', 'id'])
+          && n.target.keys().hasOnly(['kind', 'id']) && n.target.kind == 'friendship'
+          && n.target.id is string && n.target.id.matches('^[A-Za-z0-9_-]+:[A-Za-z0-9_-]+$')
+          && n.friendshipCycleId is string && n.friendshipCycleId.matches('^[A-Za-z0-9_-]{16,64}$')
+          && cycleNoticeTransition(n);
+      }
+      function cycleNoticeTransition(n) {
+        let path = /databases/$(database)/documents/friendships/$(n.target.id);
+        let after = getAfter(path).data;
+        return n.friendshipCycleId == after.cycleId
+          && ((n.type == 'FRIEND_REQUEST' && itemId == 'fr_' + after.cycleId
+              && after.status == 'pending' && after.senderId == request.auth.uid && after.recipientId == uid
+              && (!exists(path) || (get(path).data.status in ['withdrawn', 'rejected']
+                && get(path).data.cycleId != after.cycleId)))
+            || (n.type == 'FRIEND_ACCEPTED' && itemId == 'fa_' + after.cycleId
+              && after.status == 'accepted' && after.recipientId == request.auth.uid && after.senderId == uid
+              && get(path).data.status == 'pending' && get(path).data.cycleId == after.cycleId));
       }
     }
 
@@ -571,6 +1277,7 @@ service cloud.firestore {
       allow delete: if false;
       allow create: if socialUser() && validRequest();
       allow update: if socialUser()
+        && !('cycleId' in resource.data) && !('cycleId' in request.resource.data)
         && resource.data.recipientId == request.auth.uid
         && resource.data.status == 'pending'
         && request.resource.data.status in ['accepted', 'rejected']

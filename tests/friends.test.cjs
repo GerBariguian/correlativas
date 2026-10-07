@@ -291,3 +291,7 @@ test('service never returns legacy email or other extra fields in profiles', asy
     assert.equal('statusMap' in profile, false)
   }
 })
+
+// Pure cycle domain regressions; legacy service remains unchanged.
+require('./friendship-cycle.test.cjs')
+require('./friendship-cycle-service.test.cjs')

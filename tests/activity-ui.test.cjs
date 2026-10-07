@@ -20,7 +20,7 @@ const stream=(status='ready',items=[])=>({status,items,diagnostics:[]})
 function bell(state={recent:stream(),unread:stream(),badge:null}) {
  const user={uid:'u'},navigations=[];let reads=0,retries=0
  const activity={state,actors:{},controller:{markRead:async()=>{reads++;return {status:'marked'}},retry:()=>retries++}}
- const h=harness('src/components/ActivityBell.jsx','ActivityBell',{auth:{currentUser:user}})
+ const h=harness('src/components/ActivityBell.jsx','ActivityBell',{auth:{currentUser:user},resolveActivityDestination:async()=>({destination:'joint',planId:'p',model:'C'})})
  const props={user,activity,onNavigate:r=>navigations.push(r)}
  return {...h,props,navigations,get reads(){return reads},get retries(){return retries},render:()=>h.render(props)}
 }
@@ -89,16 +89,16 @@ test('activity Planner intention waits for authorized list and consumes once wit
  let data={plans:[],state:'loading'},consumed=0
  const user={uid:'u'},career={id:'c',subjects:[]}
  const h=harness('src/components/PlannerPage.jsx','LegacyPlannerPage',{
-   Planner:'planner',PlanningComparison:'comparison',JointPlanPanel:'joint-panel',AddPlanSubjectDialog:'add-dialog',
+   Planner:'planner',PlanningComparison:'comparison',JointPlanHistory:'joint-history',JointPlanPanel:'joint-panel',AddPlanSubjectDialog:'add-dialog',
    usePlanningParticipants:()=>({friends:{profiles:{},ids:[],state:'ready'},participants:[]}),derivePlanningSnapshot:()=>({}),
    useJointPlans:()=>data,useJointProfiles:()=>({}),usePlanAcademicContext:()=>[],academicMessages:{},fallbackPlanName:()=>'',
  })
  const props={user,career,statusMap:{},activityIntent:{token:1,planId:'p'},onActivityConsumed:()=>consumed++}
- h.render(props);let tree=h.render(props);assert.ok(nodes(tree).some(n=>n.type==='joint-panel'));assert.equal(consumed,0)
+ h.render(props);let tree=h.render(props);assert.ok(nodes(tree).some(n=>n.type==='joint-history'));assert.equal(consumed,0)
  data={plans:[{id:'p',ownerId:'u',inviteeIds:[],memberIds:['u']}],state:'ready'};h.render(props);tree=h.render(props)
- assert.equal(nodes(tree).find(n=>n.type==='joint-panel').props.planId,'p');assert.equal(consumed,1)
+ assert.ok(!nodes(tree).some(n=>n.type==='joint-panel'));assert.equal(consumed,1)
  h.render(props);assert.equal(consumed,1)
- props.activityIntent={token:2,planId:'hidden'};h.render(props);tree=h.render(props);assert.equal(nodes(tree).find(n=>n.type==='joint-panel').props.planId,'');assert.equal(consumed,2)
+ props.activityIntent={token:2,planId:'hidden'};h.render(props);tree=h.render(props);assert.ok(!nodes(tree).some(n=>n.type==='joint-panel'));assert.equal(consumed,2)
  assert.ok(text(tree).includes('carrera actual'));h.stop()
 })
 for(const status of ['stale','missing','error'])test(`activity panel interaction ${status} stays safe`,async()=>{
