@@ -1,0 +1,471 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function socialUser() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+
+    // Deployment-time constant. The rollout generator changes ONLY this literal.
+    // Maintenance/recovery pauses new social events, never their safe cleanup.
+    function activityCreationEnabled() {
+      return true; // ACTIVITY_ROLLOUT_GATE
+    }
+
+    // The source requires the exact notice; the notice requires a real source
+    // transition in this same atomic request. Rules never generate writes.
+    function noticeRequired(uid, itemId, type, kind, id) {
+      let d = getAfter(/databases/$(database)/documents/users/$(uid)/activityInbox/$(itemId)).data;
+      return activityCreationEnabled()
+        && !exists(/databases/$(database)/documents/users/$(uid)/activityInbox/$(itemId))
+        && d.type == type && d.actorUid == request.auth.uid
+        && d.target.kind == kind && d.target.id == id
+        && d.createdAt == request.time && d.readAt == null;
+    }
+    function invitationRequired(uid, planId) {
+      return noticeRequired(uid, 'jp_' + planId, 'JOINT_PLAN_INVITATION', 'jointPlan', planId);
+    }
+    function invitationRemoved(uid, planId) {
+      return !existsAfter(/databases/$(database)/documents/users/$(uid)/activityInbox/$('jp_' + planId));
+    }
+
+    // The previous index may already be absent or belong to someone else.
+    // Never require (or authorize) deleting another user's index.
+    function releasedIndex(email, uid) {
+      return email == null
+        || !existsAfter(/databases/$(database)/documents/socialEmails/$(email))
+        || getAfter(/databases/$(database)/documents/socialEmails/$(email)).data.uid != uid;
+    }
+
+    function validPrivateIndex(uid, previousEmail) {
+      let email = request.resource.data.get('socialEmail', null);
+      return socialUser()
+        && email == request.auth.token.email.lower()
+        && getAfter(/databases/$(database)/documents/socialEmails/$(email)).data.uid == uid
+        && (previousEmail == email || releasedIndex(previousEmail, uid));
+    }
+
+    match /migrationUsers/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, create, update, delete: if false;
+    }
+
+    // Academic records remain private, including after accepting a friendship.
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid
+        && (!('socialEmail' in request.resource.data) || validPrivateIndex(uid, null));
+      allow update: if signedIn() && request.auth.uid == uid
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['socialEmail'])
+          || validPrivateIndex(uid, resource.data.get('socialEmail', null)));
+      allow delete: if signedIn() && request.auth.uid == uid
+        && releasedIndex(resource.data.get('socialEmail', null), uid);
+      match /careers/{careerId} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+      match /activityInbox/{itemId} {
+        allow get, list: if socialUser() && request.auth.uid == uid;
+        allow create: if socialUser() && activityCreationEnabled() && validNotice() && validNoticeTransition();
+        allow update: if socialUser() && request.auth.uid == uid
+          && resource.data.readAt == null && request.resource.data.readAt == request.time
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt']);
+        allow delete: if socialUser() && (request.auth.uid == uid || removingPlan());
+        function validNotice() {
+          let d = request.resource.data;
+          return d.keys().hasAll(['schemaVersion', 'type', 'actorUid', 'createdAt', 'target', 'readAt'])
+            && d.keys().hasOnly(['schemaVersion', 'type', 'actorUid', 'createdAt', 'target', 'readAt'])
+            && d.schemaVersion is int && d.schemaVersion == 1
+            && d.actorUid == request.auth.uid && d.actorUid != uid
+            && d.createdAt == request.time && d.readAt == null
+            && d.target is map && d.target.keys().hasAll(['kind', 'id'])
+            && d.target.keys().hasOnly(['kind', 'id']) && d.target.id is string
+            && ((d.type in ['FRIEND_REQUEST_RECEIVED', 'FRIEND_REQUEST_ACCEPTED']
+              && d.target.kind == 'friendship' && d.target.id.matches('^[A-Za-z0-9_-]+:[A-Za-z0-9_-]+$')
+              && d.target.id.size() <= 257)
+              || (d.type == 'JOINT_PLAN_INVITATION' && d.target.kind == 'jointPlan'
+                && d.target.id.matches('^[A-Za-z0-9_-]{1,100}$')));
+        }
+        function validNoticeTransition() {
+          let d = request.resource.data;
+          return d.type == 'JOINT_PLAN_INVITATION' ? planInvitation(d.target.id)
+            : friendNotice(d.type, d.target.id);
+        }
+        function friendNotice(type, id) {
+          let path = /databases/$(database)/documents/friendships/$(id);
+          let after = getAfter(path).data;
+          return type == 'FRIEND_REQUEST_RECEIVED'
+            ? itemId == 'fr_' + id && !exists(path) && after.status == 'pending'
+              && after.senderId == request.auth.uid && after.recipientId == uid
+            : itemId == 'fa_' + id && get(path).data.status == 'pending' && after.status == 'accepted'
+              && after.recipientId == request.auth.uid && after.senderId == uid;
+        }
+        function planInvitation(id) {
+          let path = /databases/$(database)/documents/jointPlans/$(id);
+          let after = getAfter(path).data;
+          return itemId == 'jp_' + id && uid in after.inviteeIds
+            && after.get('invitedBy', {}).get(uid, after.ownerId) == request.auth.uid
+            && (!exists(path) || !(uid in get(path).data.inviteeIds))
+            && acceptedPlanningFriend(uid);
+        }
+        function removingPlan() {
+          let id = itemId.replace('^jp_', '');
+          let path = /databases/$(database)/documents/jointPlans/$(id);
+          return itemId.matches('^jp_[A-Za-z0-9_-]{1,100}$')
+            && get(path).data.ownerId == request.auth.uid && uid in get(path).data.inviteeIds
+            && get(path).data.closed && get(path).data.get('deleting', false)
+            && !existsAfter(path);
+        }
+      }
+      match /careerProjections/{careerId} {
+        allow get, delete: if signedIn() && request.auth.uid == uid;
+        allow list: if false;
+        allow create: if signedIn() && request.auth.uid == uid && validProjection();
+        allow update: if signedIn() && request.auth.uid == uid && validProjection()
+          && request.resource.data.schemaVersion >= resource.data.schemaVersion;
+        function validFinalEvents(events, version) {
+          return events is list && events.size() <= 1000 && (events.size() == 0
+            || (version == 2
+              && events.join('|').split('[|]') == events
+              && events.join('|').matches('^[A-Za-z0-9._-]{1,32}@[0-9]{4}:(1C|2C)([|][A-Za-z0-9._-]{1,32}@[0-9]{4}:(1C|2C))*$')
+              && !events.join('|').matches('.*@0000:.*')
+              && events.join('|').replace('@[0-9]{4}:(1C|2C)', '').split('[|]').toSet().size() == events.size()));
+        }
+        function validProjection() {
+          let d = request.resource.data;
+          let s = d.scenario;
+          return d.keys().hasAll(['schemaVersion', 'careerId', 'revisionToken', 'scenario', 'updatedAt'])
+            && d.keys().hasOnly(['schemaVersion', 'careerId', 'revisionToken', 'scenario', 'updatedAt'])
+            && d.schemaVersion is int && d.schemaVersion in [1, 2] && d.careerId == careerId
+            && careerId.size() > 0 && careerId.size() <= 100
+            && d.revisionToken is string && d.revisionToken.matches('^[A-Za-z0-9_-]{16,100}$')
+            && d.updatedAt == request.time
+            && s is map
+            && s.keys().hasAll(['startPeriod', 'initialCapacity', 'maxPeriods', 'capacities', 'manualPeriods', 'finalEvents'])
+            && s.keys().hasOnly(['startPeriod', 'initialCapacity', 'maxPeriods', 'capacities', 'manualPeriods', 'finalEvents'])
+            && s.startPeriod is map && s.startPeriod.keys().hasAll(['year', 'term'])
+            && s.startPeriod.keys().hasOnly(['year', 'term'])
+            && s.startPeriod.year is int && s.startPeriod.year >= 1 && s.startPeriod.year <= 9979
+            && s.startPeriod.term in ['1C', '2C']
+            && s.initialCapacity is int && s.initialCapacity >= 1 && s.initialCapacity <= 9007199254740991
+            && s.maxPeriods is int && s.maxPeriods >= 1 && s.maxPeriods <= 40
+            && s.capacities is list && s.capacities.size() <= 40
+            && s.manualPeriods is list && s.manualPeriods.size() <= 40
+            && validFinalEvents(s.finalEvents, d.schemaVersion);
+        }
+      }
+    }
+
+    match /socialProfiles/{uid} {
+      // Hide legacy documents containing email until their owner migrates them.
+      allow get: if socialUser() && (request.auth.uid == uid
+        || !exists(/databases/$(database)/documents/socialProfiles/$(uid))
+        || (resource.data.keys().hasOnly(['uid', 'name', 'photoURL', 'careerId', 'updatedAt'])));
+      allow list, delete: if false;
+      allow create, update: if socialUser() && request.auth.uid == uid
+        && uid.matches('^[A-Za-z0-9_-]+$')
+        && request.resource.data.keys().hasAll(['uid', 'name', 'photoURL', 'careerId', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['uid', 'name', 'photoURL', 'careerId', 'updatedAt'])
+        && request.resource.data.uid == uid
+        && getAfter(/databases/$(database)/documents/users/$(uid)).data.socialEmail == request.auth.token.email.lower()
+        && (!exists(/databases/$(database)/documents/socialProfiles/$(uid))
+          || get(/databases/$(database)/documents/socialProfiles/$(uid)).data.get('email', null) == request.auth.token.email.lower()
+          || releasedIndex(get(/databases/$(database)/documents/socialProfiles/$(uid)).data.get('email', null), uid))
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 200
+        && request.resource.data.photoURL is string
+        && request.resource.data.photoURL.size() <= 2048
+        && (request.resource.data.photoURL == '' || request.resource.data.photoURL.matches('https://.*'))
+        && request.resource.data.careerId is string
+        && request.resource.data.careerId == get(/databases/$(database)/documents/users/$(uid)).data.activeCareerId
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    // Exact document lookup, never an email directory query.
+    match /socialEmails/{email} {
+      // Owner reads are needed to remove obsolete indexes during migration.
+      // Other users can resolve only the index currently recorded in the private profile.
+      allow get: if socialUser() && (!exists(/databases/$(database)/documents/socialEmails/$(email))
+        || resource.data.uid == request.auth.uid
+        || get(/databases/$(database)/documents/users/$(resource.data.uid)).data.socialEmail == email);
+      allow list: if false;
+      allow delete: if socialUser() && resource.data.uid == request.auth.uid
+        && (!existsAfter(/databases/$(database)/documents/users/$(request.auth.uid))
+          || getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('socialEmail', null) != email);
+      allow create: if validEmailIndex(email);
+      allow update: if validEmailIndex(email) && resource.data.uid == request.auth.uid;
+      function validEmailIndex(email) {
+        return socialUser()
+          && email == request.auth.token.email.lower()
+          && request.resource.data.keys().hasOnly(['uid'])
+          && request.resource.data.uid == request.auth.uid
+          && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.socialEmail == email;
+      }
+    }
+
+    function acceptedPlanningFriend(uid) {
+      let forward = /databases/$(database)/documents/friendships/$(request.auth.uid + ':' + uid);
+      let reverse = /databases/$(database)/documents/friendships/$(uid + ':' + request.auth.uid);
+      return (exists(forward) && get(forward).data.status == 'accepted')
+        || (exists(reverse) && get(reverse).data.status == 'accepted');
+    }
+
+    match /planningSharing/{uid} {
+      allow get: if socialUser() && (request.auth.uid == uid || acceptedPlanningFriend(uid));
+      allow list, delete: if false;
+      allow create, update: if socialUser() && request.auth.uid == uid
+        && request.resource.data.keys().hasAll(['enabled', 'sharedCareerId', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['enabled', 'sharedCareerId', 'consentVersion', 'updatedAt'])
+        && request.resource.data.get('consentVersion', 1) in [1, 2]
+        && request.resource.data.enabled is bool
+        && request.resource.data.sharedCareerId is string
+        && request.resource.data.sharedCareerId.size() > 0
+        && request.resource.data.sharedCareerId.size() <= 100
+        && request.resource.data.updatedAt == request.time
+        && (!request.resource.data.enabled
+          || (getAfter(/databases/$(database)/documents/planningSnapshots/$(uid)/careers/$(request.resource.data.sharedCareerId)).data.sourceUpdatedAt
+            == getAfter(/databases/$(database)/documents/users/$(uid)/careers/$(request.resource.data.sharedCareerId)).data.updatedAt
+          && getAfter(/databases/$(database)/documents/planningSnapshots/$(uid)/careers/$(request.resource.data.sharedCareerId)).data.schemaVersion == request.resource.data.get('consentVersion', 1)));
+    }
+
+    match /planningSnapshots/{uid}/careers/{careerId} {
+      function validCodes(codes) {
+        // Round-trip equality rejects non-strings and embedded separators.
+        // Empty lists are valid; every nonempty token has the same bounded grammar.
+        return codes is list && (codes.size() == 0
+          || (codes.join('|').split('[|]') == codes
+            && codes.join('|').matches('^[A-Za-z0-9._-]{1,32}([|][A-Za-z0-9._-]{1,32})*$')));
+      }
+      function sharedAndCurrent() {
+        let sharing = get(/databases/$(database)/documents/planningSharing/$(uid)).data;
+        return sharing.enabled == true && sharing.sharedCareerId == careerId
+          && (resource.data.schemaVersion == 1 || sharing.get('consentVersion', 1) == 2)
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.activeCareerId == careerId
+          && resource.data.sourceUpdatedAt == get(/databases/$(database)/documents/users/$(uid)/careers/$(careerId)).data.updatedAt;
+      }
+      allow get: if socialUser() && (request.auth.uid == uid
+        || (acceptedPlanningFriend(uid) && sharedAndCurrent()));
+      allow list: if false;
+      allow delete: if socialUser() && request.auth.uid == uid;
+      allow create, update: if socialUser() && request.auth.uid == uid
+        && request.resource.data.keys().hasAll(['approvedCodes', 'availableToCourseCodes', 'sourceUpdatedAt', 'updatedAt', 'schemaVersion', 'logicVersion', 'catalogVersion'])
+        && validSnapshotVersion()
+        && validCodes(request.resource.data.approvedCodes)
+        && validCodes(request.resource.data.availableToCourseCodes)
+        && request.resource.data.approvedCodes.size() <= 1000
+        && request.resource.data.availableToCourseCodes.size() <= 1000
+        && request.resource.data.approvedCodes.toSet().size() == request.resource.data.approvedCodes.size()
+        && request.resource.data.availableToCourseCodes.toSet().size() == request.resource.data.availableToCourseCodes.size()
+        && request.resource.data.approvedCodes.toSet().intersection(request.resource.data.availableToCourseCodes.toSet()).size() == 0
+        && request.resource.data.logicVersion == '1'
+        && request.resource.data.catalogVersion is string
+        && request.resource.data.catalogVersion.size() <= 150
+        && request.resource.data.sourceUpdatedAt is timestamp
+        && request.resource.data.sourceUpdatedAt == getAfter(/databases/$(database)/documents/users/$(uid)/careers/$(careerId)).data.updatedAt
+        && request.resource.data.updatedAt == request.time
+        && getAfter(/databases/$(database)/documents/planningSharing/$(uid)).data.enabled == true
+        && getAfter(/databases/$(database)/documents/planningSharing/$(uid)).data.sharedCareerId == careerId;
+
+      function validSnapshotVersion() {
+        let data = request.resource.data;
+        return (data.schemaVersion == 1
+          && data.keys().hasOnly(['approvedCodes', 'availableToCourseCodes', 'sourceUpdatedAt', 'updatedAt', 'schemaVersion', 'logicVersion', 'catalogVersion']))
+          || (data.schemaVersion == 2
+            && getAfter(/databases/$(database)/documents/planningSharing/$(uid)).data.get('consentVersion', 1) == 2
+            && data.keys().hasOnly(['approvedCodes', 'availableToCourseCodes', 'pendingFinalCodes', 'sourceUpdatedAt', 'updatedAt', 'schemaVersion', 'logicVersion', 'catalogVersion'])
+            && validCodes(data.pendingFinalCodes) && data.pendingFinalCodes.size() <= 1000
+            && data.pendingFinalCodes.toSet().size() == data.pendingFinalCodes.size()
+            && data.pendingFinalCodes.toSet().intersection(data.approvedCodes.toSet()).size() == 0
+            && data.pendingFinalCodes.toSet().intersection(data.availableToCourseCodes.toSet()).size() == 0);
+      }
+    }
+
+    match /jointPlanTombstones/{planId} {
+      allow read, update, delete: if false;
+      allow create: if socialUser()
+        && request.resource.data.keys().hasOnly(['deletedAt'])
+        && request.resource.data.deletedAt == request.time
+        && get(/databases/$(database)/documents/jointPlans/$(planId)).data.ownerId == request.auth.uid
+        && get(/databases/$(database)/documents/jointPlans/$(planId)).data.closed == true
+        && get(/databases/$(database)/documents/jointPlans/$(planId)).data.get('deleting', false) == true
+        && !existsAfter(/databases/$(database)/documents/jointPlans/$(planId));
+    }
+
+    match /jointPlans/{planId} {
+      function visiblePlan(data) {
+        return request.auth.uid == data.ownerId
+          || request.auth.uid in data.inviteeIds;
+      }
+      function openMember(data) {
+        return request.auth.uid in data.memberIds && !data.closed && !data.get('deleting', false);
+      }
+      function validPlan() {
+        let data = request.resource.data;
+        return data.keys().hasAll(['ownerId', 'careerId', 'inviteeIds', 'memberIds', 'closed', 'createdAt', 'updatedAt'])
+          && data.keys().hasOnly(['ownerId', 'careerId', 'inviteeIds', 'memberIds', 'closed', 'createdAt', 'updatedAt', 'name', 'invitedBy', 'deleting'])
+          && data.get('name', 'Plan conjunto') is string
+          && data.get('name', 'Plan conjunto').size() >= 1 && data.get('name', 'Plan conjunto').size() <= 80
+          && data.get('name', 'Plan conjunto').matches('.*[^ ].*')
+          && !data.get('name', 'Plan conjunto').matches('.*[\\x00-\\x1F\\x7F].*')
+          && data.get('invitedBy', {}) is map
+          && data.get('invitedBy', {}).keys().hasOnly(data.inviteeIds)
+          && data.get('deleting', false) is bool && (!data.get('deleting', false) || data.closed)
+          && data.ownerId is string && data.ownerId.matches('^[A-Za-z0-9_-]+$')
+          && data.careerId is string && data.careerId.size() > 0 && data.careerId.size() <= 100
+          && data.inviteeIds is list && data.inviteeIds.size() <= 4
+          && data.inviteeIds.toSet().size() == data.inviteeIds.size()
+          && !(data.ownerId in data.inviteeIds)
+          && data.memberIds is list && data.memberIds.size() >= 1 && data.memberIds.size() <= 5
+          && data.memberIds.toSet().size() == data.memberIds.size()
+          && data.ownerId in data.memberIds
+          && data.memberIds.toSet().difference(data.inviteeIds.toSet()).hasOnly([data.ownerId])
+          && data.closed is bool && data.createdAt is timestamp && data.updatedAt == request.time;
+      }
+      function validInvitee(ids, index) {
+        return ids.size() <= index || (ids[index] is string
+          && ids[index].matches('^[A-Za-z0-9_-]+$') && invitationRequired(ids[index], planId)
+          && request.resource.data.get('invitedBy', {}).get(ids[index], request.auth.uid) == request.auth.uid);
+      }
+      // Plan authorization is explicit membership/invitation, independent of friendship.
+      // Queries must constrain ownerId or inviteeIds; no global plan directory.
+      allow get, list: if socialUser() && visiblePlan(resource.data);
+      // Client drains subjects while locked, then reserves the ID and deletes atomically.
+      allow delete: if socialUser() && resource.data.ownerId == request.auth.uid
+        && resource.data.closed && resource.data.get('deleting', false)
+        && !exists(/databases/$(database)/documents/jointPlanTombstones/$(planId))
+        && existsAfter(/databases/$(database)/documents/jointPlanTombstones/$(planId))
+        && removedInvitationAt(0) && removedInvitationAt(1) && removedInvitationAt(2) && removedInvitationAt(3);
+      function removedInvitationAt(index) {
+        return resource.data.inviteeIds.size() <= index || invitationRemoved(resource.data.inviteeIds[index], planId);
+      }
+      allow create: if socialUser() && validPlan()
+        && !exists(/databases/$(database)/documents/jointPlanTombstones/$(planId))
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.careerId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.activeCareerId
+        && request.resource.data.inviteeIds.size() >= 1
+        && request.resource.data.memberIds == [request.auth.uid]
+        && request.resource.data.closed == false && request.resource.data.createdAt == request.time
+        && !request.resource.data.get('deleting', false)
+        && validInvitee(request.resource.data.inviteeIds, 0) && validInvitee(request.resource.data.inviteeIds, 1)
+        && validInvitee(request.resource.data.inviteeIds, 2) && validInvitee(request.resource.data.inviteeIds, 3);
+      allow update: if socialUser() && visiblePlan(resource.data) && validPlan()
+        && (closePlan() || beginDeletion() || changeOwnMembership() || renamePlan() || inviteMember());
+      function renamePlan() {
+        return openMember(resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'updatedAt']);
+      }
+      function inviteMember() {
+        let before = resource.data;
+        let after = request.resource.data;
+        let added = after.inviteeIds.removeAll(before.inviteeIds);
+        return openMember(before)
+          && after.diff(before).affectedKeys().hasOnly(['inviteeIds', 'invitedBy', 'updatedAt'])
+          && added.size() == 1 && after.inviteeIds.hasAll(before.inviteeIds)
+          && added[0] is string && added[0].matches('^[A-Za-z0-9_-]+$')
+          && invitationRequired(added[0], planId)
+          && after.get('invitedBy', {}).get(added[0], '') == request.auth.uid
+          && after.get('invitedBy', {}).diff(before.get('invitedBy', {})).affectedKeys().hasOnly([added[0]]);
+      }
+      function beginDeletion() {
+        return resource.data.ownerId == request.auth.uid && resource.data.closed
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleting', 'updatedAt'])
+          && request.resource.data.get('deleting', false) == true;
+      }
+      function closePlan() {
+        return resource.data.ownerId == request.auth.uid && !resource.data.get('deleting', false)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['closed', 'updatedAt'])
+          && request.resource.data.closed == true;
+      }
+      function changeOwnMembership() {
+        let before = resource.data;
+        let after = request.resource.data;
+        let uid = request.auth.uid;
+        return uid != before.ownerId && uid in before.inviteeIds && !before.get('deleting', false)
+          && after.diff(before).affectedKeys().hasOnly(['memberIds', 'inviteeIds', 'invitedBy', 'updatedAt'])
+          && ((!before.closed && after.inviteeIds == before.inviteeIds
+            && after.get('invitedBy', {}) == before.get('invitedBy', {})
+            && after.memberIds.toSet() == before.memberIds.toSet().union([uid].toSet())
+            && before.careerId == get(/databases/$(database)/documents/users/$(uid)).data.activeCareerId)
+          || (invitationRemoved(uid, planId)
+            && after.memberIds.toSet() == before.memberIds.toSet().difference([uid].toSet())
+            && after.get('invitedBy', {}).diff(before.get('invitedBy', {})).affectedKeys().hasOnly([uid])
+            && after.inviteeIds.toSet() == before.inviteeIds.toSet().difference([uid].toSet())));
+      }
+      match /subjects/{code} {
+        function plan() { return get(/databases/$(database)/documents/jointPlans/$(planId)).data; }
+        function editor() { return openMember(plan()); }
+        allow get, list: if socialUser() && (request.auth.uid == plan().ownerId
+          || (!plan().get('deleting', false) && request.auth.uid in plan().memberIds));
+        allow create, update: if socialUser() && editor()
+          && request.resource.data.keys().hasAll(['code', 'proposedParticipantIds', 'addedByUid', 'createdAt', 'updatedAt'])
+          && request.resource.data.keys().hasOnly(['code', 'proposedParticipantIds', 'addedByUid', 'createdAt', 'updatedAt'])
+          && validAttribution()
+          && request.resource.data.code == code && code.size() > 0 && code.size() <= 100
+          && request.resource.data.proposedParticipantIds is list
+          && request.resource.data.proposedParticipantIds.size() >= 2 && request.resource.data.proposedParticipantIds.size() <= 5
+          && request.resource.data.proposedParticipantIds.toSet().size() == request.resource.data.proposedParticipantIds.size()
+          && request.resource.data.proposedParticipantIds.toSet().difference(plan().inviteeIds.toSet()).hasOnly([plan().ownerId])
+          && request.resource.data.updatedAt == request.time;
+        function validAttribution() {
+          let data = request.resource.data;
+          return !exists(/databases/$(database)/documents/jointPlans/$(planId)/subjects/$(code))
+            ? data.addedByUid == request.auth.uid && data.createdAt == request.time
+            : data.addedByUid == resource.data.get('addedByUid', plan().ownerId)
+              && data.createdAt == resource.data.get('createdAt', resource.data.updatedAt);
+        }
+        allow delete: if socialUser() && (editor()
+          || (request.auth.uid == plan().ownerId && plan().closed && plan().get('deleting', false)));
+      }
+    }
+
+    match /friendships/{id} {
+      function participant() {
+        return request.auth.uid in resource.data.participants;
+      }
+      // Transactions must be able to check both possible IDs before creating.
+      // A missing document reveals no relationship fields.
+      allow get: if socialUser()
+        && request.auth.uid in id.split(':')
+        && (!exists(/databases/$(database)/documents/friendships/$(id)) || participant());
+      allow list: if socialUser() && participant();
+      allow delete: if false;
+      allow create: if socialUser() && validRequest();
+      allow update: if socialUser()
+        && resource.data.recipientId == request.auth.uid
+        && resource.data.status == 'pending'
+        && request.resource.data.status in ['accepted', 'rejected']
+        && (request.resource.data.status == 'rejected'
+          || noticeRequired(resource.data.senderId, 'fa_' + id, 'FRIEND_REQUEST_ACCEPTED', 'friendship', id))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+        && request.resource.data.updatedAt == request.time;
+
+      function validRequest() {
+        let data = request.resource.data;
+        return data.keys().hasAll(['participants', 'senderId', 'recipientId', 'status', 'createdAt', 'updatedAt'])
+          && data.keys().hasOnly(['participants', 'senderId', 'recipientId', 'status', 'createdAt', 'updatedAt'])
+          && data.senderId == request.auth.uid
+          && data.recipientId is string
+          && data.senderId != data.recipientId
+          && data.participants is list
+          && data.participants.size() == 2
+          && data.participants[0] is string && data.participants[1] is string
+          && data.participants[0].matches('^[A-Za-z0-9_-]+$')
+          && data.participants[1].matches('^[A-Za-z0-9_-]+$')
+          && data.senderId in data.participants && data.recipientId in data.participants
+          && id == data.participants[0] + ':' + data.participants[1]
+          && !existsAfter(/databases/$(database)/documents/friendships/$(data.participants[1] + ':' + data.participants[0]))
+          && exists(/databases/$(database)/documents/socialProfiles/$(data.senderId))
+          && exists(/databases/$(database)/documents/socialProfiles/$(data.recipientId))
+          && data.status == 'pending'
+          && noticeRequired(data.recipientId, 'fr_' + id, 'FRIEND_REQUEST_RECEIVED', 'friendship', id)
+          && data.createdAt == request.time
+          && data.updatedAt == request.time;
+      }
+    }
+  }
+}
