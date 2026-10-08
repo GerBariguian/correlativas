@@ -35,7 +35,12 @@ function fixture(model = 'legacy', initial = { A: 'Pendiente', OLD: 'Regularizad
           set(p, value, options) { pending.push([p, structuredClone(value), options]) },
         })
         if (f.beforeCommit) { const fn = f.beforeCommit; f.beforeCommit = null; await fn() }
-        if (version !== before) continue
+        if (version !== before) {
+          // Optional Rules-first rejection of a stale revision. The default
+          // still simulates SDK retry followed by the application's CAS check.
+          if (f.concurrentPermission) throw Object.assign(Error('stale revision denied by Rules'), { code: 'permission-denied' })
+          continue
+        }
         if (f.writeError) throw f.writeError
         for (const [p, value, options] of pending) data.set(p, options ? { ...data.get(p), ...value } : value)
         f.writes.push(...pending); if (pending.length) version++

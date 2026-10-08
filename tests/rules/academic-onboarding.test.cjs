@@ -45,12 +45,29 @@ for (const [model, rulesFile] of [['legacy', 'firestore.migration-users-hotfix.r
         assert.deepEqual((await read(target)).statusMap, { ...initial, B: 'Aprobada' })
       })
       await t.test('two tabs same subject: exactly one success, no overwrite', async () => {
-        await setup(); const a = controller(), b = controller()
-        const da = decide(await a.load()), db = decide(await b.load())
+        await setup()
+        const a = controller(), b = controller(env.authenticatedContext('alice', h.claims('alice')).firestore())
+        const da = decide(await a.load()), db = api.decideOnboardingSubjects(await b.load(), ['B', 'C'], 'Regularizada')
         const results = await Promise.allSettled([a.confirm(da), b.confirm(db)])
         assert.equal(results.filter(r => r.status === 'fulfilled').length, 1)
-        assert.match(results.find(r => r.status === 'rejected').reason.message, /CONFLICT/)
-        assert.deepEqual((await read(target)).statusMap, { ...initial, B: 'Aprobada' })
+        const winner = results.findIndex(r => r.status === 'fulfilled'), loser = 1 - winner
+        const error = results[loser].reason
+        assert.doesNotMatch(error.message, /1000\s+expressions|service[ -]call|resource[ -]exhaust|maximum.*(?:access|calls)/i)
+        // A retry observes CAS conflict; alternatively Rules reject the stale
+        // revision at commit before the SDK retries. Never relabel permissions.
+        if (model === 'instances' && error.code === 'permission-denied') {
+          assert.equal(api.onboardingSaveError(error).kind, 'permission')
+        } else assert.match(error.message, /CONFLICT/)
+        t.diagnostic(`loser: ${error.code || error.message}; winner: ${winner}`)
+        const saved = await read(target)
+        assert.deepEqual(saved.statusMap, { ...initial, ...[da, db][winner].decisions })
+        if (model === 'instances') assert.equal(saved.revision, 2)
+        const losingController = [a, b][loser]
+        assert.equal(losingController.getPhase(), 'error')
+        await assert.rejects(losingController.confirm([da, db][loser]), /RELOAD_REQUIRED/)
+        assert.deepEqual(await read(target), saved)
+        const refreshed = await losingController.load()
+        assert.throws(() => decide(refreshed), /PROTECTED/)
       })
       await t.test('other tab unrelated save preserved or CAS rejected', async () => {
         await setup(); const a = controller(), b = controller()

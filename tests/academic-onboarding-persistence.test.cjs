@@ -112,6 +112,26 @@ test('instances: archive or catalog binding change blocks onboarding', async () 
     await assert.rejects(c.confirm(d), /INSTANCE_UNAVAILABLE/); assert.equal(f.writes.length, 0)
   }
 })
+test('instances: Rules-first concurrent rejection preserves only winner and requires reload', async () => {
+  const f = fixture('instances'); f.concurrentPermission = true
+  const a = await edit(f), b = await edit(f)
+  b.d = f.api.decideOnboardingSubjects(b.d, ['B', 'C'], 'Regularizada')
+  const results = await Promise.allSettled([a.c.confirm(a.d), b.c.confirm(b.d)])
+  assert.equal(results.filter(r => r.status === 'fulfilled').length, 1)
+  const winner = results.findIndex(r => r.status === 'fulfilled'), loser = 1 - winner
+  const error = results[loser].reason
+  assert.equal(error.code, 'permission-denied')
+  assert.equal(f.api.onboardingSaveError(error).kind, 'permission')
+  assert.equal(f.transactions, 2); assert.equal(f.writes.length, 1)
+  const saved = structuredClone(f.data.get(f.target))
+  assert.deepEqual(saved.statusMap, { A: 'Pendiente', OLD: 'Regularizada', ...[a, b][winner].d.decisions })
+  assert.equal(saved.revision, 2)
+  const losing = [a, b][loser]
+  await assert.rejects(losing.c.confirm(losing.d), /RELOAD_REQUIRED/)
+  assert.equal(f.transactions, 2); assert.deepEqual(f.data.get(f.target), saved)
+  const refreshed = await losing.c.load()
+  assert.throws(() => f.api.decideOnboardingSubjects(refreshed, ['B'], 'Aprobada'), /PROTECTED/)
+})
 test('legacy: shared snapshot derives from transaction-merged progress atomically', async () => {
   const f = fixture(); f.data.set('planningSharing/alice', { enabled: true, sharedCareerId: 'catalog', consentVersion: 2 })
   const { c, d } = await edit(f); await c.confirm(d)
