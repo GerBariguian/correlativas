@@ -6,6 +6,8 @@ import { loadUserStatus, subscribeUserStatus, saveUserStatus } from '../services
 import { projectionRepository } from '../services/careerProjections'
 import { careerLifecycleRepository } from '../services/careerLifecycle'
 import { careers } from '../data/careers'
+import { createAcademicOnboardingController } from '../academicOnboardingController'
+import { legacyOnboardingRepository } from '../services/academicOnboarding'
 
 const waiting = { authority: 'loading', capabilities: { academicWrite: false, select: false, legacySocial: false }, instances: [] }
 export default function useAcademicBridge(user, catalogId) {
@@ -25,10 +27,32 @@ export default function useAcademicBridge(user, catalogId) {
   const context = state.user === user ? state.context : waiting
   const scope = academicScope(context, catalogId), nextKey = academicScopeKey(scope)
   const latest = useRef(context); latest.current = context
+  const onboardingEpoch = useRef({ signature: null, user: null, generation: 0 })
+  const signature = JSON.stringify([scope, context.authority, context.phase, context.capabilities.academicWrite])
+  if (onboardingEpoch.current.signature !== signature || onboardingEpoch.current.user !== user) {
+    onboardingEpoch.current = { signature, user, generation: onboardingEpoch.current.generation + 1 }
+  }
+  useEffect(() => () => { onboardingEpoch.current.generation++ }, [])
   const source = useMemo(() => {
     if (!scope) return null
     const allowed = () => auth.currentUser === user && latest.current.authority === scope.model && latest.current.capabilities.academicWrite
     return { scope, key: nextKey,
+      createOnboarding() {
+        const generation = onboardingEpoch.current.generation
+        const assertLive = () => {
+          if (!allowed() || onboardingEpoch.current.generation !== generation
+            || JSON.stringify(academicScope(latest.current, catalogId)) !== JSON.stringify(scope)
+            || onboardingEpoch.current.signature !== signature) throw new Error('ACADEMIC_SCOPE_CHANGED')
+        }
+        assertLive()
+        const career = careers.find(item => item.id === scope.catalogId)
+        if (!career) throw new Error('INVALID_ACADEMIC_SCOPE')
+        const legacy = scope.model === 'legacy' ? legacyOnboardingRepository({ db, auth }, scope, career, assertLive) : null
+        return createAcademicOnboardingController({ scope, subjects: career.subjects, assertLive,
+          load: () => legacy ? legacy.load() : repository.loadProgress(scope),
+          save: (changes, revision) => legacy ? legacy.save(changes)
+            : repository.saveOnboardingProgress(scope, changes, revision, assertLive) })
+      },
       load: () => scope.model === 'legacy' ? loadUserStatus(user.uid, scope.id).then(statusMap => ({ statusMap, revision: null })) : repository.loadProgress(scope),
       subscribe: (onData, onError) => scope.model === 'legacy' ? subscribeUserStatus(user.uid, scope.id, statusMap => onData({ statusMap, revision: null }), onError)
         : repository.subscribeProgress(scope, onData, onError),
@@ -38,7 +62,7 @@ export default function useAcademicBridge(user, catalogId) {
       },
       projection: () => scope.model === 'legacy' ? projectionRepository(user.uid, scope.id) : repository.projection(scope),
     }
-  }, [nextKey, repository, user])
+  }, [nextKey, scope?.catalogId, signature, repository, user])
   const retained = useRef(null)
   if (source) retained.current = { user, source }
   const shownSource = (['frozen', 'invalid', 'loading'].includes(context.authority) || context.phase === 'blocked')
