@@ -1,0 +1,139 @@
+name: Correlativas CI
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: correlativas-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+defaults:
+  run:
+    shell: bash
+jobs:
+  changes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      base: ${{ steps.plan.outputs.base }}
+      head: ${{ steps.plan.outputs.head }}
+      stage6: ${{ steps.plan.outputs.stage6 }}
+      hotfix: ${{ steps.plan.outputs.hotfix }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: '24.21.0'
+          cache: npm
+      - id: plan
+        run: node scripts/ci-plan.cjs
+  node-build:
+    needs: changes
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: '24.21.0'
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/ci-plan.test.cjs
+      - run: npm test
+      - run: npm run build
+      - name: Check PR or dispatch diff
+        env:
+          BASE_SHA: ${{ needs.changes.outputs.base }}
+          HEAD_SHA: ${{ needs.changes.outputs.head }}
+        run: |
+          test -n "$BASE_SHA" && test -n "$HEAD_SHA"
+          git -c core.whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol diff --check "$BASE_SHA" "$HEAD_SHA"
+  rules-stage6:
+    needs: changes
+    if: ${{ needs.changes.outputs.stage6 == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: '24.21.0'
+          cache: npm
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Record resolved runtime
+        run: |
+          { echo '### rules-stage6 runtime'; node --version; java -version 2>&1; } | tee -a "$GITHUB_STEP_SUMMARY"
+      - run: npm ci
+      - run: node scripts/test-etapa6-final.cjs
+      - name: Emulator diagnostics
+        if: ${{ failure() }}
+        run: |
+          for log in firestore-debug.log firebase-debug.log; do
+            if [ -f "$log" ]; then tail -n 120 "$log"; fi
+          done
+  rules-hotfix:
+    needs: changes
+    if: ${{ needs.changes.outputs.hotfix == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: '24.21.0'
+          cache: npm
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Record resolved runtime
+        run: |
+          { echo '### rules-hotfix runtime'; node --version; java -version 2>&1; } | tee -a "$GITHUB_STEP_SUMMARY"
+      - run: npm ci
+      - run: node scripts/test-migration-users-hotfix.cjs
+      - name: Emulator diagnostics
+        if: ${{ failure() }}
+        run: |
+          for log in firestore-debug.log firebase-debug.log; do
+            if [ -f "$log" ]; then tail -n 120 "$log"; fi
+          done
+  ci-gate:
+    needs: [changes, node-build, rules-stage6, rules-hotfix]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: '24.21.0'
+          cache: npm
+      - name: Require all applicable jobs
+        env:
+          CI_NEEDS: ${{ toJSON(needs) }}
+        run: node scripts/ci-plan.cjs gate

@@ -45,4 +45,3 @@ const child = spawn(process.execPath, [cli, 'emulators:exec', '--only', 'firesto
 { cwd: root, env, stdio: 'inherit', windowsHide: true })
 child.on('error', error => { console.error(error); process.exitCode = 1 })
 child.on('exit', code => { process.exitCode = code ?? 1 })
-

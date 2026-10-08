@@ -232,7 +232,7 @@ test('actual App effects retain planner across projection load branch and isolat
     useActivity: () => ({}), useSocialProfile: () => ({}), useCareerProjection: () => ({ phase: 'empty', scenario: null }),
     localStorage: { setItem() {} }, window: { alert() { assert.fail('unexpected error') } },
   })
-  for (const component of ['CareerSelector', 'CareerProjectionPage', 'Route', 'PlannerPage', 'CareerMap', 'Header', 'SubjectsPanel', 'Advisor', 'WelcomeSetup', 'FriendsPage', 'Dashboard']) api[component] = component
+  for (const component of ['CareerSelector', 'CareerProjectionPage', 'Route', 'PlannerPage', 'CareerMap', 'Header', 'SubjectsPanel', 'Advisor', 'WelcomeSetup', 'FriendsPage', 'Dashboard', 'JointCWorkspace']) api[component] = component
   r.load('src/App.jsx', 'App')
   const render = () => r.render(() => api.App())
   const settle = async () => { let tree; for (let i = 0; i < 20; i++) { tree = render(); await Promise.resolve() } return tree }
