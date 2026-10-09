@@ -1,4 +1,5 @@
 import useAcademicBridge from './hooks/useAcademicBridge'
+import AcademicOnboarding from './components/AcademicOnboarding'
 import InstanceSelection from './components/InstanceSelection'
 import MyCareers from './components/MyCareers'
 import JointPlanHistory from './components/JointPlanHistory'
@@ -57,6 +58,8 @@ function App() {
   const activity = useActivity(user)
   const [activityIntent, setActivityIntent] = useState(null)
   const [activityNotice, setActivityNotice] = useState('')
+  const [onboarding, setOnboarding] = useState(null)
+  const onboardingIntent = useRef(null)
   const activitySequence = useRef(0)
   const [authLoading, setAuthLoading] = useState(true)
   const [profileLoading, setProfileLoading] = useState(true)
@@ -86,7 +89,7 @@ function App() {
   const socialProfile = useSocialProfile(user, activeCareerId,
     (!profileLoading && hasChosenCareer) || ['frozen', 'instances'].includes(bridge.authority), !bridge.capabilities.legacySocial)
   const personalProjection = useCareerProjection(user, activeCareerId,
-    activePage === 'projection' && !profileLoading && hasChosenCareer && !statusLoading, bridge)
+    !onboarding && activePage === 'projection' && !profileLoading && hasChosenCareer && !statusLoading, bridge)
 
   function isCurrentSession(token) {
     return Boolean(token) && session.current === token && auth.currentUser?.uid === token.uid
@@ -108,6 +111,8 @@ function App() {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       session.current = currentUser ? { uid: currentUser.uid } : null
       progress.current = null
+      onboardingIntent.current = null
+      setOnboarding(null)
       confirmedCareer.current = DEFAULT_CAREER_ID
       confirmedSource.current = null
       setUser(currentUser)
@@ -144,7 +149,7 @@ function App() {
 
   useEffect(() => {
     progress.current = null
-    if (!user || profileLoading || !hasChosenCareer || !bridge.source || !bridge.capabilities.academicWrite
+    if (onboarding || !user || profileLoading || !hasChosenCareer || !bridge.source || !bridge.capabilities.academicWrite
       || bridge.source.scope.catalogId !== activeCareerId) return
     const token = session.current
     let cancelled = false
@@ -188,7 +193,30 @@ function App() {
       stop()
       progress.current = null
     }
-  }, [user, profileLoading, hasChosenCareer, activeCareerId, initialStatus, careerRevision, activePage === 'projection', bridge.key, bridge.capabilities.academicWrite])
+  }, [onboarding, user, profileLoading, hasChosenCareer, activeCareerId, initialStatus, careerRevision, activePage === 'projection', bridge.key, bridge.capabilities.academicWrite])
+
+  async function beginOnboarding(catalogId, instanceId = null) {
+    if (onboardingIntent.current || auth.currentUser !== user || !bridge.canWrite()) return
+    if (instanceId && (bridge.authority !== 'instances' || bridge.phase !== 'complete')) return
+    if (!instanceId && bridge.authority !== 'legacy') return
+    const intent = { user, catalogId, id: instanceId || catalogId, model: instanceId ? 'instances' : 'legacy', waiting: true }
+    onboardingIntent.current = intent; setOnboarding(intent)
+    try {
+      // Drain existing manual edits before the controller's confirmed read.
+      await writes.current
+      if (auth.currentUser !== user || onboardingIntent.current !== intent) return
+      if (instanceId) await bridge.lifecycle.select(instanceId)
+      if (auth.currentUser !== user || onboardingIntent.current !== intent) return
+      setOnboarding({ ...intent, waiting: false })
+    } catch {
+      if (onboardingIntent.current === intent) setOnboarding({ ...intent, waiting: false, error: true })
+    }
+  }
+  function exitOnboarding() {
+    onboardingIntent.current = null; setOnboarding(null)
+    progress.current = null; setStatusLoading(true)
+    setCareerRevision(revision => revision + 1); setActivePage('dashboard')
+  }
 
   async function changeCareer(careerId, finishSetup = false) {
     if (!bridge.canWrite() || bridge.authority !== 'legacy') return
@@ -213,6 +241,7 @@ function App() {
         setActiveCareerId(careerId)
         if (finishSetup) setHasChosenCareer(true)
       })
+      if (finishSetup && isCurrentSession(token)) beginOnboarding(careerId)
     } catch (error) {
       if (isCurrentSession(token)) reportError(error)
     }
@@ -236,7 +265,7 @@ function App() {
 
   async function persistStatus(transform) {
     const context = progress.current
-    if (!context || !isCurrentSession(context.token) || !bridge.canWrite()) return
+    if (onboardingIntent.current || !context || !isCurrentSession(context.token) || !bridge.canWrite()) return
     try {
       await enqueueWrite(async () => {
         if (!isCurrentSession(context.token)) return
@@ -326,6 +355,19 @@ function startWithCareer() {
   return changeCareer(activeCareerId, true)
 }
 
+if (onboarding && onboarding.user === user) {
+  const source = bridge.source, scope = source?.scope
+  const career = careers.find(item => item.id === onboarding.catalogId)
+  const available = !onboarding.waiting && !onboarding.error && bridge.capabilities.academicWrite
+    && bridge.authority === onboarding.model && scope?.uid === user.uid && scope.id === onboarding.id
+    && scope.catalogId === onboarding.catalogId && career
+  return <main className="app-shell">{available
+    ? <AcademicOnboarding career={career} source={source} onExit={exitOnboarding} />
+    : <section className="side-card"><h2>Configuración académica</h2><p role="status">{onboarding.waiting
+      ? 'Preparando la carrera seleccionada…' : 'La carrera todavía no está disponible o cambió el contexto. La edición está suspendida; volvé a cargar el progreso para verificar su estado.'}</p>
+      <button onClick={exitOnboarding}>Volver a mis carreras</button></section>}</main>
+}
+
 if ((profileLoading || (bridge.phase === 'blocked' && !bridge.source))
   && (['frozen', 'invalid'].includes(bridge.authority) || bridge.phase === 'blocked')) {
   return <main className="app-shell">
@@ -379,6 +421,7 @@ if (!hasChosenCareer && bridge.authority === 'legacy') {
       {bridge.authority === 'instances' ? <InstanceSelection bridge={bridge} careers={careers} onManage={() => setActivePage('careers')} /> :
         <fieldset disabled={!bridge.capabilities.select} style={{ border: 0, padding: 0, margin: 0 }}>
           <CareerSelector careers={careers} activeCareerId={activeCareerId} setActiveCareerId={changeCareer} />
+          <button type="button" onClick={() => beginOnboarding(activeCareerId)}>Configurar estado inicial de materias</button>
         </fieldset>}
       {['frozen', 'invalid'].includes(bridge.authority) && <section role="status" className="side-card">
         <p>{bridge.authority === 'frozen' ? 'Estamos actualizando tu cuenta. Volvé a intentar en unos instantes.'
@@ -389,7 +432,7 @@ if (!hasChosenCareer && bridge.authority === 'legacy') {
       {personalProjection.retainedDraft && <p role="status">Conservamos en esta sesión un borrador de la planificación anterior. No se trasladó ni guardó automáticamente en tu nueva trayectoria.</p>}
       {!activeCareer && <p role="status">No hay una trayectoria disponible seleccionada. Elegí una para ver su progreso.</p>}
       {bridge.authority === 'instances' && (activePage === 'careers' || !activeCareer) &&
-        <MyCareers key={user.uid} bridge={bridge} careers={careers} />}
+        <MyCareers key={user.uid} bridge={bridge} careers={careers} onConfigure={({ id, catalogId }) => beginOnboarding(catalogId, id)} />}
 
       <nav className="top-nav">
   	<button

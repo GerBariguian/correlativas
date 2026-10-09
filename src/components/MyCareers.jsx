@@ -1,17 +1,18 @@
 import { useRef, useState } from 'react'
 
 const catalogLabel = catalog => catalog ? `${catalog.university} · ${catalog.name} · Plan ${catalog.plan}` : 'Carrera con catálogo no disponible'
-export default function MyCareers({ bridge, careers }) {
+export default function MyCareers({ bridge, careers, onConfigure }) {
   const [catalogId, setCatalogId] = useState(''), [confirmId, setConfirmId] = useState(null)
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('')
   const inFlight = useRef(false)
+  const [added, setAdded] = useState(null)
   const allowed = bridge.authority === 'instances' && bridge.phase === 'complete' && bridge.capabilities.academicWrite
   async function act(operation, value) {
     if (!allowed || inFlight.current) return
     inFlight.current = true; setBusy(true); setError(''); setNotice('')
     try {
-      await bridge.lifecycle[operation](value)
-      if (operation === 'add') setCatalogId('')
+      const id = await bridge.lifecycle[operation](value)
+      if (operation === 'add') { setCatalogId(''); if (typeof id === 'string') setAdded({ id, catalogId: value }) }
       setConfirmId(null)
       setNotice({ add: 'Carrera agregada. Seleccionala cuando quieras verla.', select: 'Selección guardada.',
         archive: 'Carrera archivada. Tus datos se conservaron.', restore: 'Carrera restaurada. Podés seleccionarla; compartir sigue desactivado.' }[operation])
@@ -45,6 +46,11 @@ export default function MyCareers({ bridge, careers }) {
     </form>
     {error && <p role="alert">{error}</p>}
     {notice && <p role="status">{notice}</p>}
+    {added && onConfigure && <div className="my-careers-actions">
+      <p>¿Querés configurar el estado inicial de las materias de la carrera que agregaste?</p>
+      <button disabled={busy} onClick={() => onConfigure(added)}>Seleccionar y configurar materias</button>
+      <button disabled={busy} onClick={() => setAdded(null)}>Prefiero hacerlo después</button>
+    </div>}
     {busy && <p role="status">Guardando cambios…</p>}
     {['active', 'archived'].map(state => {
       const rows = bridge.instances.filter(instance => instance.lifecycle === state)
