@@ -1,3 +1,4 @@
+import AcademicOnboardingMobile from './AcademicOnboardingMobile'
 import { useEffect, useRef, useState } from 'react'
 import { STATUS } from '../logic'
 import { groupOnboardingSubjects, selectOnboardingSubjects, assignOnboardingSelection, undoOnboardingDecision, redoOnboardingDecision, onboardingReviewProgress, prepareOnboardingChanges } from '../academicOnboardingLogic'
@@ -17,6 +18,7 @@ export default function AcademicOnboarding({ career, source, onExit }) {
   const [error, setError] = useState(''), [result, setResult] = useState(null), [attempt, setAttempt] = useState(0)
   const controller = useRef(null), alive = useRef(false), submitting = useRef(false), heading = useRef(null)
   const generation = useRef(0)
+  const [mobileCode, setMobileCode] = useState(null)
   const originalSource = useRef(source)
   const sameSource = originalSource.current === source
   useEffect(() => {
@@ -87,6 +89,8 @@ export default function AcademicOnboarding({ career, source, onExit }) {
         <div className="actions"><small>Podés revisar y corregir todo antes de confirmar.</small><button className="primary" onClick={() => navigate(choice === 'experienced' ? 1 : 2)}>{choice === 'experienced' ? 'Configurar mis materias' : 'Continuar sin cargar estados'} →</button></div>
       </section>}
       {step === 1 && <>
+        <AcademicOnboardingMobile key={mobileCode || 'cards'} draft={draft} subjects={career.subjects} change={change} initialCode={mobileCode} onReview={() => navigate(2)} />
+        <div className="desktop-editor">
         <div className="page-heading"><div><p className="eyebrow">Carga académica</p><h1 ref={heading} tabIndex={-1}>Poné al día tu recorrido</h1><p>{career.name} · Plan {career.plan}</p><p>Seleccioná varias materias y asignales un estado en conjunto.</p></div>
           <div className="progress-card" role="status"><strong>{review.reviewed} de {review.editable} materias configuradas</strong><progress value={review.reviewed} max={review.editable || 1} aria-label="Materias configuradas" /><small>{review.protected} previas protegidas · No es porcentaje aprobado</small></div></div>
         <div className="toolbar"><strong className="selection-count" aria-live="polite">{draft.selected.length} seleccionadas</strong>
@@ -107,10 +111,12 @@ export default function AcademicOnboarding({ career, source, onExit }) {
         })}</div></section>)}
         <div className="notice"><span aria-hidden="true">ⓘ</span><p><b>Sin revisar ≠ Pendiente.</b> Sólo se guardan decisiones explícitas. Podés marcar como Aprobada una equivalencia reconocida oficialmente; no se infieren equivalencias entre carreras.</p></div>
         <div className="bottom-bar"><button className="text-button" onClick={() => navigate(0)}>← Volver</button><small>Los cambios todavía no se guardaron.</small><button className="primary" onClick={() => navigate(2)}>Revisar {entries.length} cambios →</button></div>
+        </div>
       </>}
       {step === 2 && <>
         <div className="page-heading"><div><p className="eyebrow">Antes de terminar</p><h1 ref={heading} tabIndex={-1}>Revisá tu punto de partida</h1><p>Estas decisiones corresponden sólo a {career.name} · Plan {career.plan}.</p></div></div>
         <div className="summary-grid">{STATUS.map(status => <div key={status} className="summary-card"><StateBadge value={status} /><b>{entries.filter(entry => entry.status === status).length}</b></div>)}</div>
+        <ul className="mobile-review">{career.subjects.filter(subject => !Object.hasOwn(draft.baseline, subject.code)).map(subject => <li key={subject.code}><button disabled={busy} onClick={() => { setMobileCode(subject.code); setChoice('experienced'); navigate(1) }}>{subject.name} · {choice === 'experienced' ? draft.decisions[subject.code] || 'Sin revisar' : 'Sin revisar'} · Editar</button></li>)}</ul>
         <div className="review-table">{entries.length ? <table><thead><tr><th>Materia</th><th>Ubicación</th><th>Estado elegido</th></tr></thead><tbody>{entries.map(entry => {
           const subject = subjects.get(entry.code)
           return <tr key={entry.code}><td><b>{subject.name}</b><small>{subject.code}</small></td><td>{yearLabel(subject)} · {subject.term || 'Período no especificado'}</td><td><StateBadge value={entry.status} /></td></tr>

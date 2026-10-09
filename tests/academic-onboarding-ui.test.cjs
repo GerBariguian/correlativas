@@ -6,7 +6,7 @@ const button = (tree, name) => nodes(tree).find(n => n.type === 'button' && text
 function setup(model = 'legacy') {
   const f = fixture(model)
   const catalog = { ...career, name: 'Carrera de prueba', university: 'Universidad', plan: '2026', subjects: career.subjects.map((s, i) => ({ ...s, name: `Materia ${s.code}`, year: 1, term: i === 2 ? 'Anual' : '1C' })) }
-  const ui = harness('src/components/AcademicOnboarding.jsx', 'AcademicOnboarding', f.api)
+  const ui = harness('src/components/AcademicOnboarding.jsx', 'AcademicOnboarding', { ...f.api, AcademicOnboardingMobile: 'AcademicOnboardingMobile' })
   let exits = 0
   const props = { career: catalog, source: { createOnboarding: f.controller }, onExit: () => { exits++ } }
   const render = () => ui.render(props)

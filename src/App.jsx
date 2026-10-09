@@ -419,9 +419,13 @@ if (!hasChosenCareer && bridge.authority === 'legacy') {
       }} />
       {activityNotice && <p role="status" className="activity-navigation-notice">{activityNotice}<button type="button" onClick={() => setActivityNotice('')}>Cerrar</button></p>}
       {bridge.authority === 'instances' ? <InstanceSelection bridge={bridge} careers={careers} onManage={() => setActivePage('careers')} /> :
-        <fieldset disabled={!bridge.capabilities.select} style={{ border: 0, padding: 0, margin: 0 }}>
+        <fieldset disabled={!bridge.capabilities.select} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           <CareerSelector careers={careers} activeCareerId={activeCareerId} setActiveCareerId={changeCareer} />
-          <button type="button" onClick={() => beginOnboarding(activeCareerId)}>Configurar estado inicial de materias</button>
+          <section className="side-card onboarding-entry" aria-label="Actualizá tu recorrido">
+            <span className="onboarding-entry-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="m2 9 10-5 10 5-10 5-10-5Z" /><path d="M6 11v6c4 3 8 3 12 0v-6M22 9v7" /></svg></span>
+            <div className="onboarding-entry-copy"><h2>Actualizá tu recorrido</h2><p>Marcá varias materias de forma rápida y conservá tu progreso</p></div>
+            <button type="button" onClick={() => beginOnboarding(activeCareerId)}>Configurar mis materias →</button>
+          </section>
         </fieldset>}
       {['frozen', 'invalid'].includes(bridge.authority) && <section role="status" className="side-card">
         <p>{bridge.authority === 'frozen' ? 'Estamos actualizando tu cuenta. Volvé a intentar en unos instantes.'

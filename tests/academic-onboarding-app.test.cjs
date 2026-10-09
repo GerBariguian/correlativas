@@ -49,7 +49,7 @@ test('legacy initial career setup offers onboarding only after profile success; 
 test('existing legacy account does not auto-onboard; explicit launch uses chosen career', async () => {
   const f = appFixture(); f.render(); await f.settle()
   assert.equal(node(f.render(), 'AcademicOnboarding'), undefined)
-  await button(f.render(), 'Configurar estado inicial de materias').props.onClick(); await f.settle()
+  await button(f.render(), 'Configurar mis materias →').props.onClick(); await f.settle()
   assert.ok(node(f.render(), 'AcademicOnboarding'))
   assert.equal(f.calls.filter(c => c[0] === 'profile').length, 0)
 })
@@ -57,7 +57,7 @@ test('ordinary subject handlers retained before onboarding cannot overwrite its 
   const f = appFixture(); f.render(); await f.settle()
   button(f.render(), '📚 Materias').props.onClick(); await f.settle()
   const staleUpdate = node(f.render(), 'SubjectsPanel').props.updateStatus
-  await button(f.render(), 'Configurar estado inicial de materias').props.onClick(); await f.settle()
+  await button(f.render(), 'Configurar mis materias →').props.onClick(); await f.settle()
   await staleUpdate('B', 'Aprobada')
   assert.equal(f.calls.filter(c => c[0] === 'ordinary-save').length, 0)
 })
@@ -82,7 +82,7 @@ test('blocked authority cannot start instance flow and selection failure does no
 })
 test('switching account or scope does not expose the previous onboarding', async () => {
   const f = appFixture(); f.render(); await f.settle()
-  await button(f.render(), 'Configurar estado inicial de materias').props.onClick(); await f.settle()
+  await button(f.render(), 'Configurar mis materias →').props.onClick(); await f.settle()
   f.setSource('other', 'other'); await f.settle()
   assert.equal(node(f.render(), 'AcademicOnboarding'), undefined)
   f.accountChange(); await f.settle(); assert.equal(node(f.render(), 'AcademicOnboarding'), undefined)
