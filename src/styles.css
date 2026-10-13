@@ -1811,10 +1811,10 @@ h1 {
 .my-careers :is(button, select):focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 
 /* Optional onboarding entry; scoped so other cards/buttons remain unchanged. */
-.onboarding-entry { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding: 20px 32px; margin: 0 0 24px; }
+.onboarding-entry { display: flex; flex-direction: row; align-items: center; flex-wrap: wrap; gap: 12px; padding: 16px 24px; margin: 0 0 24px; }
 .onboarding-entry .onboarding-entry-icon { display: grid; place-items: center; flex: 0 0 40px; height: 40px; color: var(--primary); }
 .onboarding-entry-icon svg { width: 28px; height: 28px; }
-.onboarding-entry-copy { flex: 1 1 220px; min-width: 0; }
+.onboarding-entry-copy { flex: 0 1 auto; min-width: 0; max-width: 100%; }
 .onboarding-entry-copy h2 { font-size: 18px; line-height: 1.25; letter-spacing: -.04em; margin: 0 0 6px; }
 .onboarding-entry-copy p { font-size: 13px; line-height: 1.5; color: var(--muted); margin: 0; }
 .onboarding-entry button { border: 1px solid var(--line); border-radius: 999px; padding: 12px 16px; min-height: 44px; max-width: 100%; background: var(--purple); color: white; font-weight: 900; cursor: pointer; box-shadow: var(--shadow); }
