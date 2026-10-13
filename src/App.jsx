@@ -263,30 +263,41 @@ function App() {
       .slice(0, 5)
   }, [subjects, statusMap])
 
-  async function persistStatus(transform) {
+  async function persistStatus(transform, intent) {
     const context = progress.current
     if (onboardingIntent.current || !context || !isCurrentSession(context.token) || !bridge.canWrite()) return
+    const capturedIntent = intent ? structuredClone(intent) : undefined
     try {
       await enqueueWrite(async () => {
-        if (!isCurrentSession(context.token)) return
+        if (!isCurrentSession(context.token) || progress.current !== context) return
         const nextMap = transform(context.map)
-        context.revision = await context.source.save(nextMap, context.revision)
-        context.map = nextMap
+        const saved = await context.source.save(context.source.scope?.model === 'legacy' ? capturedIntent : nextMap, context.revision)
+        context.revision = saved
+        const confirmedMap = context.source.scope?.model === 'legacy' ? saved.statusMap : nextMap
+        context.map = confirmedMap
         if (!isCurrentSession(context.token)) return
-        cacheStatus(context.token.uid, context.source.key, nextMap)
-        if (progress.current === context) setStatusMap(nextMap)
+        cacheStatus(context.token.uid, context.source.key, confirmedMap)
+        if (progress.current === context) setStatusMap(confirmedMap)
       })
     } catch (error) {
-      if (isCurrentSession(context.token)) reportError(error)
+      if (isCurrentSession(context.token)) {
+        if (progress.current === context) {
+          progress.current = null
+          setCareerRevision(value => value + 1)
+        }
+        reportError(error)
+      }
     }
   }
 
   function updateStatus(code, next) {
-    return persistStatus((current) => ({ ...current, [code]: next }))
+    const baseline = progress.current?.revision?.statusMap
+    const expected = { exists: Boolean(baseline && Object.hasOwn(baseline, code)), ...(baseline && Object.hasOwn(baseline, code) ? { status: baseline[code] } : {}) }
+    return persistStatus((current) => ({ ...current, [code]: next }), { type: 'patch', operations: [{ code, expected, operation: 'set', status: next }] })
   }
 
   function reset() {
-    return persistStatus(() => initialStatus)
+    return persistStatus(() => initialStatus, { type: 'reset', expected: progress.current?.revision, statusMap: initialStatus })
   }
 
   const shownSubjects = subjects.filter((subject) => {

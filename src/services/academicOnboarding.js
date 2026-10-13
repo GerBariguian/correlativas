@@ -1,9 +1,10 @@
 import { doc, getDocFromServer, runTransaction, serverTimestamp } from 'firebase/firestore'
+import { legacyWriteRevision, nextLegacyWriteRevision } from '../legacyWriteRevision'
 import { resolveUserDataAuthority } from '../userDataAuthorityLogic'
 import { mergeOnboardingChanges, onboardingScopeKey } from '../academicOnboardingLogic'
 import { derivePlanningSnapshot } from '../planningLogic'
 
-// A separate legacy writer: ordinary subject saving is deliberately unchanged.
+// Onboarding retains its absent-key merge contract; all legacy writers share the fence.
 export function legacyOnboardingRepository({ db, auth }, scope, career, assertLive) {
   const user = auth.currentUser
   onboardingScopeKey(scope)
@@ -16,6 +17,7 @@ export function legacyOnboardingRepository({ db, auth }, scope, career, assertLi
   const control = doc(db, 'migrationUsers', scope.uid)
   const consent = doc(db, 'planningSharing', scope.uid)
   const decode = snap => {
+    legacyWriteRevision(snap.data())
     const statusMap = snap.exists() ? snap.data().statusMap : null
     if (snap.exists() && statusMap === null) throw new Error('INVALID_ACADEMIC_PROGRESS')
     // Validate before claiming a successful read; undefined is never absence.
@@ -33,13 +35,14 @@ export function legacyOnboardingRepository({ db, auth }, scope, career, assertLi
         const authority = await tx.get(control)
         const context = resolveUserDataAuthority(scope.uid, authority.exists() ? authority.data() : null)
         if (context.authority !== 'legacy' || !context.capabilities.academicWrite) throw new Error('ACADEMIC_AUTHORITY_CHANGED')
-        const previous = decode(await tx.get(target))
+        const progressSnapshot = await tx.get(target)
+        const previous = decode(progressSnapshot)
         const statusMap = mergeOnboardingChanges(changes, scope, { state: 'loaded', statusMap: previous.statusMap })
         if (!changes.entries.length) { check(); return previous }
         const sharing = await tx.get(consent)
         check()
         const now = serverTimestamp()
-        tx.set(target, { statusMap, updatedAt: now }, { mergeFields: ['statusMap', 'updatedAt'] })
+        tx.set(target, { statusMap, updatedAt: now, writeRevision: nextLegacyWriteRevision(progressSnapshot.data()) }, { mergeFields: ['statusMap', 'updatedAt', 'writeRevision'] })
         if (sharing.data()?.enabled && sharing.data().sharedCareerId === scope.id) {
           tx.set(doc(db, 'planningSnapshots', scope.uid, 'careers', scope.id),
             derivePlanningSnapshot(career, statusMap, now, now, sharing.data().consentVersion === 2))

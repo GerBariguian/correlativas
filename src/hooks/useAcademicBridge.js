@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { auth, db } from '../firebase'
 import { academicBridgeRepository } from '../services/academicBridge'
 import { academicScope, academicScopeKey } from '../userDataAuthorityLogic'
-import { loadUserStatus, subscribeUserStatus, saveUserStatus } from '../services/firestore'
+import { loadLegacyProgress, subscribeLegacyProgress, saveUserStatus } from '../services/firestore'
 import { projectionRepository } from '../services/careerProjections'
 import { careerLifecycleRepository } from '../services/careerLifecycle'
 import { careers } from '../data/careers'
@@ -36,6 +36,10 @@ export default function useAcademicBridge(user, catalogId) {
   const source = useMemo(() => {
     if (!scope) return null
     const allowed = () => auth.currentUser === user && latest.current.authority === scope.model && latest.current.capabilities.academicWrite
+    const generation = onboardingEpoch.current.generation
+    const assertCurrent = () => {
+      if (!allowed() || onboardingEpoch.current.generation !== generation) throw new Error('ACADEMIC_SCOPE_CHANGED')
+    }
     return { scope, key: nextKey,
       createOnboarding() {
         const generation = onboardingEpoch.current.generation
@@ -53,12 +57,16 @@ export default function useAcademicBridge(user, catalogId) {
           save: (changes, revision) => legacy ? legacy.save(changes)
             : repository.saveOnboardingProgress(scope, changes, revision, assertLive) })
       },
-      load: () => scope.model === 'legacy' ? loadUserStatus(user.uid, scope.id).then(statusMap => ({ statusMap, revision: null })) : repository.loadProgress(scope),
-      subscribe: (onData, onError) => scope.model === 'legacy' ? subscribeUserStatus(user.uid, scope.id, statusMap => onData({ statusMap, revision: null }), onError)
+      load: () => scope.model === 'legacy' ? loadLegacyProgress(user.uid, scope.id).then(document => ({ statusMap: document.exists ? document.statusMap : null, revision: document })) : repository.loadProgress(scope),
+      subscribe: (onData, onError) => scope.model === 'legacy' ? subscribeLegacyProgress(user.uid, scope.id, document => onData({ statusMap: document.exists ? document.statusMap : null, revision: document }), onError)
         : repository.subscribeProgress(scope, onData, onError),
       async save(map, expected) {
         if (!allowed()) throw new Error('ACADEMIC_AUTHORITY_CHANGED')
-        return scope.model === 'legacy' ? saveUserStatus(user.uid, scope.id, map).then(() => null) : repository.saveProgress(scope, map, expected)
+        if (scope.model !== 'legacy') return repository.saveProgress(scope, map, expected)
+        assertCurrent()
+        const result = await saveUserStatus(user.uid, scope.id, map, assertCurrent)
+        assertCurrent()
+        return result
       },
       projection: () => scope.model === 'legacy' ? projectionRepository(user.uid, scope.id) : repository.projection(scope),
     }

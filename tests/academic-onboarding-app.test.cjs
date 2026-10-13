@@ -8,8 +8,13 @@ function appFixture(model = 'legacy', chosen = true) {
   let authNext, stored = { A: 'Pendiente' }
   const careers = ['cat', 'other'].map(id => ({ id, name: id, plan: '1', subjects: [], initialStatus: {} }))
   const source = (id, catalogId = id) => ({ key: `alice:${model}:${id}`, scope: { uid: 'alice', model, id, catalogId },
-    load: async () => { calls.push(['read', id]); return { statusMap: stored, revision: model === 'instances' ? 1 : null } },
-    save: async map => { calls.push(['ordinary-save', map]); return null } })
+    load: async () => { calls.push(['read', id]); return { statusMap: stored, revision: model === 'instances' ? 1 : { exists: true, statusMap: { ...stored }, updatedAt: 1 } } },
+    save: async map => {
+      calls.push(['ordinary-save', map])
+      if (model === 'instances') return 2
+      for (const op of map.operations) stored = { ...stored, [op.code]: op.status }
+      return { exists: true, statusMap: { ...stored }, updatedAt: 2 }
+    } })
   const bridge = { authority: model, phase: model === 'instances' ? 'complete' : 'pending', capabilities: { academicWrite: true, legacySocial: model === 'legacy', select: true },
     catalogId: chosen ? 'cat' : null, activeCareerInstanceId: model === 'instances' && chosen ? 'ix' : null, instances: [],
     canWrite: () => bridge.capabilities.academicWrite, retry() {}, lifecycle: { select: async id => { calls.push(['select', id]); setSource(id, 'other') } } }
@@ -19,7 +24,7 @@ function appFixture(model = 'legacy', chosen = true) {
   }
   setSource(model === 'instances' ? 'ix' : 'cat', 'cat'); if (!chosen) bridge.catalogId = null
   const components = Object.fromEntries(['Header', 'CareerSelector', 'InstanceSelection', 'MyCareers', 'JointPlanHistory', 'JointCWorkspace', 'CareerProjectionPage', 'PlannerPage', 'CareerMap', 'SubjectsPanel', 'Advisor', 'WelcomeSetup', 'FriendsPage', 'Dashboard', 'Route', 'AcademicOnboarding'].map(name => [name, name]))
-  const ui = harness('src/App.jsx', 'App', { ...components, auth, careers, googleProvider: {}, signInWithPopup() {},
+  const ui = harness('src/App.jsx', 'App', { ...components, structuredClone, auth, careers, googleProvider: {}, signInWithPopup() {},
     onAuthStateChanged: (_auth, next) => { authNext = next; next(user); return () => {} },
     useAcademicBridge: () => bridge, useActivity: () => ({}), useSocialProfile: () => ({ ready: true }),
     useCareerProjection: () => ({ phase: 'empty' }), usePlannerSession: () => ({ selectedCodes: [], setSelectedCodes() {} }),
@@ -102,4 +107,16 @@ test('MyCareers successful add offers opt-in without implicit selection', async 
   assert.equal(configured[0].id, 'new-instance'); assert.equal(configured[0].catalogId, 'cat')
   button(render(), 'Prefiero hacerlo después').props.onClick()
   assert.equal(button(render(), 'Seleccionar y configurar materias'), undefined)
+})
+
+
+test('ordinary legacy UI captures explicit expectation and adopts server map including concurrent keys', async () => {
+  const f = appFixture(); f.render(); await f.settle()
+  const subjectsTab = nodes(f.render()).find(n => n.type === 'button' && text(n).includes('Materias'))
+  subjectsTab.props.onClick(); await f.settle()
+  f.setStored({ A: 'Pendiente', OTHER: 'Aprobada' })
+  await node(f.render(), 'SubjectsPanel').props.updateStatus('A', 'Cursando'); await f.settle()
+  const intent = f.calls.find(c => c[0] === 'ordinary-save')[1]
+  assert.deepEqual(JSON.parse(JSON.stringify(intent)), { type: 'patch', operations: [{ code: 'A', expected: { exists: true, status: 'Pendiente' }, operation: 'set', status: 'Cursando' }] })
+  assert.deepEqual(JSON.parse(f.cache.at(-1)[1]), { A: 'Cursando', OTHER: 'Aprobada' })
 })

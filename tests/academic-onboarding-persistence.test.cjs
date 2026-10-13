@@ -2,6 +2,20 @@ const { test } = require('node:test')
 const assert = require('node:assert/strict')
 const { fixture, control, instance, time, career } = require('./academic-onboarding-persistence-harness.cjs')
 const permission = () => Object.assign(Error('denied'), { code: 'permission-denied' })
+
+test('legacy onboarding enrolls then increments writeRevision without changing its merge contract', async () => {
+  const f = fixture('legacy')
+  const first = await edit(f, ['B'])
+  await first.c.confirm(first.d)
+  assert.equal(f.data.get(f.target).writeRevision, 1)
+  const second = await edit(f, ['C'])
+  await second.c.confirm(second.d)
+  assert.equal(f.data.get(f.target).writeRevision, 2)
+  assert.equal(f.data.get(f.target).statusMap.A, 'Pendiente')
+  assert.equal(f.data.get(f.target).statusMap.OLD, 'Regularizada')
+  f.data.get(f.target).writeRevision = null
+  await assert.rejects(f.controller().load(), /INVALID_LEGACY_WRITE_REVISION/)
+})
 async function edit(f, codes = ['B']) {
   const c = f.controller(), d = await c.load()
   return { c, d: f.api.decideOnboardingSubjects(d, codes, 'Aprobada') }

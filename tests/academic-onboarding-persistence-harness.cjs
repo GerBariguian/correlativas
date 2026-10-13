@@ -2,7 +2,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 function load(sdk) {
   const api = require('./academic-bridge-harness.cjs')(sdk)
-  for (const file of ['planningLogic.js', 'academicOnboardingController.js', 'services/academicOnboarding.js']) {
+  for (const file of ['legacyWriteRevision.js', 'planningLogic.js', 'academicOnboardingController.js', 'services/academicOnboarding.js']) {
     const source = fs.readFileSync(path.join(__dirname, '../src', file), 'utf8')
     const names = [...source.matchAll(/export (?:async )?(?:function|const) (\w+)/g)].map(m => m[1])
     Object.assign(api, new Function(...Object.keys(api), source.replace(/^import .*$/gm, '').replace(/export /g, '') + `;return {${names.join(',')}}`)(...Object.values(api)))
