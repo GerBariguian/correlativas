@@ -6,7 +6,7 @@ const h = require('./helpers.cjs')
 const { load, career, control, instance } = require('../academic-onboarding-persistence-harness.cjs')
 const api = load(sdk)
 
-for (const [model, rulesFile] of [['legacy', 'firestore.migration-users-hotfix.rules'], ['legacy', 'firestore.rules'], ['instances', 'firestore.rules']]) {
+for (const [model, rulesFile] of [['legacy', 'firestore.migration-users-hotfix.rules'], ['legacy', 'firestore.rules'], ['instances', 'firestore.rules'], ...['transition', 'strict'].map(mode => ['instances', `rules/legacy-write-revision/full-${mode}.rules`])]) {
   test(`${model} real onboarding services with ${rulesFile}`, async t => {
     const env = await h.initialize(fs.readFileSync(rulesFile, 'utf8'))
     try {
