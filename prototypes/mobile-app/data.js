@@ -15,11 +15,12 @@ export const friends = [
   { id: 'martina', name: 'Martina López', initials: 'ML', color: 'mint', detail: 'Sistemas · UTN', progress: 45 },
 ]
 export const groups = [
-  { id: 'bd', title: 'Sale ese final de Bases de Datos', subject: 19, members: 4, detail: 'Repaso de consultas y normalización', initials: 'BD', color: 'lavender' },
-  { id: 'ds', title: 'Desarrollo de Software', subject: 20, members: 3, detail: 'Un paso más cerca del final', initials: 'DS', color: 'mint' },
+  { id: 'bd', title: 'Sale ese final de Bases de Datos', subject: 19, members: 4, membership: 'invited', detail: 'Repaso de consultas y normalización', initials: 'BD', color: 'lavender' },
+  { id: 'ds', title: 'Desarrollo de Software', subject: 20, members: 3, membership: 'member', detail: 'Un paso más cerca del final', initials: 'DS', color: 'mint' },
 ]
+export const makeJoined = () => groups.filter(group => group.membership === 'member').map(group => group.id)
 export const notifications = [
   { id: 1, title: 'Lucía te invitó a estudiar', detail: 'Sale ese final de Bases de Datos', time: 'Hace 5 min · ficticio', target: 'group', group: 'bd' },
-  { id: 2, title: 'Un nuevo compañero de carrera', detail: 'Tomás aceptó tu solicitud de amistad.', time: 'Hace 1 h · ficticio', target: 'friends' },
+  { id: 2, title: 'Un nuevo compañero de carrera', detail: 'Tomás aceptó tu solicitud de amistad.', time: 'Hace 1 h · ficticio', target: 'friends', friend: 'tomas' },
   { id: 3, title: 'Tu próximo paso', detail: 'Tenés finales habilitados. Mirá cuáles podés preparar.', time: 'Hoy · ficticio', target: 'finals' },
 ]

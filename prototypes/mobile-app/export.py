@@ -34,7 +34,7 @@ html = html.replace('img-src \'self\' data:', "img-src data:")
 html = html.replace("default-src 'self'", "default-src 'none'")
 name = 'Correlativas-demo.html'
 (output / name).write_text(html)
-readme = '''CORRELATIVAS — DEMO MOBILE
+readme = '''CORRELATIVAS — DEMO MOBILE · ITERACIÓN 02
 
 Abrí Correlativas-demo.html en Chrome, Edge o Firefox de una computadora.
 No requiere instalación, servidor, login ni conexión a Internet.

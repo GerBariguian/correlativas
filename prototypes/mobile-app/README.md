@@ -4,6 +4,26 @@ Demo visual y navegable, sin Capacitor, proyectos nativos, backend ni login.
 Rama: `prototype/mobile-first`, creada desde `main` en
 `a245f2032fe014a25dc71428361a67aeb4baa151`. No incorpora ni modifica el PR #4.
 
+## Iteración 02
+
+Se mantiene la dirección visual aprobada. Cambios específicos:
+
+- Filtros sin barra visible: conservan scroll táctil/rueda y acceso por Tab con el filtro enfocado a la vista.
+- Mapa con menos márgenes, años más anchos, flechas accesibles y scroll horizontal libre. La selección centra su año una sola vez; los desplazamientos manuales posteriores no la vuelven a centrar.
+- El detalle extenso de bloqueo del mapa compartido se oculta solo en la demo. Al intentar agregar una materia no habilitada aparece un mensaje breve junto a la acción; el detalle completo sigue disponible.
+- Panel de edición adaptado a VisualViewport y al teclado, con cierre visible, desplazamiento interno, nota numérica y guardado accesible. Los avisos flotantes no cubren el editor.
+- Mis grupos e invitaciones pendientes en secciones separadas, con etiquetas y tonos distintos. Desarrollo de Software ya tiene membresía; Bases de Datos comienza como invitación. Aceptarla mueve el grupo de sección.
+- La actividad de Tomás abre su perfil; la invitación abre su grupo; el aviso académico abre Finales. El contador numérico y el estado leído se actualizan una sola vez por actividad, además de permitir marcar todas.
+
+La prueba de teclado reduce el viewport a 320 × 340, mantiene el campo enfocado,
+verifica cierre/campo/guardar visibles y envía el formulario con Enter. No simula
+el teclado real de iOS/Android ni reemplaza una prueba física en esos dispositivos.
+
+Validación de esta iteración: 122 comprobaciones en Chromium tanto sobre el
+preview compilado como sobre el HTML autónomo servido localmente; 1108 pruebas
+existentes aprobadas y build web correcto. Ninguna solicitud externa ni error
+de JavaScript en las pruebas de la demo.
+
 ## Qué revisar
 
 1. **Inicio:** progreso académico, estados, promedio ficticio, próximos finales y materias en curso.
@@ -104,7 +124,7 @@ El smoke usa puertos locales 5182/9223, un perfil descartable y cierra sus proce
 Comprueba interacciones reales, promedio, pérdida de nota al cambiar de estado,
 nota vacía, detalle anidado, búsqueda, mapa, selección, comunidad, notificaciones,
 reinicio, recarga, ausencia de errores y ausencia de solicitudes externas.
-También revisa desbordamiento y navegación táctil a 320, 390, 430 y 1280 px.
+También revisa desbordamiento y objetivos táctiles a 320, 390, 430 y 1280 px, scroll horizontal, navegación por teclado, centrado/manual del mapa y un viewport corto para edición.
 Capturas y resultados quedan en `.tools/mobile-demo-artifacts/` (ignorado).
 Son pruebas Chromium; no equivalen a validación de Safari/iOS o un dispositivo físico.
 

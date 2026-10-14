@@ -30,7 +30,7 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .header-actions { display: flex; gap: 12px; align-items: center; }
 .icon-btn { display: inline-flex; justify-content: center; align-items: center; background: transparent; color: #535b74; border: 0; border-radius: 50%; width: 44px; height: 44px; padding: 8px; flex-shrink: 0; }
 .notification-button { position: relative; }
-.notification-dot { position: absolute; width: 7px; height: 7px; background: #f19c6b; border-radius: 50%; top: 10px; right: 11px; box-shadow: 0 0 0 2px #f8f9fd; }
+.notification-dot { position: absolute; min-width: 15px; height: 15px; padding: 0 3px; display: grid; place-items: center; color: #654225; font-size: 9px; font-weight: 750; background: #f8c59f; border-radius: 8px; top: 4px; right: 3px; box-shadow: 0 0 0 2px #f8f9fd; }
 .avatar { border: 0; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 16px; font-size: 12px; font-weight: 750; flex-shrink: 0; }
 .lavender { color: #6655bd; background: #ece8ff; }
 .peach { color: #ae6239; background: #fff0df; }
@@ -109,7 +109,8 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 .search-field { display: flex; align-items: center; gap: 9px; border: 1px solid var(--demo-border); background: white; padding: 0 12px; border-radius: 13px; color: #9da1b4; }
 .search-field input { border: 0; background: none; outline: none; width: 100%; min-width: 0; padding: 15px 0; color: var(--text); font-size: 12px; }
 .search-field input::placeholder { color: #9b9eb1; }
-.filter-scroller { display: flex; overflow-x: auto; gap: 8px; padding: 14px 0; scrollbar-width: thin; }
+.filter-scroller { display: flex; overflow-x: auto; gap: 8px; padding: 14px 6px; scrollbar-width: none; -ms-overflow-style: none; scroll-padding-inline: 6px; }
+.filter-scroller::-webkit-scrollbar { display: none; }
 .filter-scroller button { flex-shrink: 0; border: 1px solid #e5e7f1; background: white; border-radius: 10px; padding: 12px 14px; min-height: 44px; font-size: 11px; color: #7d8298; }
 .filter-scroller button[aria-pressed="true"] { color: white; background: #5262e8; border-color: #5262e8; }
 .list-caption { display: flex; justify-content: space-between; margin: 7px 0 13px; font-size: 10px; color: #9399ac; }
@@ -252,4 +253,42 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
 @media (max-width: 850px) {
   .demo-sheet-root .MuiDialog-container { align-items: flex-end; }
   .demo-sheet-root .MuiDialog-paper.demo-sheet { width: min(480px, 100%); max-width: 480px; margin: 0; border-radius: 25px 25px 0 0; max-height: 88dvh; padding-bottom: max(26px, env(safe-area-inset-bottom)); }
+}
+
+/* Iteration 02: compact map controls, readable group membership and keyboard-safe sheets. */
+.mobile-map .map-tip.compact { padding: 10px 12px; margin-bottom: 10px; }
+.mobile-map .progress-summary { margin: 10px 0; }
+.mobile-map .career-map-page { padding: 0; border: 0; background: none; box-shadow: none; border-radius: 0; }
+.mobile-map .map-header { display: none; }
+.mobile-map .career-map { gap: 12px; padding: 5px 3px 14px; scroll-snap-type: x proximity; overscroll-behavior-x: contain; scroll-padding-inline: 3px; }
+.mobile-map .year-column { flex-basis: 85%; padding: 12px; scroll-snap-align: center; }
+.mobile-map .map-subject { min-height: 68px; }
+.map-year-controls { display: flex; align-items: center; justify-content: space-between; margin: 6px 0 10px; }
+.map-year-controls > span { color: #69749b; font-size: 12px; font-weight: 650; }
+.map-year-controls small { font-size: 10px; color: #949bb1; margin-left: 4px; font-weight: 400; }
+.map-selection-bar { padding: 12px; margin: 0 0 10px; background: #fff; border: 1px solid #e4e7f4; border-radius: 14px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 9px; }
+.map-selection-bar > div { display: grid; gap: 6px; min-width: 0; }
+.map-selection-bar strong { font-size: 12px; line-height: 1.5; color: #4e5775; }
+.map-selection-bar > div > span { font-size: 9px; color: #8b93aa; }
+.map-add-btn { display: flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid #e0e5ff; background: #edf0ff; color: #5262d2; min-height: 44px; padding: 9px; border-radius: 10px; font-size: 10px; font-weight: 650; }
+.map-selection-bar #mobile-map-reason { grid-column: 1 / -1; color: #8d7758; background: #fcf7ee; border-radius: 8px; padding: 9px; margin: 3px 0; font-size: 11px; line-height: 1.6; }
+.map-detail-link { grid-column: 1 / -1; width: fit-content; padding: 4px 0; min-height: 44px; }
+.group-state { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 6px 8px; border-radius: 7px; font-size: 9px; font-weight: 600; }
+.group-state.member { color: #45816b; background: #edf7f1; border: 1px solid #dcefe3; }
+.group-state.invitation { color: #a0763c; background: #fff6e8; border: 1px solid #f6e8d0; }
+.group-card > .group-state { position: absolute; top: 20px; right: 13px; }
+.group-card.is-member { border-color: #dcebe4; }
+.group-card.is-invitation { border-color: #eee3d3; }
+.demo-sheet > .group-state { margin-left: 12px; }
+.demo-sheet-root .MuiDialog-container { position: absolute; top: var(--sheet-viewport-top, 0px); width: 100%; height: var(--sheet-viewport-height, 100dvh); }
+.demo-sheet-root .MuiDialog-paper.demo-sheet { max-height: calc(var(--sheet-viewport-height, 100dvh) * .9); scroll-padding-block: 75px 90px; overscroll-behavior-y: contain; }
+.demo-sheet > header { position: sticky; top: -13px; z-index: 2; background: #fff; padding-block: 5px; }
+.grade-form input { min-height: 48px; scroll-margin-block: 80px; }
+.grade-submit-bar { position: sticky; bottom: -26px; background: #fff; padding: 10px 0 max(10px, env(safe-area-inset-bottom)); z-index: 1; }
+.grade-submit-bar > .full { margin-top: 0; }
+@media (max-width: 359px) {
+  .map-selection-bar { padding: 10px; column-gap: 6px; }
+  .map-selection-bar strong { font-size: 11px; }
+  .map-add-btn { padding: 8px 6px; font-size: 9px; }
+  .group-card > .group-state { font-size: 8px; padding-inline: 6px; }
 }
