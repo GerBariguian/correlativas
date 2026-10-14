@@ -3,6 +3,7 @@ import { resolveUserDataAuthority } from '../userDataAuthorityLogic'
 import { decodeCareerMetadata } from '../careerInstancePersistenceLogic'
 import { validateCareerInstances } from '../careerInstanceLogic'
 import { decodeProjection, encodeProjectionScenario } from '../projectionPersistenceLogic'
+import { mergeOnboardingChanges } from '../academicOnboardingLogic'
 
 // Injected Firebase context: no initialization, migration, ID allocation or remote fallback.
 export function academicBridgeRepository({ db, auth }, uid) {
@@ -121,6 +122,22 @@ export function academicBridgeRepository({ db, auth }, uid) {
         check(); tx.set(target, { schemaVersion: 1, statusMap, revision, updatedAt: serverTimestamp() })
         return revision
       })
+    },
+    async saveOnboardingProgress(scope, changes, expected, assertLive) {
+      const target = path(scope, 'progress')
+      const result = await runTransaction(db, async tx => {
+        assertLive(); await guard(tx, scope)
+        const previous = decodeProgress(await tx.get(target))
+        if (previous.revision !== expected) throw new Error('ACADEMIC_PROGRESS_CONFLICT')
+        const statusMap = mergeOnboardingChanges(changes, scope, { state: 'loaded', statusMap: previous.statusMap })
+        const revision = (expected ?? 0) + 1
+        if (!Number.isSafeInteger(revision)) throw new Error('ACADEMIC_PROGRESS_CONFLICT')
+        check(); assertLive()
+        if (!changes.entries.length) return previous
+        tx.set(target, { schemaVersion: 1, statusMap, revision, updatedAt: serverTimestamp() })
+        return { statusMap, revision }
+      })
+      check(); assertLive(); return result
     },
     projection(scope) {
       const target = path(scope, 'projection')

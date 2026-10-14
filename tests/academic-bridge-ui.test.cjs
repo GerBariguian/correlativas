@@ -128,3 +128,49 @@ test('App switches source by context, gates freeze, null instances never onboard
   assert.ok(nodes(tree).some(n => n.type === 'MyCareers'))
   h.stop()
 })
+
+for (const change of ['career', 'instance', 'authority', 'archive', 'account', 'unmount']) {
+  test(`onboarding Bridge invalidates loaded draft on ${change}, even after returning`, async () => {
+    const api = require('./academic-onboarding-persistence-harness.cjs').load({})
+    let user = { uid: 'alice' }, emit, writes = 0
+    const auth = { currentUser: user }
+    const initial = { uid: 'alice', authority: 'instances', phase: 'complete', activeCareerInstanceId: 'ix', catalogId: 'catalog',
+      capabilities: { academicWrite: true, select: true }, instances: [] }
+    const repository = { subscribeContext(next) { emit = next; next(initial); return () => {} },
+      loadProgress: async () => ({ statusMap: null, revision: null }),
+      saveOnboardingProgress: async () => { writes++; return { revision: 1 } } }
+    const h = harness('src/hooks/useAcademicBridge.js', 'useAcademicBridge', { ...api, auth, db: {},
+      academicBridgeRepository: () => repository, careerLifecycleRepository: () => ({}),
+      careers: ['catalog', 'other'].map(id => ({ id, subjects: [{ code: 'A' }] })) })
+    h.render(user, 'catalog')
+    const bridge = h.render(user, 'catalog'), controller = bridge.source.createOnboarding()
+    const draft = api.decideOnboardingSubjects(await controller.load(), ['A'], 'Aprobada')
+    if (change === 'account') { user = { uid: 'bob' }; auth.currentUser = user; h.render(user, 'catalog') }
+    else if (change === 'unmount') h.stop()
+    else {
+      const patch = change === 'career' ? { catalogId: 'other' } : change === 'instance' ? { activeCareerInstanceId: 'iy' }
+        : change === 'authority' ? { authority: 'legacy' } : { activeCareerInstanceId: null }
+      emit({ ...initial, ...patch }); h.render(user, 'catalog')
+      emit(initial); h.render(user, 'catalog')
+    }
+    await assert.rejects(controller.confirm(draft), /SCOPE_CHANGED/)
+    assert.equal(writes, 0); h.stop()
+  })
+}
+
+test('legacy onboarding Bridge uses current catalog and server-only loader, not cached ordinary load', async () => {
+  const api = require('./academic-onboarding-persistence-harness.cjs').load({})
+  const user = { uid: 'alice' }, auth = { currentUser: user }
+  let reads = 0
+  const context = { uid: 'alice', authority: 'legacy', phase: 'pending', capabilities: { academicWrite: true } }
+  const h = harness('src/hooks/useAcademicBridge.js', 'useAcademicBridge', { ...api, auth, db: {},
+    academicBridgeRepository: () => ({ subscribeContext(next) { next(context); return () => {} } }),
+    careerLifecycleRepository: () => ({}), careers: ['catalog', 'other'].map(id => ({ id, subjects: [{ code: 'A' }] })),
+    loadUserStatus() { throw Error('ordinary load must not be used') },
+    legacyOnboardingRepository: () => ({ load: async () => { reads++; return { statusMap: null, revision: null } } }) })
+  h.render(user, 'catalog'); const controller = h.render(user, 'catalog').source.createOnboarding()
+  const draft = api.decideOnboardingSubjects(await controller.load(), ['A'], 'Aprobada')
+  h.render(user, 'other')
+  await assert.rejects(controller.confirm(draft), /SCOPE_CHANGED/)
+  assert.equal(reads, 1); h.stop()
+})

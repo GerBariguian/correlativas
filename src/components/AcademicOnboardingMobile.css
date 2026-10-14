@@ -1,0 +1,32 @@
+.academic-onboarding .onboarding-mobile,.academic-onboarding .mobile-review{display:none}
+@media(max-width:600px){
+  .academic-onboarding .desktop-editor{display:none}
+  .academic-onboarding .onboarding-mobile,.academic-onboarding .mobile-review{display:block}
+  .academic-onboarding .steps{gap:4px;margin:16px 0;flex-wrap:wrap}
+  .academic-onboarding .step{font-size:11px;gap:5px}
+  .academic-onboarding .brand strong{font-size:21px}
+  .academic-onboarding h1{font-size:28px}
+  .academic-onboarding .onboarding-mobile>p{margin-bottom:10px}
+  .academic-onboarding .mobile-count{font-size:12px}
+  .academic-onboarding .mobile-hint{font-size:11px;color:var(--muted)}
+  .academic-onboarding .mobile-card{position:relative;touch-action:none;user-select:none;background:white;border:1px solid var(--line);border-radius:24px;padding:20px;margin:16px 0 12px;min-height:200px;box-shadow:0 8px 22px #12182b0a;transition:transform .18s;overflow:hidden;overflow-wrap:anywhere}
+  .academic-onboarding .mobile-card.dragging{transition:none;transform:translate(var(--drag-x),var(--drag-y)) rotate(var(--drag-angle))}
+  .academic-onboarding .mobile-card h2{font-size:25px;line-height:1.2;margin:18px 0 12px}
+  .academic-onboarding .mobile-card small{font-size:11px;color:var(--muted)}
+  .academic-onboarding .mobile-chip{display:inline-block;background:#f0f2ff;color:#4e587f;padding:5px 9px;border-radius:8px;font-size:11px}
+  .academic-onboarding .mobile-stamp{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-8deg);border:2px solid currentColor;border-radius:9px;padding:8px 10px;font-size:16px;font-weight:800;pointer-events:none;white-space:nowrap;animation:onboarding-stamp .12s ease-out}
+  .academic-onboarding .mobile-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+  .academic-onboarding .mobile-actions>div{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+  .academic-onboarding .mobile-actions button{width:56px;height:56px;min-height:44px;border-radius:50%;padding:0;display:grid;place-items:center;border-width:2px}
+  .academic-onboarding .mobile-actions svg{width:27px;height:27px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .academic-onboarding .mobile-actions span{font-size:10px;font-weight:650}
+  .academic-onboarding .mobile-utility{display:flex;gap:5px;margin:14px 0}
+  .academic-onboarding .mobile-utility button{flex:1;min-width:0;min-height:44px;padding:8px 3px;font-size:11px}
+  .academic-onboarding .onboarding-mobile>.primary{width:100%}
+  .academic-onboarding .mobile-review{list-style:none;padding:0}
+  .academic-onboarding .mobile-review button{width:100%;text-align:left;margin-bottom:8px;overflow-wrap:anywhere}
+  .academic-onboarding .review-table{display:none}
+  .academic-onboarding .welcome{padding:20px}
+}
+@keyframes onboarding-stamp{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.academic-onboarding .mobile-card,.academic-onboarding .mobile-stamp{transition:none;animation:none}.academic-onboarding .mobile-card.dragging{transform:none}}

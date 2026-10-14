@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Onboarding · Demo de Correlativas</title>
+  <link rel="stylesheet" href="prototype.css">
+  <script src="prototype.js" defer></script>
+</head>
+<body>
+  <div class="demo-bar"><span class="demo-tag">DEMO</span> Prototipo visual · Datos ficticios · Sin conexión a Firebase ni guardado real</div>
+  <div class="shell">
+    <header class="brand-row">
+      <div class="brand"><img src="../../public/logo.png" alt=""><div><strong>Correlativas</strong><span>Planificá tu carrera. Descubrí tu camino.</span></div></div>
+      <button class="text-button" id="restart">Reiniciar demo ↺</button>
+    </header>
+    <nav aria-label="Pasos del onboarding" id="steps"></nav>
+    <main id="app"></main>
+    <p class="prototype-note">Experiencia desktop para revisión de diseño. Nada se guarda al cerrar o recargar esta página.</p>
+  </div>
+  <div id="announcer" class="sr-only" role="status" aria-live="polite"></div>
+  <dialog id="completion" aria-labelledby="completion-title">
+    <div class="success-icon" aria-hidden="true">✓</div>
+    <p class="eyebrow">Simulación completada</p>
+    <h2 id="completion-title">¡Así se vería la confirmación!</h2>
+    <p id="completion-copy"></p>
+    <p class="muted">No se escribió ningún dato. Este prototipo no está conectado a tu cuenta.</p>
+    <button class="primary" id="close-dialog">Volver al prototipo</button>
+  </dialog>
+</body>
+</html>

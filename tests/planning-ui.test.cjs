@@ -206,9 +206,9 @@ test('delete progress requires explicit confirmation, focuses cancel and blocks 
   assert.ok(nodes.some((node) => node.children.includes('Sí, borrar progreso')))
 })
 
-test('App reset retains its original transform and is exposed only in the subjects panel', () => {
+test('App reset retains its initial map with a document precondition and remains in subjects panel', () => {
   const app = source('src/App.jsx')
-  assert.match(app, /function reset\(\) \{\s*return persistStatus\(\(\) => initialStatus\)\s*\}/)
+  assert.match(app, /function reset\(\) \{\s*return persistStatus\(\(\) => initialStatus, \{ type: 'reset', expected: progress\.current\?\.revision, statusMap: initialStatus \}\)\s*\}/)
   assert.match(app, /<SubjectsPanel\s+key=\{bridge.key\}\s+reset=\{reset\}/)
   assert.doesNotMatch(source('src/components/Header.jsx'), /Reiniciar|reset=|onClick=\{reset\}/)
 })
