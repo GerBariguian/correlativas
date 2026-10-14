@@ -54,7 +54,7 @@ test('firebase indicator is rendered exclusively for selected emulator runtime',
  }
 })
 test('firebase real Vite build rejects emulator mode before bundling',()=>{
- const result=spawnSync(process.execPath,['node_modules/vite/bin/vite.js','build','--mode','emulator'],{encoding:'utf8',windowsHide:true})
+ const result=spawnSync(process.execPath,[require('node:path').join(require('node:path').dirname(require.resolve('vite/package.json')),'bin/vite.js'),'build','--mode','emulator'],{encoding:'utf8',windowsHide:true})
  assert.notEqual(result.status,0);assert.match(result.stdout+result.stderr,/EMULATOR_BUILD_FORBIDDEN/)
 })
 test('firebase Vite config excludes real VITE variables only in emulator mode',()=>{

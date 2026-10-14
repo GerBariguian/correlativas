@@ -507,6 +507,7 @@ if (!hasChosenCareer && bridge.authority === 'legacy') {
    {activeCareer && activePage === 'dashboard' && (
      <>
       <Dashboard
+        gradeSource={bridge.source}
   	stats={stats}
   	toCourse={toCourse}
   	finals={finals}
@@ -522,6 +523,7 @@ if (!hasChosenCareer && bridge.authority === 'legacy') {
       <SubjectsPanel
         key={bridge.key}
         reset={reset}
+        gradeSource={bridge.source}
         careerName={`${activeCareer.name} · Plan ${activeCareer.plan}`}
   	view={view}
   	setView={setView}

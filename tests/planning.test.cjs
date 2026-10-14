@@ -409,7 +409,7 @@ test('four isolated Rule artifacts are reproducible and change only the legacy c
   const { artifacts } = require('../scripts/prepare-legacy-write-revision.cjs')
   const generated = artifacts()
   assert.equal(generated.length, 4)
-  for (const { file, content } of generated) assert.equal(fs.readFileSync(path.join(__dirname, '..', file), 'utf8'), content)
+  for (const { file, content } of generated) assert.equal(fs.readFileSync(path.join(__dirname, '..', file), 'utf8').replace(/\r\n/g, '\n'), content)
 })
 
 test('legacy independent stale patches preserve unknown keys and return confirmed state', async () => {

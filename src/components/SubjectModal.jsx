@@ -10,6 +10,7 @@ function subjectNameByCode(code, subjects) {
 
 function SubjectModal({
   open,
+  gradeEditor,
   onClose,
   subject,
   status,
@@ -46,6 +47,7 @@ function SubjectModal({
           </IconButton>
         </div>
 
+        {gradeEditor}
         <div className="subject-modal-grid">
 
           <div className="subject-modal-left">

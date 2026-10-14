@@ -8,6 +8,7 @@ import { careerLifecycleRepository } from '../services/careerLifecycle'
 import { careers } from '../data/careers'
 import { createAcademicOnboardingController } from '../academicOnboardingController'
 import { legacyOnboardingRepository } from '../services/academicOnboarding'
+import { finalGradesRepository } from '../services/finalGrades'
 
 const waiting = { authority: 'loading', capabilities: { academicWrite: false, select: false, legacySocial: false }, instances: [] }
 export default function useAcademicBridge(user, catalogId) {
@@ -41,6 +42,12 @@ export default function useAcademicBridge(user, catalogId) {
       if (!allowed() || onboardingEpoch.current.generation !== generation) throw new Error('ACADEMIC_SCOPE_CHANGED')
     }
     return { scope, key: nextKey,
+      createFinalGrades() {
+        assertCurrent()
+        const career = careers.find(item => item.id === scope.catalogId)
+        if (!career) throw new Error('INVALID_ACADEMIC_SCOPE')
+        return finalGradesRepository({ db, auth }, scope, career.subjects, assertCurrent)
+      },
       createOnboarding() {
         const generation = onboardingEpoch.current.generation
         const assertLive = () => {
