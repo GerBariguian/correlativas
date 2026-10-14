@@ -6,7 +6,7 @@ const vm = require('node:vm')
 const api = vm.createContext({})
 const logic = fs.readFileSync(path.join(__dirname, '../src/logic.js'), 'utf8')
 const source = fs.readFileSync(path.join(__dirname, '../src/academicOnboardingLogic.js'), 'utf8')
-vm.runInContext(logic.replace(/export /g, '') + '\n' + source.replace(/^import .*\n/, '').replace(/export /g, ''), api)
+vm.runInContext(logic.replace(/export /g, '') + '\n' + source.replace(/^import [^\n]*\n/, '').replace(/export /g, ''), api)
 const plain = value => JSON.parse(JSON.stringify(value))
 const scope = { uid: 'alice', model: 'instances', id: 'instance-a', catalogId: 'catalog-a' }
 const subjects = [{ code: 'A', year: 1, term: '1C' }, { code: 'B', year: 1, term: '2C' }]

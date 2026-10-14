@@ -23,6 +23,7 @@ function statusClass(status) {
 
 function SubjectCard({
   subject,
+  gradesUI,
   subjects,
   statusMap,
   onChange,
@@ -40,6 +41,7 @@ function SubjectCard({
 
   const isOpen = expanded === subject.code
   const detailButton = useRef(null)
+  const gradeButton = useRef(null)
   function openDetail() {
     // MUI restores the focused trigger on close, including surface mouse clicks.
     detailButton.current?.focus()
@@ -78,6 +80,20 @@ function SubjectCard({
           </span>
         </div>
 
+        {gradesUI && status === 'Aprobada' && <div className="subject-final-grade" onClick={event => event.stopPropagation()}>
+          {gradesUI.ready && gradesUI.grades[subject.code]?.grade != null && <span>Nota final: {gradesUI.grades[subject.code].grade}</span>}
+          <button type="button" ref={gradeButton} className="subject-toggle"
+            disabled={gradesUI.pending}
+            aria-expanded={gradesUI.inlineCode === subject.code && !isOpen}
+            aria-controls={'grade-editor-' + subject.code}
+            onClick={() => gradesUI.toggle(subject.code)}>
+            {gradesUI.ready && gradesUI.grades[subject.code]?.grade != null ? 'Editar' : '+ Agregar nota'}
+          </button>
+          {gradesUI.notice?.code === subject.code && gradesUI.inlineCode !== subject.code && <small role="status" aria-live="polite">{gradesUI.pending ? 'Actualizando nota...' : gradesUI.notice.message}</small>}
+          {gradesUI.inlineCode === subject.code && !isOpen && <div id={'grade-editor-' + subject.code}>
+            {gradesUI.editor(subject.code, true, () => gradeButton.current?.focus())}
+          </div>}
+        </div>}
         <div className="mini-rules">
           <span className={courseOk ? 'rule ok' : 'rule no'}>
             {courseOk ? '✓' : '×'} Cursada
@@ -106,6 +122,7 @@ function SubjectCard({
 
       <SubjectModal
         open={isOpen}
+        gradeEditor={isOpen && gradesUI ? gradesUI.editor(subject.code) : null}
         onClose={() => setExpanded(null)}
         subject={subject}
         status={status}

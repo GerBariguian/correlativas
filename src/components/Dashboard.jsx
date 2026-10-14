@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import FinalGrades from './FinalGrades'
 import {
   BookOpen,
   CheckCircle2,
@@ -26,6 +27,7 @@ function Dashboard({
   finals,
   criticalSubjects,
   activeCareer,
+  gradeSource,
 }) {
   const [showFinals, setShowFinals] = useState(false)
 
@@ -122,7 +124,9 @@ function Dashboard({
         )}
       </article>
 
-      <div className="dashboard-bottom-row">
+      <div className={`dashboard-bottom-row ${gradeSource ? 'with-grade-summary' : ''}`}>
+      {gradeSource && <FinalGrades key={gradeSource.key} source={gradeSource} subjects={activeCareer.subjects} />}
+
       <article className="side-card">
         <p className="card-label">Finales pendientes</p>
         <strong>{stats.regularized}</strong>

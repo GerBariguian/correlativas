@@ -1,10 +1,11 @@
 import { Lock, Search } from 'lucide-react'
 import SubjectCard from './SubjectCard'
+import FinalGrades from './FinalGrades'
 import { getSubjectLevel } from '../logic'
 import DeleteCareerProgress from './DeleteCareerProgress'
 
 
-function SubjectsPanel({
+function SubjectsContent({
   view,
   setView,
   query,
@@ -21,6 +22,7 @@ function SubjectsPanel({
   setSelectedMapCode,
   reset,
   careerName,
+  gradesUI,
 }) {
 
 const levels = [...new Set(subjects.map(getSubjectLevel))]
@@ -74,6 +76,7 @@ const levels = [...new Set(subjects.map(getSubjectLevel))]
             <SubjectCard
   	      key={subject.code}
               subject={subject}
+              gradesUI={gradesUI}
               subjects={subjects}
               statusMap={statusMap}
               onChange={updateStatus}
@@ -96,4 +99,10 @@ const levels = [...new Set(subjects.map(getSubjectLevel))]
   )
 }
 
+function SubjectsPanel(props) {
+  if (!props.gradeSource) return <SubjectsContent {...props} />
+  return <FinalGrades key={props.gradeSource.key} source={props.gradeSource} subjects={props.subjects}>
+    {gradesUI => <SubjectsContent {...props} gradesUI={gradesUI} />}
+  </FinalGrades>
+}
 export default SubjectsPanel
