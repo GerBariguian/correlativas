@@ -1,0 +1,15 @@
+/* Layer over the approved visual system; no changes to the frozen demos. */
+.navigation-links { display: grid; gap: 10px; margin-bottom: 24px; }
+.navigation-destination { margin: 0; min-height: 64px; text-align: left; }
+.navigation-destination > span { min-width: 0; overflow-wrap: anywhere; }
+.navigation-back { min-height: 44px; min-width: 80px; margin-bottom: 12px; }
+.navigation-page { display: grid; gap: 16px; }
+.navigation-page .page-heading { margin-bottom: 0; }
+.navigation-page .profile-feature h2 { font-size: 23px; }
+.navigation-page .career-chip { flex-wrap: wrap; }
+.mobile-brand { padding-top: max(16px, env(safe-area-inset-top)); }
+.bottom-nav { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+.mobile-content { padding-bottom: calc(120px + env(safe-area-inset-bottom)); }
+.icon-btn, .bottom-nav button, .segmented button { min-height: 44px; min-width: 44px; }
+@media (max-width: 360px) { .navigation-destination { padding: 14px 12px; gap: 10px; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } }

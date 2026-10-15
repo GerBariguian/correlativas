@@ -1,0 +1,47 @@
+{
+  "branch": "mobile/stage2-1-navigation",
+  "baseCommit": "9226de5b5346b457f6985e5bc02ae4042b2ef1c6",
+  "scope": "2.1 navigation only; fixtures remain fictitious",
+  "build": "passed",
+  "navigation": {
+    "passed": true,
+    "checks": 238,
+    "widths": [
+      320,
+      390,
+      430,
+      844,
+      1280
+    ],
+    "engine": "Chromium (not Safari or native Android)",
+    "externalRequests": [],
+    "javascriptErrors": [],
+    "downloads": [],
+    "popups": []
+  },
+  "approvedVisualRegression": {
+    "passed": true,
+    "assertions": 123,
+    "widths": [
+      320,
+      390,
+      430,
+      1280
+    ],
+    "javascriptErrors": [],
+    "externalRequests": [],
+    "timestamp": "2026-10-15T04:32:17.295Z"
+  },
+  "existingTrackedFilesUnchanged": true,
+  "newDependencies": false,
+  "commitsCreated": false,
+  "pushed": false,
+  "deployed": false,
+  "nativeAndSafariPhysicalTests": "pending",
+  "buildSHA256": {
+    "assets/index-AcurtHUy.js": "aaaec737a59264488865e6a5a0b176341fccefcd69f7e89c56f1ac639855e792",
+    "assets/index-CiW7DMdQ.css": "18994cecdb61f9ab0e90ad966d9886f8cf9ecc8f10f8003d1037d808f0fac06c",
+    "assets/logo-DbaGozUD.png": "e8a96ce70d0fde88f56925c3b85aae5c14d4f791581fb425a6eb7149b0d5053c",
+    "index.html": "e80766ed9784d8e19b3b01fdde8ec66042c277dc1127219c233543a820756bce"
+  }
+}
