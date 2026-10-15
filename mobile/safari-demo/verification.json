@@ -1,0 +1,50 @@
+{
+  "security": {
+    "passed": true,
+    "headers": {
+      "Content-Security-Policy": "default-src 'none'; script-src 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; frame-ancestors 'none'; worker-src 'none'; manifest-src 'none'",
+      "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), display-capture=(), accelerometer=(), gyroscope=(), magnetometer=(), fullscreen=()",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cache-Control": "no-store"
+    },
+    "externalRequests": [],
+    "permissionCalls": [],
+    "downloads": [],
+    "popups": [],
+    "dialogs": [],
+    "javascriptErrors": [],
+    "inlineScriptBlocked": true,
+    "fetchBlocked": true,
+    "engine": "Chromium; not Safari",
+    "transport": "loopback HTTP; public HTTPS pending"
+  },
+  "browserRegression": {
+    "passed": true,
+    "assertions": 122,
+    "widths": [
+      320,
+      390,
+      430,
+      1280
+    ],
+    "javascriptErrors": [],
+    "externalRequests": [],
+    "timestamp": "2026-10-15T00:37:31.780Z"
+  },
+  "repositoryTests": {
+    "passed": 1108,
+    "failed": 0
+  },
+  "repeatBuildIdentical": true,
+  "lockfileUnchanged": true,
+  "publication": "not performed",
+  "realSafari": "pending",
+  "auditClassification": {
+    "development": 20,
+    "application": 4,
+    "includedInStaticBundle": 0
+  }
+}

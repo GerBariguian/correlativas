@@ -13,7 +13,7 @@ const artifacts = path.join(root, '.tools/mobile-demo-artifacts')
 await fs.mkdir(artifacts, { recursive: true })
 const preview = portable
   ? spawn('python', ['-m', 'http.server', '5182', '--bind', '127.0.0.1', '--directory', path.join(root, '.tools/mobile-demo-portable')], { stdio: 'ignore' })
-  : spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--config', android ? 'mobile/android-demo/vite.config.mjs' : 'prototypes/mobile-app/vite.config.mjs', '--port', '5182'], { cwd: root, stdio: 'ignore' })
+  : spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--config', process.env.DEMO_VITE_CONFIG || (android ? 'mobile/android-demo/vite.config.mjs' : 'prototypes/mobile-app/vite.config.mjs'), '--port', '5182'], { cwd: root, stdio: 'ignore' })
 const browser = spawn(process.env.CHROMIUM_BIN || 'chromium', ['--headless', '--no-sandbox', '--disable-dev-shm-usage', '--disable-background-networking', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=9223', `--user-data-dir=${path.join(artifacts, 'browser-profile')}`, 'about:blank'], { stdio: 'ignore' })
 let ws, count = 0
 const delay = ms => new Promise(r => setTimeout(r, ms))
