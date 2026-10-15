@@ -1,0 +1,26 @@
+{
+  "baseDemoCommit": "72f9dfee61124d5972c045a71f1f09dbc1234e35",
+  "nodeTests": {
+    "passed": 1108,
+    "failed": 0,
+    "skipped": 0
+  },
+  "ciPlanTests": {
+    "passed": 5,
+    "failed": 0
+  },
+  "webBuild": "passed",
+  "browserDemoAssertions": 122,
+  "androidBundleAssertions": 130,
+  "nativeBridgeInBrowser": "simulated",
+  "debugAssembly": "passed",
+  "rebuildAfterNpmCi": "passed",
+  "apkSameHashAfterRebuild": true,
+  "androidLint": {
+    "errors": 0,
+    "warnings": 19
+  },
+  "nativeUnitTests": "NO-SOURCE (template examples removed; no native functional suite claimed)",
+  "androidDeviceInstall": "pending physical device",
+  "iOS": "out of scope; no iOS project or IPA generated"
+}

@@ -18,6 +18,7 @@ export default defineConfig({
       if (forbidden.length) throw new Error(`Production modules in demo: ${forbidden.join(', ')}`)
     },
   }],
+  define: { __ANDROID_DEMO__: false },
   root,
   base: './',
   publicDir: false,

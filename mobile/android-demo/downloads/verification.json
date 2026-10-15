@@ -1,0 +1,16 @@
+{
+  "apk": "correlativas-demo-dev-0.1.0.apk",
+  "applicationId": "com.correlativas.demo.dev",
+  "version": "0.1.0-demo",
+  "versionCode": 1,
+  "minAndroidApi": 24,
+  "targetAndroidApi": 36,
+  "sha256": "966f40b6b24a935643807af5a1899741eeb856a644efd61de5459f9d02d4deea",
+  "sizeBytes": 6750888,
+  "signatureV2Verified": true,
+  "debugCertificate": true,
+  "internetPermission": false,
+  "firebaseProjectBinding": false,
+  "bundledAssetsMatchBuild": true,
+  "deviceInstallationTested": false
+}

@@ -7,12 +7,13 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 const root = fileURLToPath(new URL('../..', import.meta.url))
 const portable = process.argv.includes('--portable')
+const android = process.argv.includes('--android')
 const pageURL = portable ? 'http://127.0.0.1:5182/Correlativas-demo.html' : 'http://127.0.0.1:5182/'
 const artifacts = path.join(root, '.tools/mobile-demo-artifacts')
 await fs.mkdir(artifacts, { recursive: true })
 const preview = portable
   ? spawn('python', ['-m', 'http.server', '5182', '--bind', '127.0.0.1', '--directory', path.join(root, '.tools/mobile-demo-portable')], { stdio: 'ignore' })
-  : spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--config', 'prototypes/mobile-app/vite.config.mjs', '--port', '5182'], { cwd: root, stdio: 'ignore' })
+  : spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--config', android ? 'mobile/android-demo/vite.config.mjs' : 'prototypes/mobile-app/vite.config.mjs', '--port', '5182'], { cwd: root, stdio: 'ignore' })
 const browser = spawn(process.env.CHROMIUM_BIN || 'chromium', ['--headless', '--no-sandbox', '--disable-dev-shm-usage', '--disable-background-networking', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=9223', `--user-data-dir=${path.join(artifacts, 'browser-profile')}`, 'about:blank'], { stdio: 'ignore' })
 let ws, count = 0
 const delay = ms => new Promise(r => setTimeout(r, ms))
@@ -42,9 +43,21 @@ try {
   const fill = async (selector, value) => { await evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,${JSON.stringify(value)});e.dispatchEvent(new Event('input',{bubbles:true}));})()`); await delay(90) }
   const nav = async label => { await textClick('.bottom-nav button', label); await wait(`!document.querySelector('.demo-sheet')`) }
   const close = async () => { await click('.demo-sheet header button'); await wait(`!document.querySelector('.demo-sheet')`) }
-  const shot = async name => { await fs.writeFile(path.join(artifacts, `${portable ? 'portable-' : ''}${name}.png`), Buffer.from((await call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false })).data, 'base64')) }
+  const shot = async name => { await fs.writeFile(path.join(artifacts, `${android ? 'android-' : portable ? 'portable-' : ''}${name}.png`), Buffer.from((await call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false })).data, 'base64')) }
   await call('Runtime.enable'); await call('Network.enable'); await call('Page.enable')
   await call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true })
+  if (android) {
+    // Simulate the Capacitor App native bridge to exercise our real back-button
+    // adapter in Chromium. This does not claim a running Android device.
+    await call('Page.addScriptToEvaluateOnNewDocument', { source: `
+      window.androidBridge = {};
+      window.Capacitor = {
+        PluginHeaders: [{ name: 'App', methods: [{name:'addListener',rtype:'callback'},{name:'removeListener',rtype:'promise'},{name:'exitApp',rtype:'promise'}] }],
+        nativeCallback(plugin, method, options, callback) { if (plugin==='App' && method==='addListener' && options.eventName==='backButton') window.__demoNativeBack=callback; return 'demo-listener'; },
+        nativePromise(plugin, method) { if (method==='exitApp') window.__demoNativeExit=true; return Promise.resolve(); }
+      };
+    ` })
+  }
   await call('Page.navigate', { url: pageURL })
   await wait(`Boolean(document.querySelector('.journey-card'))`)
   await wait(`document.querySelectorAll('.bottom-nav button').length === 4`)
@@ -224,14 +237,30 @@ try {
   await call('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 })
   await wait(`!document.querySelector('.demo-sheet')`, 'Enter saves the grade')
   await call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true })
+  if (android) {
+    await wait(`document.documentElement.classList.contains('android-demo')`)
+    await wait(`typeof window.__demoNativeBack === 'function'`)
+    await nav('Materias')
+    await click('.demo-subject-row')
+    await click('.subject-detail-button')
+    await wait(`Boolean(document.querySelector('.subject-modal'))`)
+    await evaluate(`window.__demoNativeBack({canGoBack:false})`)
+    await wait(`!document.querySelector('.subject-modal') && Boolean(document.querySelector('.demo-sheet'))`)
+    await evaluate(`window.__demoNativeBack({canGoBack:false})`)
+    await wait(`!document.querySelector('.demo-sheet')`)
+    await evaluate(`window.__demoNativeBack({canGoBack:false})`)
+    await wait(`Boolean(document.querySelector('.journey-card'))`)
+    await evaluate(`window.__demoNativeBack({canGoBack:false})`)
+    await wait(`window.__demoNativeExit === true`)
+  }
   await call('Page.reload')
   await wait(`document.querySelector('.overview-grid')?.textContent.includes('8,38')`)
   assert.deepEqual(errors, [], 'No uncaught JS errors')
   assert.deepEqual(requests.filter(url => !url.startsWith('http://127.0.0.1:5182/') && !url.startsWith('data:')), [], 'No external requests, including Firebase')
   const csp = await evaluate(`document.querySelector('meta[http-equiv="Content-Security-Policy"]').content`)
   assert.ok(csp.includes("connect-src 'none'"))
-  console.log(`PASS (${portable ? 'portable HTML served locally' : 'preview'}): ${count} browser assertions; grade/status, map/planner, community, notifications, reset, 4 widths; zero external requests or JS errors.`)
-  await fs.writeFile(path.join(artifacts, portable ? 'result-portable.json' : 'result.json'), JSON.stringify({ passed: true, assertions: count, widths: [320, 390, 430, 1280], javascriptErrors: errors, externalRequests: [], timestamp: new Date().toISOString() }, null, 2))
+  console.log(`PASS (${android ? 'Android web bundle + simulated native bridge' : portable ? 'portable HTML served locally' : 'preview'}): ${count} browser assertions; grade/status, map/planner, community, notifications, reset, 4 widths; zero external requests or JS errors.`)
+  await fs.writeFile(path.join(artifacts, android ? 'result-android.json' : portable ? 'result-portable.json' : 'result.json'), JSON.stringify({ passed: true, assertions: count, widths: [320, 390, 430, 1280], javascriptErrors: errors, externalRequests: [], timestamp: new Date().toISOString() }, null, 2))
 } finally {
   ws?.close(); browser.kill('SIGTERM'); preview.kill('SIGTERM')
 }

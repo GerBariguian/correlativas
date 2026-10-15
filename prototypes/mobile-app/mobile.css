@@ -292,3 +292,11 @@ button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px 
   .map-add-btn { padding: 8px 6px; font-size: 9px; }
   .group-card > .group-state { font-size: 8px; padding-inline: 6px; }
 }
+
+/* The installed app reuses the phone UI, without the desktop presentation frame. */
+.android-demo .demo-stage { display: block; padding: 0; }
+.android-demo .demo-intro { display: none; }
+.android-demo .demo-device { margin: auto; max-width: 600px; min-height: 100dvh; border: 0; border-radius: 0; box-shadow: none; }
+.android-demo .bottom-nav { position: fixed; left: 50%; transform: translateX(-50%); width: min(600px, 100%); }
+.android-demo .mobile-content { padding-bottom: calc(105px + env(safe-area-inset-bottom)); }
+.android-demo .demo-ribbon { padding-top: max(10px, env(safe-area-inset-top)); }

@@ -9,9 +9,16 @@
     "test:rules": "node scripts/test-rules.cjs",
     "rollout:prepare": "node scripts/activity-rollout.cjs",
     "rollout:check": "node scripts/activity-rollout.cjs --check",
-    "build:maintenance": "node scripts/build-social-maintenance.cjs"
+    "build:maintenance": "node scripts/build-social-maintenance.cjs",
+    "mobile:build": "vite build --config mobile/android-demo/vite.config.mjs",
+    "mobile:sync": "npm run mobile:build && cap sync android",
+    "mobile:apk": "bash scripts/android-build.sh",
+    "mobile:verify-apk": "python scripts/verify-demo-apk.py"
   },
   "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.5.3",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/material": "^9.4.0",
@@ -23,6 +30,7 @@
     "vite": "latest"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.5.3",
     "@firebase/rules-unit-testing": "5.0.2",
     "firebase-tools": "15.30.2"
   }

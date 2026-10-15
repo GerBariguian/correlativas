@@ -1,0 +1,25 @@
+{
+  "appId": "com.correlativas.demo.dev",
+  "appName": "Correlativas Demo DEV",
+  "webDir": ".tools/mobile-android-dist",
+  "android": {
+    "path": "mobile/android-demo/android",
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": true,
+    "backgroundColor": "#f8f9fd"
+  },
+  "server": {
+    "hostname": "localhost",
+    "androidScheme": "https",
+    "cleartext": false
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "native",
+      "initialViewportFit": "cover"
+    },
+    "CapacitorHttp": {
+      "enabled": false
+    }
+  }
+}

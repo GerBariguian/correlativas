@@ -5,6 +5,7 @@ import { ArrowRight, Bell, BookOpen, Check, CheckCheck, ChevronRight, Clock3, Co
 import ProgressSummary from '../../src/components/ProgressSummary'
 import SubjectCard from '../../src/components/SubjectCard'
 import MobileMap from './MobileMap'
+import { useAndroidBack } from './androidRuntime'
 import { availableFinals, availableToCourse, getStatus, summary } from '../../src/logic'
 import logo from '../../public/logo.png'
 import { catalog, friends, groups, makeGrades, makeJoined, makeStatus, notifications, subjectCode } from './data'
@@ -54,6 +55,12 @@ function App() {
   const [notice, setNotice] = useState('')
   const [gradeDraft, setGradeDraft] = useState('')
   const [gradeError, setGradeError] = useState('')
+  useAndroidBack(exit => {
+    if (expanded) setExpanded(null)
+    else if (sheet) setSheet(null)
+    else if (page !== 'inicio') navigate('inicio')
+    else exit()
+  })
   const main = useRef(null)
   const stats = summary(catalog, status)
   const finals = availableFinals(catalog, status)
