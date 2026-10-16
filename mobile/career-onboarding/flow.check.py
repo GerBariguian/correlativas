@@ -2,7 +2,7 @@
 from pathlib import Path
 import subprocess,time,urllib.request,json
 from playwright.sync_api import sync_playwright
-ROOT=Path(__file__).resolve().parents[2];OUT=ROOT/'.tools/mobile-242-flow';OUT.mkdir(parents=True,exist_ok=True)
+ROOT=Path(__file__).resolve().parents[2];OUT=ROOT/'.tools/mobile-242-academic-gestures-flow';OUT.mkdir(parents=True,exist_ok=True)
 URL='http://127.0.0.1:5216/';KEY='correlativas-demo-235-academic-v1';checks=[];errors=[];external=[];events=[]
 server=subprocess.Popen(['node','node_modules/vite/bin/vite.js','preview','--config','mobile/career-onboarding/vite.config.mjs','--port','5216','--strictPort'],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 def check(ok,label):
@@ -44,19 +44,19 @@ try:
     check(bool(controls) and all(n.get('name',{}).get('value','').strip() for n in controls),profile+': new flow AX names')
 
    def title():return pg.locator('#onboarding-subject-title').inner_text()
-   def sw(dx,dy=0,edge=False,multi=False):
-    el=pg.locator('.onboarding-subject');el.scroll_into_view_if_needed();box=el.bounding_box();x=box['x']+min(180,box['width']/2);y=box['y']+min(70,box['height']/2)
+   def sw(dx,dy=0,edge=False,outside=False,cancel=False,revert=False):
+    el=pg.locator('.onboarding-subject h2' if outside else '.academic-gesture-zone');el.scroll_into_view_if_needed();box=el.bounding_box();x=box['x']+box['width']/2;y=box['y']+box['height']/2
     if edge:
-     # Edge-origin pointer sequence: test rejection without asking Chromium to navigate the document.
-     el.dispatch_event('pointerdown',{'pointerId':501,'pointerType':'touch','isPrimary':True,'clientX':10,'clientY':y})
-     el.dispatch_event('pointermove',{'pointerId':501,'pointerType':'touch','isPrimary':True,'clientX':160,'clientY':y})
-     el.dispatch_event('pointerup',{'pointerId':501,'pointerType':'touch','isPrimary':True,'clientX':160,'clientY':y});return
+     el.dispatch_event('pointerdown',{'pointerId':501,'pointerType':'touch','button':0,'isPrimary':True,'clientX':10,'clientY':y})
+     el.dispatch_event('pointerup',{'pointerId':501,'pointerType':'touch','button':0,'isPrimary':True,'clientX':160,'clientY':y});return
     d=c.new_cdp_session(pg)
     d.send('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':[{'x':x,'y':y}]})
-    if multi:d.send('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':[{'x':x,'y':y},{'x':x+30,'y':y+20}]})
     for i in range(1,11):
      d.send('Input.dispatchTouchEvent',{'type':'touchMove','touchPoints':[{'x':x+dx*i/10,'y':y+dy*i/10}]});pg.wait_for_timeout(20)
-    d.send('Input.dispatchTouchEvent',{'type':'touchEnd','touchPoints':[]});d.detach();pg.wait_for_timeout(700 if dy else 150)
+    if revert:d.send('Input.dispatchTouchEvent',{'type':'touchMove','touchPoints':[{'x':x,'y':y}]});pg.wait_for_timeout(30)
+    preview=pg.locator('[data-gesture-status]').get_attribute('data-gesture-status') if pg.locator('[data-gesture-status]').count() else None
+    if preview:check(preview==('Aprobada' if dx>0 else 'Pendiente') if abs(dx)>abs(dy) else preview==('Cursando' if dy<0 else 'Regularizada'),profile+': live state preview')
+    d.send('Input.dispatchTouchEvent',{'type':'touchCancel' if cancel else 'touchEnd','touchPoints':[]});d.detach();pg.wait_for_timeout(700 if outside else 150)
    # First trajectory, optional confirmation, duplicate/reload does not add again.
    scenario('empty');add('UTN','Sistemas')
    check(snapshot()['state']['profile']['activeCareerInstanceId']=='demo-added-1',profile+': first selected by existing rule')
@@ -68,20 +68,27 @@ try:
 
    pg.get_by_role('button',name='Hacerlo después',exact=True).click();check(pg.locator('.career-tile').count()==1,profile+': later shows careers')
    pg.get_by_role('button',name='Configurar mis materias',exact=True).click();pg.locator('.onboarding-subject').wait_for();first=title();initial=snapshot()['state']['records']
-   sw(140);check(title()==first,profile+': previous boundary')
-   sw(-20);check(title()==first,profile+': short drag ignored')
-   sw(-120,120);check(title()==first,profile+': diagonal scroll not skip')
-   sw(0,-90);check(title()==first,profile+': vertical scroll not skip')
+   sw(-20);check(title()==first and snapshot()['state']['records']==initial,profile+': short gesture ignored')
+   sw(-100,100);check(title()==first and snapshot()['state']['records']==initial,profile+': diagonal does not decide')
+   pg.evaluate('window.scrollTo(0,0)');pg.wait_for_timeout(100);scroll_before=pg.evaluate('scrollY')
+   sw(0,-120,outside=True);check(pg.evaluate('scrollY')>scroll_before,profile+': normal vertical scroll remains functional');check(title()==first and snapshot()['state']['records']==initial,profile+': vertical page scroll outside gesture zone does not decide')
    sw(140,edge=True);check(title()==first,profile+': browser edge left alone')
-   card=pg.locator('.onboarding-subject');bounds=card.bounding_box();at={'clientX':bounds['x']+100,'clientY':bounds['y']+30,'pointerType':'touch'}
-   card.dispatch_event('pointerdown',{**at,'pointerId':601,'isPrimary':True});card.dispatch_event('pointerdown',{**at,'pointerId':602,'isPrimary':False})
-   card.dispatch_event('pointermove',{**at,'clientX':at['clientX']-140,'pointerId':601,'isPrimary':True});card.dispatch_event('pointerup',{**at,'pointerId':601,'isPrimary':True})
-   check(title()==first and snapshot()['state']['records']==initial,profile+': second pointer cancels navigation')
-   sw(-140);check(title()!=first,profile+': left skips')
-   check(snapshot()['state']['records']==initial,profile+': omission writes no state')
-   check(session()['skipped'] and not session()['draft']['decisions'],profile+': skipped separate from Pendiente')
-   sw(140);check(title()==first,profile+': right returns previous')
-   pg.get_by_role('button',name='Omitir',exact=True).click();check(title()!=first,profile+': button omission works');pg.get_by_role('button',name='Anterior',exact=True).click()
+   sw(-140,revert=True);check(title()==first and snapshot()['state']['records']==initial,profile+': returning drag to origin does not decide')
+   sw(-140,cancel=True);check(title()==first and snapshot()['state']['records']==initial,profile+': pointer cancellation does not decide')
+   check(pg.locator('[data-gesture-status]').count()==0,profile+': preview cleared on cancel')
+   zone=pg.locator('.academic-gesture-zone');zone.scroll_into_view_if_needed();bounds=zone.bounding_box();x=bounds['x']+bounds['width']/2;y=bounds['y']+bounds['height']/2
+   d=c.new_cdp_session(pg);one={'id':31,'x':x,'y':y};two={'id':32,'x':x+30,'y':y+10}
+   d.send('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':[one]});d.send('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':[one,two]})
+   d.send('Input.dispatchTouchEvent',{'type':'touchMove','touchPoints':[{**one,'x':x-100},{**two,'x':x-70}]});d.send('Input.dispatchTouchEvent',{'type':'touchEnd','touchPoints':[]});d.detach();pg.wait_for_timeout(150)
+   check(title()==first and snapshot()['state']['records']==initial,profile+': second pointer cancels academic decision')
+   pg.get_by_role('button',name='Omitir',exact=True).click();check(title()!=first,profile+': independent omission button')
+   check(snapshot()['state']['records']==initial and session()['skipped'] and not session()['draft']['decisions'],profile+': Omitir is not Pendiente')
+   pg.get_by_role('button',name='Anterior',exact=True).click();check(title()==first,profile+': independent previous button')
+   for dx,dy,status in [(-140,0,'Pendiente'),(140,0,'Aprobada'),(0,-110,'Cursando'),(0,110,'Regularizada')]:
+    sw(dx,dy);pg.locator('.onboarding-mobile-page [data-academic-phase=success]').wait_for();check(title()!=first,profile+': academic swipe advances '+status)
+    pg.get_by_role('button',name='Anterior',exact=True).click();check(title()==first,profile+': can return and correct gesture')
+    check(pg.get_by_role('button',name=status,exact=True).get_attribute('aria-pressed')=='true',profile+': gesture saved '+status)
+    check(len(session()['draft']['decisions'])==1,profile+': swipe corrections affect only this card')
    for status in ['Pendiente','Cursando','Regularizada','Aprobada']:
     pg.get_by_role('button',name=status,exact=True).click();pg.locator('.onboarding-mobile-page [data-academic-phase=success]').wait_for()
     check(title()!=first,profile+': status advances '+status)
@@ -141,11 +148,11 @@ try:
    # Existing baseline is protected; errors/conflicts do not advance or commit.
    for mode in ['error','conflict']:
     scenario('instances');pg.get_by_role('button',name='Abrir Cuenta de Alex, perfil ficticio').click();pg.locator('.context-scenarios summary').click();pg.locator('#academic-result').select_option(mode);tab('Inicio');config()
-    name=title();before=snapshot();pg.get_by_role('button',name='Cursando',exact=True).click();pg.locator(f'.onboarding-mobile-page [data-academic-phase={mode}]').wait_for()
+    name=title();before=snapshot();sw(0,-110);pg.locator(f'.onboarding-mobile-page [data-academic-phase={mode}]').wait_for()
     check(title()==name and snapshot()['state']['records']==before['state']['records'],profile+': '+mode+' no write or advance')
    # Late response must be discarded by the existing context controller.
    scenario('instances');pg.get_by_role('button',name='Abrir Cuenta de Alex, perfil ficticio').click();pg.locator('.context-scenarios summary').click();pg.locator('#academic-delay').select_option('4000');tab('Inicio');config()
-   before=snapshot()['state']['records'];cursor=session()['cursor'];pg.get_by_role('button',name='Cursando',exact=True).click();sw(-140);check(session()['cursor']==cursor,profile+': pending blocks swipe')
+   before=snapshot()['state']['records'];cursor=session()['cursor'];sw(0,-110);check(pg.locator('.academic-gesture-zone').get_attribute('aria-disabled')=='true',profile+': pending disables gesture surface');check(session()['cursor']==cursor,profile+': pending blocks swipe')
    careers();pg.locator('.career-tile[data-catalog="utn-industrial-2023"]').get_by_role('button',name='Configurar mis materias',exact=True).click();pg.get_by_role('button',name='Cambiar y configurar',exact=True).click();pg.locator('.onboarding-subject').wait_for();pg.wait_for_timeout(4200)
    check(snapshot()['state']['records']==before,profile+': late result cannot write after context switch')
    check(snapshot()['state']['profile']['activeCareerInstanceId']=='demo-industrial23',profile+': pending target correct')

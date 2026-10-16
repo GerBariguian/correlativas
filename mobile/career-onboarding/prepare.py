@@ -2,7 +2,7 @@
 from pathlib import Path
 import hashlib, json, re, subprocess, zipfile
 ROOT=Path(__file__).resolve().parents[2]
-OUT=ROOT/'.tools/mobile-242'
+OUT=ROOT/'.tools/mobile-242-academic-gestures'
 sha=lambda data:hashlib.sha256(data).hexdigest()
 
 def prepare():
@@ -34,7 +34,7 @@ def prepare():
     hashes={name:sha(path.read_bytes()) for name,path in sorted(paths.items())}
     (dist/'SHA256SUMS').write_text(''.join(f'{h}  {name}\n' for name,h in hashes.items()))
     hashes['SHA256SUMS']=sha((dist/'SHA256SUMS').read_bytes())
-    archive=OUT/'correlativas-mobile-242-career-onboarding.zip'
+    archive=OUT/'correlativas-mobile-242-academic-gestures.zip'
     with zipfile.ZipFile(archive,'w') as z:
         for name in sorted(hashes):
             info=zipfile.ZipInfo(name,date_time=(2026,10,16,0,0,0));info.create_system=3;info.external_attr=0o100644<<16

@@ -1,87 +1,89 @@
-# Mobile 2.4.2 — Alta de carreras y onboarding por tarjetas
+# Mobile 2.4.2 — Corrección de gestos académicos
 
-Rama local: `mobile/stage2-4-2-career-onboarding`.
-Base: Mobile 2.4.1, commit `79a6e21093ea0552862510856a94a3e6eebff8ab`, ZIP SHA-256 `8a49679cde25d03e342d36df55394dd75addf16cadd063c8e10fcf9771f8c17a`.
+Rama: `mobile/stage2-4-2-career-onboarding`. Base de esta corrección: commit `af3d6f148bb6cb01ad886b356074be41b3ac83ea`; ZIP anterior `correlativas-mobile-242-career-onboarding.zip`, SHA-256 `e25ea6dd0afdc77eb4ac79052fcc3610d234d18714e1bbd123325e1d8d3a666f`.
 
-Preparación local, sin commit, push, merges ni despliegues. La aplicación web productiva, Firebase, Vercel, Cloudflare y todos los ZIP anteriores permanecen intactos. No se avanza a Mobile 2.4.3.
+Trabajo local autorizado, sin commits, push, merges ni despliegues. No se avanza a Mobile 2.4.3. Todos los ZIP anteriores permanecen intactos.
 
-## Comportamiento implementado
+## Diagnóstico e inspección de la web
 
-Después de confirmar universidad → carrera → plan aparece «Carrera agregada correctamente», con identidad del catálogo, «Configurar mis materias» y «Hacerlo después». No se crean sesiones académicas ni asignan estados por el alta. La primera trayectoria se selecciona según la regla ya aprobada; si existían otras, incluidas archivadas, no se cambia la selección.
+El error era funcional: la demo interpretaba izquierda como omisión y derecha como retroceso, mientras el onboarding web ya usa cuatro gestos para decidir estados. Se inspeccionaron antes de editar:
 
-«Hacerlo después» vuelve a Mis carreras. Inicio conserva su acceso y cada trayectoria activa con catálogo incorpora Configurar/Retomar carga. Para una trayectoria diferente se abre un único diálogo que explica el cambio de contexto y requiere «Cambiar y configurar». Cancelar, Escape o Atrás no seleccionan ni cargan. Tras confirmar, se consume una intención en memoria que identifica usuario e instancia; sólo se inicia la sesión cuando el contexto montado coincide. No se persiste una orden de cambiar carrera al recargar.
+- `src/components/AcademicOnboardingMobile.jsx`: función `direction`, handlers `start/move/end`, estados previos excluidos, indicador y botones.
+- `src/components/AcademicOnboardingMobile.css`: captura táctil de la tarjeta, desplazamientos/rotación acotados, sello de estado y movimiento reducido.
+- `docs/academic-onboarding-mobile.md`: contrato gestual y límites de la experiencia web.
 
-Una carrera archivada no puede configurar materias: debe restaurarse explícitamente y luego confirmar su selección; restaurar no selecciona ni inicia el onboarding. El modelo legacy mantiene su acceso en el contexto legacy, sin crear trayectorias ni migraciones. Sin catálogo o autoridad habilitada no se habilitan escrituras.
+La web muestra el estado desde 18px; al soltar exige un desplazamiento mayor o igual a 65px y una dirección dominante >1,25 veces la otra. Se reutilizan ese mapeo, umbrales y presentación de movimiento: desplazamiento visual x/4 limitado a ±30px, y/4 a ±20px y rotación x/30 a ±5 grados, más el indicador textual/color. Un test compara el mapeo de la demo con la función real de la web, leída sin modificarla.
 
-El aviso posterior al alta es transitorio. Si se recarga, la trayectoria guardada aparece en Mis carreras y puede configurarse desde allí; no se repite el alta ni se inicia una carga automáticamente.
+No se importó el componente web entero porque edita el borrador de su padre y tiene su propio flujo de revisión/confirmación. Esta demo debe conservar el controlador asíncrono ficticio y la persistencia por contexto aprobados. Los gestos invocan exactamente la misma operación que los botones. No se cambió la web, su controlador, sus estilos ni sus servicios.
 
-## Tarjetas, accesibilidad y protección académica
+## Contrato corregido
 
-| Interacción | Resultado |
+| Acción | Resultado |
 |---|---|
-| Deslizar a la izquierda | Omitir/avanzar sin asignar un estado nuevo |
-| Deslizar a la derecha | Volver una tarjeta, si existe |
-| Pulsar Pendiente/Cursando/Regularizada/Aprobada | Solicitar la escritura ficticia y avanzar sólo después del éxito |
-| Anterior / Omitir | Alternativas nativas de botón para teclado y lectores de pantalla |
-| Volver sobre una tarjeta ya decidida | Revisar y corregir la elección de esa sesión; el botón de avance muestra Siguiente |
-| Pausar y retomar | Conservar cursor, omisiones y decisiones confirmadas por contexto |
+| Izquierda | Pendiente |
+| Derecha | Aprobada |
+| Arriba | Cursando |
+| Abajo | Regularizada |
+| Botones de los cuatro estados | Misma operación que el gesto correspondiente |
+| Anterior | Volver para revisar/corregir una decisión de esta sesión |
+| Omitir | Avanzar sin asignar Pendiente ni otro estado |
 
-Los gestos no corresponden a estados académicos. Omitir nunca asigna Pendiente ni borra una elección ya confirmada. Los estados presentes antes de la sesión quedan protegidos y fuera de las tarjetas editables. El controlador, las reglas de correlativas, el modelo compartido y la persistencia validada se reutilizan; no se modifican otras materias ni se unen planes.
+Al revisar una tarjeta ya decidida, el botón de avance conserva su rótulo aprobado Siguiente y su estado; no borra decisiones. Los gestos ya no omiten ni retroceden. Cada gesto válido solicita el estado y avanza sólo al recibir éxito simulado; error o conflicto no avanza ni confirma el cambio.
 
-El gesto sólo comienza sobre la tarjeta, con puntero táctil/lápiz primario. Primero se decide el eje con 12px de tolerancia y predominio horizontal >1,6 veces el desplazamiento vertical. Para navegar se necesitan 64–100px según el ancho y hasta 1,2 segundos. Una vez identificado como vertical no se convierte después en horizontal. Se respetan `pan-y pinch-zoom`, pointercancel, multipuntero y los 24px del borde del navegador. Los gestos se ignoran mientras la operación está pendiente o la sesión dejó de coincidir con el contexto.
+El indicador aparece durante el movimiento y muestra Pendiente, Aprobada, Cursando o Regularizada. Antes del umbral pide seguir deslizando; cuando se cumplen distancia y predominio indica que se puede soltar para registrar. Volver al origen, una diagonal ambigua, un gesto corto o una cancelación no asignan estados. El indicador no se utiliza como anuncio continuo de lector de pantalla; el resultado usa el canal polite y el feedback existentes.
 
-Se anima la entrada de la tarjeta y el retorno de un arrastre incompleto. `prefers-reduced-motion: reduce` desactiva animación, transición y desplazamiento visual. Los botones conservan sus etiquetas, selección, áreas táctiles y comportamiento Enter/Espacio; no se interceptan flechas del teclado ni el botón Atrás del sistema. Un anuncio polite describe la navegación y el foco vuelve al título de la tarjeta mediante el mecanismo ya existente.
+## Scroll y decisión de UX
 
-El diálogo hereda el panel que sigue visualViewport. Su explicación usa texto escalable y color #4f5d73 sobre #f5f6fb: contraste calculado 6,19:1. Esto no equivale a certificar toda la interfaz.
+La web usa `touch-action:none` en toda la tarjeta y pide desplazarse fuera de ella. Para cumplir el requisito adicional de no confundir el scroll de la página con un estado vertical, la demo delimita una **zona visible de gestos dentro de la tarjeta**, con instrucciones de las cuatro direcciones.
 
-## Correcciones demostradas durante las pruebas
+- La zona reserva los arrastres de un dedo y conserva pinch zoom (`touch-action:pinch-zoom`). Sus cuatro direcciones eligen estados.
+- Fuera de la zona, incluso sobre el título y el resto de la tarjeta, permanece el desplazamiento vertical nativo de la página. No existen listeners globales que bloqueen scroll ni `preventDefault` de la página.
+- El usuario debe comenzar en esa zona para decidir mediante un gesto. No se intenta cambiar touch-action a mitad de un movimiento, cuando el navegador ya decidió cómo tratarlo.
+- Se ignoran contactos adicionales, bordes del navegador y eventos cancelados. La captura sigue el dedo aunque salga de la zona. La pérdida de captura de un descendiente no cancela indebidamente la captura válida de su contenedor.
+- La zona queda deshabilitada durante escrituras/error/conflicto o si no coincide la sesión. Conserva su espacio para evitar saltos del contenido mientras se guarda, y permite scroll cuando está deshabilitada.
 
-1. La captura implícita de un toque iniciado en un descendiente (por ejemplo, el título) generaba un `lostpointercapture` al transferir la captura a la tarjeta. Se evita cancelar el gesto por ese evento de un descendiente; se siguen cancelando pérdidas reales de captura del artículo. Las pruebas táctiles empiezan sobre el texto, además de verificar scroll, gesto corto, diagonal, borde y segundo puntero.
-2. El fixture «sin carreras» sembraba un registro de la instancia demo-sistemas aunque esa instancia no existía. Tras agregar demo-added-1 y recargar, el lector lo rechazaba como dato incoherente. El fixture vacío ahora comienza con registros vacíos. Se añadieron pruebas de restauración del estado vacío, primera carrera, decisiones y cursor. No se relaja el lector, no se eliminan registros reales ni se migra o repara automáticamente almacenamiento anterior inválido.
+Esta separación es intencional y debe validarse en teléfonos: conserva los cuatro gestos sin convertir un scroll común sobre la tarjeta en un estado académico. No equivale a afirmar que cualquier deslizamiento vertical en cualquier lugar de la pantalla sea una decisión.
 
-La simulación de éxito/error/conflicto y la invalidación de respuestas tardías no se cambiaron. Un cambio confirmado de contexto descarta la operación pendiente de la carrera anterior; volver después no la revive. Las decisiones sólo avanzan en éxito. Los cambios manuales siguen permitidos aunque falten correlativas.
+Con movimiento reducido se eliminan transformaciones, transiciones y animaciones, pero el estado previsto sigue siendo visible. Los cuatro botones, Anterior/Omitir y el foco existente siguen disponibles para teclado y lectores de pantalla. No se añadieron atajos de teclado que intercepten desplazamiento o navegación.
 
-## Archivos
+## Protección académica e integración conservadas
 
-Se modificaron exclusivamente seis fuentes de demo en `mobile/integration-final/`:
+Se mantiene sin cambios el modelo de presentación, el controlador de operaciones y la validación de persistencia de Mobile 2.4.2:
 
-- `App.jsx`: integración opcional del flujo, confirmación de contexto e intención acotada al usuario/instancia.
-- `CareerWizard.jsx`: callback posterior al alta, preservando el comportamiento por defecto de otras entradas.
-- `ContextPages.jsx`: acceso al onboarding desde trayectorias y legacy.
-- `CareerCards.jsx`: Configurar/Retomar sólo en carreras activas con catálogo.
-- `AcademicOnboarding.jsx`: tarjeta táctil opcional, instrucciones, anuncios y dirección de animación.
-- `contextModel.mjs`: exclusivamente la corrección del fixture vacío descrita arriba.
+- Los estados previos, incluido Pendiente explícito, están excluidos de las tarjetas editables.
+- Se pueden corregir decisiones de la sesión volviendo con Anterior; no se cambia el estado de otras materias ni se aplican correlativas automáticamente.
+- Pausa, reanudación, alta opcional, confirmación de cambio de contexto, modelos legacy y trayectorias siguen separados.
+- Cada carrera/plan conserva sus registros, cursor y decisiones por identidad. La intención y los eventos de una tarjeta quedan ligados al contexto y código vigentes.
+- Respuestas tardías, errores y conflictos usan las mismas protecciones existentes. Cambiar de contexto invalida el resultado pendiente; volver no lo revive.
+- No se integran notas, promedios, Firebase, autenticación, servicios externos o comportamiento nativo.
 
-La nueva entrada activa estas opciones sin duplicar la aplicación React ni crear versiones por sistema operativo. Los componentes, motores, Dashboard, Materias, mapa, búsqueda, filtros y panel de detalle continúan compartidos. La entrada anterior conserva sus opciones por defecto; sus ZIP publicados no se reconstruyen ni reemplazan. Las fuentes de entregas anteriores se recuperan desde sus commits aprobados; el verificador estricto 2.4.0 rechaza correctamente estos cambios posteriores, no se alteraron sus hashes para fingir igualdad.
+## Archivos modificados
 
-Archivos nuevos bajo `mobile/career-onboarding/`:
+No hay archivos nuevos de código en esta corrección; se modifican 13 archivos ya versionados:
 
-```text
-CareerAdded.jsx
-SwipeCard.jsx
-gesture.mjs
-main.jsx
-index.html
-onboarding.css
-vite.config.mjs
-inputs.lock.json
-prepare.py
-regression.py
-compatibility.py
-flow.check.py
-gesture.test.mjs
-persistence.test.mjs
-README.md
-verification.json
-```
+| Ruta | Cambio |
+|---|---|
+| `mobile/integration-final/AcademicOnboarding.jsx` | Gestos solicitan estados mediante decideOnboarding; instrucciones y superficie deshabilitada |
+| `mobile/career-onboarding/SwipeCard.jsx` | Movimiento de dos ejes, zona explícita, preview, captura/cancelación y contexto |
+| `mobile/career-onboarding/gesture.mjs` | Mapeo y umbrales equivalentes a la web |
+| `mobile/career-onboarding/onboarding.css` | Zona, preview por estado, rotación/desplazamiento y reduced motion |
+| `mobile/career-onboarding/gesture.test.mjs` | Contrato corregido, comparación con web y límites de decisión |
+| `mobile/career-onboarding/flow.check.py` | Cuatro direcciones, preview, scroll, cancelación, omisión independiente y concurrencia |
+| `mobile/career-onboarding/regression.py` | Misma regresión, nuevo destino y reportes separados |
+| `mobile/career-onboarding/compatibility.py` | Mismas suites responsive; comparación visual con la demo 2.4.2 anterior |
+| `mobile/career-onboarding/vite.config.mjs` | Carpeta de salida independiente |
+| `mobile/career-onboarding/prepare.py` | ZIP con nuevo nombre y salida separada |
+| `mobile/career-onboarding/inputs.lock.json` | Fuente base af3d6f1 y hashes de las entradas actuales |
+| `mobile/career-onboarding/verification.json` | Evidencia de la corrección |
+| `mobile/career-onboarding/README.md` | Este diagnóstico e instrucciones |
 
-No se modificaron dependencias, lockfile, fuentes de producción, reglas, autenticación, navegación de seis destinos, motores de correlativas ni claves/esquema de persistencia.
+No se modifican `src/`, dependencias, lockfile, Firestore Rules, proyectos de hosting ni ZIP anteriores. `inputs.lock.json` identifica los cinco cambios de entradas de construcción frente al commit base; las otras modificaciones son herramientas, pruebas e informes. El esquema y claves de almacenamiento no cambian.
 
-## Construcción y pruebas reproducibles
+## Pruebas y reproducción
 
-Usar la toolchain y dependencias ya fijadas en `mobile/reproducible-base/toolchain.json`: Node 24.19.0, npm 11.9.0, Python 3.12.14, zlib 1.3.2, Playwright Python 1.62.0 y Chromium de sistema 154.0.8037.57 en Linux. No se instalaron paquetes adicionales.
+Usar la misma toolchain fijada en `mobile/reproducible-base/toolchain.json`: Node 24.19.0, npm 11.9.0, Python 3.12.14, zlib 1.3.2, Playwright 1.62.0 y Chromium de sistema 154.0.8037.57 en Linux. No se instalaron ni actualizaron dependencias.
 
-Desde la raíz del repositorio:
+Desde la raíz:
 
 ```sh
 python3 mobile/career-onboarding/prepare.py
@@ -91,70 +93,68 @@ python3 mobile/career-onboarding/flow.check.py
 python3 mobile/career-onboarding/compatibility.py
 ```
 
-`inputs.lock.json` declara entradas y hashes, con los seis cambios de fuentes identificados respecto de la base. El build rechaza entradas alteradas y SDK/backend incluidos. Se generan archivos exclusivamente en `.tools/mobile-242/`; no se sobrescriben descargas anteriores.
+La comparación visual necesita la distribución anterior en `.tools/mobile-242/dist`, cuyos archivos se verificaron contra el ZIP aprobado e25ea6dd. Si falta, extraer únicamente ese ZIP en esa carpeta; no reconstruirlo desde las fuentes corregidas ni cambiar sus hashes. Los demás checks usan exclusivamente el build nuevo. No se publica ningún servidor; los previews de prueba usan loopback y terminan al finalizar.
 
-La regresión conserva las aserciones de las ocho suites previas. El adaptador del test de contextos pulsa explícitamente Hacerlo después en el nuevo aviso, para continuar verificando el ciclo de vida previo. El test heredado usa un perfil de Chromium separado para evitar locks de sesiones anteriores. No se deshabilitaron casos ni aserciones. Las ramas nuevas del aviso y ambos caminos de configuración se verifican por separado en flow.check.py.
+Resultados finales:
 
-Resultados finales (también en verification.json):
+- 57 pruebas de modelo existentes y 9 de gestos/persistencia: todas aprobadas, sin fallidas ni omitidas.
+- Ocho suites de regresión: 2901 comprobaciones aprobadas.
+- 381 comprobaciones de flujo actualizado, en perfiles móviles Android/iPhone de Chromium.
+- 2375 comprobaciones responsive: nueve tamaños, texto raíz 100%/200%.
+- 54 comprobaciones adicionales de interacción.
+- 18 capturas de las seis secciones principales idénticas a la demo Mobile 2.4.2 anterior.
+- Reconstrucción del ZIP con el mismo SHA-256; seis miembros, CRC y SHA256SUMS verificados.
 
-- 57 pruebas de modelo existentes y 9 nuevas (6 de gestos, 3 de persistencia): todas aprobadas.
-- Ocho suites de regresión: 2901 comprobaciones aprobadas, sin fallidas ni omitidas.
-- Nuevos flujos: 325 comprobaciones aprobadas en dos perfiles móviles de Chromium.
-- Matriz responsive heredada: 2375 comprobaciones, nueve tamaños, texto raíz 100%/200%.
-- Interacciones heredadas: 54 comprobaciones, incluidos teclado simulado mediante altura reducida, drag de mapa y uso offline tras la carga.
-- 18 capturas de viewport idénticas a Mobile 2.4.1: seis secciones a 360 × 800, 390 × 844 y 430 × 932. Las pantallas nuevas y los accesos añadidos a Mis carreras son diferencias intencionales.
-- ZIP idéntico al repetir su construcción; seis miembros, CRC y SHA-256 correctos.
+Se conservan los escenarios de alta inicial/adicional, configuración posterior, archivadas/restauradas, legacy, estados previos protegidos, filtros, detalle, Dashboard, pausa/reanudación, recarga y contextos independientes. Se sustituyen exclusivamente las expectativas que exigían el mapeo gestual incorrecto; no se desactivan casos ni controles de errores JS.
 
-Los recorridos nuevos cubren primera carrera y carrera adicional, configuración inmediata o posterior, ausencia de selección, confirmación y cancelación por historial, progreso totalmente registrado, legacy, archivadas/restauradas, omisión frente a Pendiente, cuatro estados, correcciones, pausa/reanudación desde ambos accesos, recarga, progreso de dos carreras, fallo/conflicto y respuesta tardía al cambiar contexto, gestos reales CDP y botones, vertical/diagonal frente a horizontal, texto grande, movimiento reducido y nombres AX.
+Los nuevos recorridos verifican cuatro estados por gesto y por botón, preview antes de soltar, corrección mediante Anterior, Omitir sin escritura, distancia insuficiente, diagonal, retorno al origen, touchCancel, segundo contacto, borde, scroll real fuera de la zona, movimiento reducido, teclado, error/conflicto iniciado por gesto y respuesta tardía gestual al cambiar contexto. La emulación usa eventos táctiles CDP para contactos reales del navegador, no sólo dispatch de eventos sintéticos sin puntero activo.
 
-Se probaron los avisos y el diálogo a 320px y en horizontal, incluido texto 200% y panel de 340px de alto. Los reportes observan cero errores JavaScript, solicitudes externas, descargas o popups en los recorridos ejecutados.
+Los reportes y capturas quedan separados en `.tools/mobile-242-academic-gestures-regression/`, `-flow/`, `-checks/`, `-interaction/` y `-visual/`; el reporte del build está en `.tools/mobile-242-academic-gestures/build-report.json`. No forman parte del ZIP.
 
-Reportes locales: `.tools/mobile-242-regression/summary.json`, `.tools/mobile-242-flow/result.json`, `.tools/mobile-242-checks/result.json`, `.tools/mobile-242-interaction/result.json`, `.tools/mobile-242-visual/result.json` y `.tools/mobile-242/build-report.json`. Las capturas quedan junto a los respectivos reportes, fuera del ZIP.
+## Paquete estático y seguridad
 
-## Paquete y seguridad
-
-Carpeta estática: `/workspace/correlativas/.tools/mobile-242/dist`.
-ZIP: `/workspace/correlativas/.tools/mobile-242/correlativas-mobile-242-career-onboarding.zip`.
-Checksum: la misma ruta con sufijo `.zip.sha256`.
+Carpeta: `/workspace/correlativas/.tools/mobile-242-academic-gestures/dist`.
+ZIP: `/workspace/correlativas/.tools/mobile-242-academic-gestures/correlativas-mobile-242-academic-gestures.zip`.
+Checksum: misma ruta con sufijo `.zip.sha256`.
 
 SHA-256:
 
 ```text
-e25ea6dd0afdc77eb4ac79052fcc3610d234d18714e1bbd123325e1d8d3a666f
+ade1e2bb344cf78a9420608d018b7090cc9fee5ebaaf6176d1f5be2bddbe7285
 ```
 
-Contenido exacto, sin carpeta envolvente:
+Seis archivos, sin carpeta envolvente:
 
 ```text
 SHA256SUMS
 _headers
 index.html
-assets/index-C5Op2LfB.js
-assets/index-exIYBAqR.css
+assets/index-DBrjoxWX.js
+assets/index-p6MNkUQY.css
 assets/logo-DbaGozUD.png
 ```
 
-El ZIP no incluye fuentes JSX, tests, informes, dependencias instaladas, source maps, .env ni credenciales. SHA256SUMS contiene los otros cinco hashes; verification.json registra también el hash del propio manifiesto y el ZIP.
+`SHA256SUMS` contiene los cinco hashes restantes; `verification.json` registra también su propio hash y el del ZIP. No se empaquetan fuentes JSX, tests, informes, node_modules, source maps, temporales, .env ni credenciales.
 
-Se mantiene exactamente `_headers` de la demo aprobada y la meta CSP. `connect-src 'none'`, sin Firebase, autenticación, APIs externas, SDK nativo, scripts/CDN remotos, service worker, manifiesto instalable o permisos del dispositivo. La excepción style-src unsafe-inline ya aprobada se conserva para MUI/Emotion. Grafo de dependencias: mismas 24 familias que 2.4.1; ninguna Firebase/Capacitor. Escaneo de patrones de credenciales y proyecto productivo en el artefacto, whitelist estática y cabeceras verificadas en preview local.
+Se mantienen byte por byte `_headers` y la meta CSP aprobados: connect-src none, sin scripts/CDN externos ni SDK Firebase/Capacitor; mismas 24 familias de paquetes incluidas que la base. Se preserva style-src unsafe-inline, excepción ya aprobada necesaria para MUI/Emotion. No hay service worker, manifiesto instalable, autenticación o solicitudes de permisos añadidos. Se verifica el grafo de módulos, patrones de credenciales, whitelist de archivos, cabeceras en preview y eventos durante los recorridos.
 
-No se presenta como auditoría completa de seguridad, certificación WCAG ni resolución de vulnerabilidades históricas. No se ejecutó actualización ni nuevo npm audit porque las dependencias no cambiaron. Se conserva el logo histórico de aproximadamente 1,23 MB; su costo de primera carga no se optimizó fuera de alcance.
+No se observaron errores JavaScript, solicitudes externas, descargas ni popups en las ejecuciones finales. Estas pruebas y escaneos no constituyen una auditoría completa de seguridad o certificación WCAG. No se hizo npm audit ni actualización porque no cambiaron dependencias.
 
-## Límites y revisión física pendiente
+## Limitaciones y pruebas físicas
 
-Los perfiles Android e iPhone varían viewport, user-agent y eventos táctiles en **Chromium Linux**. El perfil iPhone no ejecuta Safari ni WebKit. No se probaron teléfonos físicos, teclado del SO, VoiceOver ni TalkBack en esta entrega. El 200% de fuente raíz no reproduce todas las opciones de texto/zoom del sistema. La emulación no certifica barras, safe areas, rebote, inercia ni gesto Atrás de los dispositivos.
+El perfil iPhone ejecuta Chromium con viewport/user-agent/touch de referencia; **no es Safari ni WebKit**. No se realizaron nuevas pruebas físicas, VoiceOver/TalkBack, teclado del SO ni verificación real de safe areas. El 200% de fuente raíz no equivale a todas las opciones de texto o zoom del sistema. No se asume paridad certificada por estas pruebas.
 
-Para aprobar en Safari iPhone y Chrome Android:
+En Safari iPhone y Chrome Android comprobar:
 
-1. Agregar primera carrera, elegir Hacerlo después y retomar desde Mis carreras/Inicio; repetir Configurar directamente en el aviso. Recargar y comprobar que no se duplica el alta.
-2. Agregar otra carrera sin alterar la actual. Cancelar la confirmación con botón y Atrás; después confirmar y verificar nombre, universidad y plan en la cabecera de destino. Cambiar nuevamente entre ambas y comprobar independencia.
-3. Deslizar desde el título y el cuerpo de la tarjeta, corto/largo, izquierda/derecha. Hacer scroll vertical y diagonal, probar el borde del navegador y dos dedos: nunca deben asignar estados. Usar también Anterior/Omitir y teclado/lector de pantalla.
-4. Elegir los cuatro estados, volver a corregir, omitir, pausar, cerrar y reabrir el navegador con la misma URL. Verificar cursor y decisiones sin sobrescribir estados previos. Probar una carrera configurada y otra archivada/restaurada.
-5. Activar movimiento reducido y texto grande; rotar y abrir teclado en búsquedas. Revisar animación desactivada, foco/anuncios, scroll del diálogo, áreas seguras y accesibilidad de sus botones.
-6. En Cuenta → Escenarios de prueba, provocar error/conflicto y respuesta tardía; cambiar contexto antes de finalizar. No debe confirmarse ni avanzar una decisión en otra carrera.
+1. Cuatro direcciones desde la zona indicada: estado previsto durante el movimiento, escritura correcta y avance sólo al confirmar. Probar despacio y con el dedo saliendo de la zona.
+2. Intentos cortos, diagonales, volver al origen, interrumpir un contacto y dos dedos: no deben registrar estados.
+3. Scroll vertical sobre el título, cuerpo de la tarjeta y fuera de ella; la página debe desplazarse sin cambiar materia/estado. Revisar comodidad y claridad de la zona dedicada frente al gesto web en toda la tarjeta.
+4. Anterior para corregir; Omitir sin Pendiente; botones de los cuatro estados, foco y anuncios con VoiceOver/TalkBack.
+5. Movimiento reducido, texto grande, orientación horizontal, barras del navegador, borde/Atrás y teclado en otras pantallas.
+6. Pausar/reabrir la misma URL, cambiar carrera y simular error/conflicto/respuesta tardía: nada debe aplicarse al contexto equivocado ni sobrescribir estados previos.
 
-El almacenamiento es exclusivamente local, por origen y perfil, sin respaldo/sincronización. Modo privado, limpieza o evicción pueden perderlo. Funciona sin red después de cargar; sin service worker y con no-store no se garantiza abrir/recargar desde cero offline. Una copia local previa inválida sigue mostrando advertencia, sin relajación del lector ni migraciones automáticas; los escenarios de prueba pueden cargarse explícitamente en esta demo ficticia.
+La persistencia es sólo local por origen/perfil, sin sincronización ni respaldo. Limpieza, modo privado o evicción pueden perderla. Se conserva el uso offline después de cargar, sin garantía de inicio en frío sin conexión. El logo histórico sigue pesando aproximadamente 1,23 MB y no se optimizó fuera de alcance.
 
-## Publicación futura: pendiente de autorización
+## Entrega y publicación pendientes
 
-El ZIP es local; esta ruta no es un enlace descargable público. No se subió a GitHub ni a Cloudflare. Tras autorización independiente para entregarlo y publicarlo: comprobar checksum, extraer en carpeta vacía, ejecutar `sha256sum -c SHA256SUMS` y subir sólo estos seis archivos mediante Direct Upload en un **nuevo** proyecto aislado, por ejemplo `correlativas-mobile-242-career-onboarding`. No conectar GitHub, automatizaciones ni dominios productivos; conservar `_headers` y `assets/`. Verificar HTTPS, cabeceras y hashes remotos antes de las pruebas físicas. Aquí no se creó el proyecto ni se presume su URL.
+La ruta del ZIP es interna, no una URL pública. No se hizo commit, push ni despliegue de esta corrección. Tras autorización específica se podrá entregar por GitHub. Cualquier publicación en Cloudflare requerirá autorización aparte: proyecto Direct Upload aislado, sin conectar repositorio, automatizaciones o dominios productivos, subiendo exclusivamente los seis estáticos y conservando `_headers` y `assets/`. Después habrá que verificar HTTPS, cabeceras y hashes remotos antes de validar físicamente. Aquí no se creó ni modificó ningún proyecto de hosting.

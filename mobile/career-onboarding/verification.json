@@ -1,64 +1,68 @@
 {
-  "stage": "Mobile 2.4.2",
+  "stage": "Mobile 2.4.2 — corrección de gestos académicos",
   "branch": "mobile/stage2-4-2-career-onboarding",
-  "baseCommit": "79a6e21093ea0552862510856a94a3e6eebff8ab",
+  "baseCommit": "af3d6f148bb6cb01ad886b356074be41b3ac83ea",
   "modifiedFiles": [
-    "mobile/integration-final/AcademicOnboarding.jsx",
-    "mobile/integration-final/App.jsx",
-    "mobile/integration-final/CareerCards.jsx",
-    "mobile/integration-final/CareerWizard.jsx",
-    "mobile/integration-final/ContextPages.jsx",
-    "mobile/integration-final/contextModel.mjs"
-  ],
-  "newFiles": [
-    "mobile/career-onboarding/CareerAdded.jsx",
     "mobile/career-onboarding/README.md",
     "mobile/career-onboarding/SwipeCard.jsx",
     "mobile/career-onboarding/compatibility.py",
     "mobile/career-onboarding/flow.check.py",
     "mobile/career-onboarding/gesture.mjs",
     "mobile/career-onboarding/gesture.test.mjs",
-    "mobile/career-onboarding/index.html",
     "mobile/career-onboarding/inputs.lock.json",
-    "mobile/career-onboarding/main.jsx",
     "mobile/career-onboarding/onboarding.css",
-    "mobile/career-onboarding/persistence.test.mjs",
     "mobile/career-onboarding/prepare.py",
     "mobile/career-onboarding/regression.py",
     "mobile/career-onboarding/verification.json",
-    "mobile/career-onboarding/vite.config.mjs"
+    "mobile/career-onboarding/vite.config.mjs",
+    "mobile/integration-final/AcademicOnboarding.jsx"
   ],
+  "newFiles": [],
+  "gestureContract": {
+    "left": "Pendiente",
+    "right": "Aprobada",
+    "up": "Cursando",
+    "down": "Regularizada",
+    "previewPx": 18,
+    "releasePx": 65,
+    "dominance": 1.25,
+    "scroll": "native outside explicit gesture surface, including rest of card",
+    "previous": "independent button",
+    "omit": "independent button, no status assigned"
+  },
+  "webInspected": [
+    "src/components/AcademicOnboardingMobile.jsx",
+    "src/components/AcademicOnboardingMobile.css",
+    "docs/academic-onboarding-mobile.md"
+  ],
+  "webSourcesUnchanged": true,
   "build": {
-    "baseCommit": "79a6e21093ea0552862510856a94a3e6eebff8ab",
-    "approvedBaseSHA256": "8a49679cde25d03e342d36df55394dd75addf16cadd063c8e10fcf9771f8c17a",
+    "baseCommit": "af3d6f148bb6cb01ad886b356074be41b3ac83ea",
+    "approvedBaseSHA256": "e25ea6dd0afdc77eb4ac79052fcc3610d234d18714e1bbd123325e1d8d3a666f",
     "approvedUIChanges": {
       "mobile/integration-final/AcademicOnboarding.jsx": {
-        "before": "14165c04772ef02917563edb54baaeae33a26cbd2d88f454f733b5a936ea07a4",
-        "after": "352ac932f855d309084002d6da0c4eab894b4aec1c3fcf9310eac8b8bfa1be8e"
+        "before": "352ac932f855d309084002d6da0c4eab894b4aec1c3fcf9310eac8b8bfa1be8e",
+        "after": "33be283c9bd6e387bad295a8c6b4956c2ed321890b41df7e22fb2c0c274fc4a2"
       },
-      "mobile/integration-final/App.jsx": {
-        "before": "dfe13a01e7ae65c2928b41d5b4165683c818f3e67f11f2e0ebf4bfd8aaefccbb",
-        "after": "fd900988e396823646b10b1cdf41c232e9a77f113c61ecd5c7a8ac673f92c297"
+      "mobile/career-onboarding/SwipeCard.jsx": {
+        "before": "15af5e695ec072c077d51d8d20c50e29592f3d8d41c65c222094082265e20acb",
+        "after": "1fc6b02ba5632073585e434f623da3e8890a42fcda026cb625876af11d4c3bea"
       },
-      "mobile/integration-final/CareerCards.jsx": {
-        "before": "51aab2e46cc82de5bd7585e53734328d0c151ad5d24f4407e4915ded68d8a9fe",
-        "after": "2ca480cf4b7298d4ef549c294b09ae3b8f91c99172d4b854b631e697c55ce119"
+      "mobile/career-onboarding/gesture.mjs": {
+        "before": "1f71dddd0edb306e03a3dfd051fa439272b9301942c86dbdb2b43bb3fc4deeb7",
+        "after": "a5059c760b33ed09c572d813f4863be25676d0e1ffda5bec71a0fad46551d062"
       },
-      "mobile/integration-final/CareerWizard.jsx": {
-        "before": "64c4de82aa102741f76da884e12d057bc003b0025a8143a4dc2e0fb9068571c7",
-        "after": "e6a09dc76783f9a00a13b5a005b5cb71fb72bd61b59fcceba126ae3b1228545d"
+      "mobile/career-onboarding/onboarding.css": {
+        "before": "133d8fefdbc5e88ad10d5d5f5e0dddd8d01b602a276d26064eef7bc764b75b4c",
+        "after": "b8c661b7bd632f2448c173acb35a305a786685cda48c48c4b4882e7356caa1ea"
       },
-      "mobile/integration-final/ContextPages.jsx": {
-        "before": "2f637d80ae524d09ce30033109912c59c816f801607efe1cc77e6cb08593ce69",
-        "after": "8633d1afb42360300064bfb9e2d267c723b0b0915bdc4fe0d73f9a856e458fda"
-      },
-      "mobile/integration-final/contextModel.mjs": {
-        "before": "53c3f74c56484a52294a0291196a34a8e9874c6084789de6fb933bb72bad1b88",
-        "after": "f79d6d1646377f66f4f7893ee3c1175c9cbc476cff624bb067b893505d409193"
+      "mobile/career-onboarding/vite.config.mjs": {
+        "before": "1911c2d2337280ac64aee8f5fe6fa7adfb1e37ea18450b6be657a90506315577",
+        "after": "548fd46ea85a886474f77e8272d4b7b6d84acc29c635143b40419bde177e1634"
       }
     },
     "inputs": {
-      "mobile/integration-final/AcademicOnboarding.jsx": "352ac932f855d309084002d6da0c4eab894b4aec1c3fcf9310eac8b8bfa1be8e",
+      "mobile/integration-final/AcademicOnboarding.jsx": "33be283c9bd6e387bad295a8c6b4956c2ed321890b41df7e22fb2c0c274fc4a2",
       "mobile/integration-final/AcademicSimulation.jsx": "c5af4db6eac76eb0b497ad271cc2575be1e10bf4c25a291332c81abcdfe16782",
       "mobile/integration-final/App.jsx": "fd900988e396823646b10b1cdf41c232e9a77f113c61ecd5c7a8ac673f92c297",
       "mobile/integration-final/CareerCards.jsx": "2ca480cf4b7298d4ef549c294b09ae3b8f91c99172d4b854b631e697c55ce119",
@@ -139,22 +143,22 @@
       "mobile/responsive-parity/viewport.js": "a6dbb5ac4549a8c5713dc3f32ec6031b45395537c50e0ca41e8e0a0bbc770b27",
       "mobile/responsive-parity/vite.config.mjs": "f35fdb5623b20f11eeeb9804c7263eebbd3b8c7862fbdf13443c99f5dd1c8a11",
       "mobile/career-onboarding/CareerAdded.jsx": "9c29aad5df02a40b549597c7988ad81ac4e9aac6ce78ae83990aea9b30f18942",
-      "mobile/career-onboarding/SwipeCard.jsx": "15af5e695ec072c077d51d8d20c50e29592f3d8d41c65c222094082265e20acb",
-      "mobile/career-onboarding/gesture.mjs": "1f71dddd0edb306e03a3dfd051fa439272b9301942c86dbdb2b43bb3fc4deeb7",
+      "mobile/career-onboarding/SwipeCard.jsx": "1fc6b02ba5632073585e434f623da3e8890a42fcda026cb625876af11d4c3bea",
+      "mobile/career-onboarding/gesture.mjs": "a5059c760b33ed09c572d813f4863be25676d0e1ffda5bec71a0fad46551d062",
       "mobile/career-onboarding/index.html": "b083811c556195ece69c5ad7c18d9ec427ccf3af4583b11158478084f6f4aace",
       "mobile/career-onboarding/main.jsx": "209e6e3c9afa5a1468d8851f982e369197487b2dac4a58f00899292e945e1ba5",
-      "mobile/career-onboarding/onboarding.css": "133d8fefdbc5e88ad10d5d5f5e0dddd8d01b602a276d26064eef7bc764b75b4c",
-      "mobile/career-onboarding/vite.config.mjs": "1911c2d2337280ac64aee8f5fe6fa7adfb1e37ea18450b6be657a90506315577"
+      "mobile/career-onboarding/onboarding.css": "b8c661b7bd632f2448c173acb35a305a786685cda48c48c4b4882e7356caa1ea",
+      "mobile/career-onboarding/vite.config.mjs": "548fd46ea85a886474f77e8272d4b7b6d84acc29c635143b40419bde177e1634"
     },
     "files": {
       "_headers": "fe9629946edffcb51a0e5306e1ec174cd47a8a3ce28312ec92145d3797913ba0",
-      "assets/index-C5Op2LfB.js": "45c695bd9f0bf90c55bfc262c9ae47d5dc133653907d6fd6cf15ddc8ff256064",
-      "assets/index-exIYBAqR.css": "e4dc2a4e0791d09b24b49bd8fba893f9dc83dab324977199f437fc6210b06380",
+      "assets/index-DBrjoxWX.js": "6d039c4602e0c1ef90f5b0cf06ee73124b074dd734d3966c94ed00875e18fbdc",
+      "assets/index-p6MNkUQY.css": "9eda00e473217f556a73d181f25647d34b71226bcc2ca28c76155709682e9c7e",
       "assets/logo-DbaGozUD.png": "e8a96ce70d0fde88f56925c3b85aae5c14d4f791581fb425a6eb7149b0d5053c",
-      "index.html": "428468efc0de86092170b7fc7adedebf23a55a2709b9f0669588e04661862853",
-      "SHA256SUMS": "d6bef16f6eb5c3f2793f0ed684ba3e4ccf05c83661918cad8c5609c585a32a13"
+      "index.html": "f3a3fb1f0410c3860ef5f26ca76c3f05ba847a09a7e5323eb7a58965477dac57",
+      "SHA256SUMS": "4f822fa4471b04acf4a853c66c53831cd040888ae0839cfc80e66a42b597d6b5"
     },
-    "zipSHA256": "e25ea6dd0afdc77eb4ac79052fcc3610d234d18714e1bbd123325e1d8d3a666f",
+    "zipSHA256": "ade1e2bb344cf78a9420608d018b7090cc9fee5ebaaf6176d1f5be2bddbe7285",
     "packageFamilies": [
       "@babel/runtime",
       "@emotion/cache",
@@ -185,9 +189,9 @@
   },
   "tests": {
     "existingModelTests": 57,
-    "newModelTests": 9,
-    "failedModelTests": 0,
-    "skippedModelTests": 0,
+    "gestureAndPersistenceTests": 9,
+    "modelFailures": 0,
+    "modelSkipped": 0,
     "browserRegression": {
       "dashboard": 279,
       "contexts": 397,
@@ -199,27 +203,24 @@
       "onboarding": 333
     },
     "browserRegressionTotal": 2901,
-    "newFlowAssertions": 325,
+    "flowAssertions": 381,
     "responsiveAssertions": 2375,
     "supplementalInteractionAssertions": 54,
-    "portraitScreenshotsIdenticalTo241": 18,
+    "screenshotsIdenticalToPrevious242": 18,
     "noJavaScriptErrorsObserved": true,
     "noExternalRequestsObserved": true,
     "noSensitiveEventsObserved": true,
-    "repeatedBuildZIPIdentical": true,
-    "contextExplanationContrastCalculated": 6.19
+    "repeatZIPHashIdentical": true
   },
-  "limits": {
+  "limitations": {
     "physicalAndroidTested": false,
     "physicalSafariTested": false,
     "webKitTested": false,
     "VoiceOverTalkBackTested": false,
     "realOSKeyboardTested": false,
-    "textScaling": "100/200 percent root font, not all OS options",
-    "offline": "after load only",
-    "fullSecurityAudit": false
+    "fullSecurityAudit": false,
+    "gestureSurfaceRequiresPhysicalUXReview": true
   },
-  "previousTrackedFilesUnchangedExceptDeclaredSix": true,
   "previousZIPsUnchanged": true,
   "dependenciesChanged": false,
   "productionConnected": false,
