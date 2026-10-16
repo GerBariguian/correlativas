@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { GraduationCap, Check, Plus, Archive, RotateCcw, ChevronDown } from 'lucide-react'
 import { compareCatalogs } from './catalogSearch.mjs'
-export function CareerCards({ demo, startAdd, reveal }) {
+export function CareerCards({ demo, startAdd, reveal, onConfigure }) {
   const { bridge, careers } = demo
   const [confirm, setConfirm] = useState(null), [error, setError] = useState('')
   const [working, setWorking] = useState(false), [archivedOpen, setArchivedOpen] = useState(false)
@@ -30,6 +30,7 @@ export function CareerCards({ demo, startAdd, reveal }) {
       <div className="career-tile-top"><span className="career-tile-icon" aria-hidden="true"><GraduationCap size={23}/></span><div>{selected && <span className="selected-badge"><Check size={14} aria-hidden="true"/>Seleccionada</span>}<h3>{c?.name ?? 'Catálogo no disponible'}</h3><p>{c ? `${c.university}${c.faculty ? ` · ${c.faculty}` : ''}` : 'Tus datos se conservan.'}</p>{c && <span className="career-plan">Plan {c.plan}</span>}</div></div>
       {!c && <p>No se pueden consultar materias de este catálogo.</p>}
       <div className="career-tile-actions">{isArchived ? <button className="secondary-btn" disabled={working} onClick={() => act('restore',instance.careerInstanceId)}><RotateCcw size={16} aria-hidden="true"/>Restaurar</button> : <>{!selected && <button className="primary-btn" disabled={working || !c} onClick={() => act('select',instance.careerInstanceId)}>Seleccionar</button>}<button className="career-archive" disabled={working} onClick={e => { trigger.current=e.currentTarget; setConfirm(instance.careerInstanceId) }}><Archive size={16} aria-hidden="true"/>Archivar</button></>}</div>
+      {onConfigure && !isArchived && c && <button className="secondary-btn full career-configure" disabled={working || (selected && demo.presentation.busy)} onClick={()=>onConfigure(instance.careerInstanceId)}>{selected && demo.onboarding ? 'Retomar carga de materias' : 'Configurar mis materias'}</button>}
       {confirm === instance.careerInstanceId && <section className="archive-confirm" aria-label="Confirmar archivo de carrera"><h4>¿Archivar esta carrera?</h4><p>Se conservan tu progreso, planificación e historial. Compartir se desactiva.{selected ? ' Quedarás sin carrera seleccionada; no se elegirá otra.' : ''}</p><div className="career-tile-actions"><button className="secondary-btn" onClick={cancel} disabled={working}>Cancelar</button><button className="primary-btn" disabled={working} onClick={() => act('archive',instance.careerInstanceId)}>Confirmar archivo</button></div></section>}
     </li>
   }

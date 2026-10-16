@@ -29,6 +29,7 @@ import { EMPTY_FILTERS } from './subjectFilters.mjs'
 import { SubjectsList, SubjectFilters } from './SubjectsList'
 import './subjects.css'
 import './presentation.css'
+import { CareerAdded } from '../career-onboarding/CareerAdded'
 import {AcademicOnboarding,OnboardingEntry} from './AcademicOnboarding'
 import { SYSTEMS } from './contextModel.mjs'
 
@@ -58,20 +59,21 @@ function Sheet({ title, children, close }) {
   </Dialog>
 }
 
-export default function App() {
+export default function App({ careerOnboarding = false }) {
   const demo = useAcademicDemo()
-  return <AccountSession key={demo.generation} demo={demo} />
+  return <AccountSession key={demo.generation} demo={demo} careerOnboarding={careerOnboarding} />
 }
-function AccountSession({ demo }) {
+function AccountSession({ demo, careerOnboarding }) {
   const [read, setRead] = useState([])
   const [joined, setJoined] = useState(makeJoined)
   const [requested, setRequested] = useState(false)
   const [careerDraft, setCareerDraft] = useState(null)
-  const social = { careerDraft, setCareerDraft, read, setRead, joined, setJoined, requested, setRequested }
+  const [onboardingRequest, setOnboardingRequest] = useState(null)
+  const social = { onboardingRequest, setOnboardingRequest, careerDraft, setCareerDraft, read, setRead, joined, setJoined, requested, setRequested }
   const key = `${demo.state.uid}:${demo.context.key}:${demo.context.authority}:${demo.context.phase}`
-  return <ContextExperience key={key} demo={demo} social={social} />
+  return <ContextExperience key={key} demo={demo} social={social} careerOnboarding={careerOnboarding} />
 }
-function ContextExperience({ demo, social }) {
+function ContextExperience({ demo, social, careerOnboarding }) {
   const catalog = demo.context.career?.subjects ?? []
   const career = demo.context.career
   const { stats, finals, toCourse, status } = demo.presentation
@@ -106,6 +108,34 @@ function ContextExperience({ demo, social }) {
     else { setCommunityTab('Amistades'); navigate('comunidad', { type: 'friend', friend: friends.find(f => f.id === item.friend) }) }
   }
   const group = sheet?.type === 'group' ? groups.find(g => g.id === sheet.id) : null
+  // Selection remains explicit. This intent survives the context-key remount,
+  // but is consumed once and is never persisted or applied to another account.
+  useEffect(() => {
+    const request = social.onboardingRequest
+    if (!careerOnboarding || !request) return
+    social.setOnboardingRequest(null)
+    if (request.uid !== demo.state.uid || request.instanceId !== demo.context.activeCareerInstanceId) return
+    if (demo.beginOnboarding()) navigate('onboarding')
+  }, [social.onboardingRequest, demo.context.key])
+  const configureTarget = sheet?.type === 'configure-context' && sheet.uid === demo.state.uid && sheet.scopeKey === demo.context.key
+    ? demo.state.instances.find(i => i.careerInstanceId === sheet.instanceId && i.lifecycle === 'active') : null
+  function requestConfigure(instanceId) {
+    if (!instanceId || instanceId === demo.context.activeCareerInstanceId) { startOnboarding(); return }
+    const target = demo.state.instances.find(i => i.careerInstanceId === instanceId && i.lifecycle === 'active')
+    setNotice('')
+    if (target) setSheet({type:'configure-context',instanceId,uid:demo.state.uid,scopeKey:demo.context.key})
+  }
+  function confirmConfigure() {
+    if (!configureTarget) return
+    try {
+      demo.act('select',configureTarget.careerInstanceId)
+      social.setOnboardingRequest({uid:demo.state.uid,instanceId:configureTarget.careerInstanceId})
+      social.setCareerDraft(null)
+    } catch { setNotice('No se pudo cambiar el contexto. Tus datos se conservan; volvé a Mis carreras para reintentar.') }
+  }
+  const addedInstance = careerOnboarding && social.careerDraft?.added
+    ? demo.state.instances.find(i => i.careerInstanceId === social.careerDraft.added) : null
+
 
   return <div className="demo-stage final-navigation-stage">
     <aside className="demo-intro"><div className="intro-brand"><img src={logo} alt="" />Correlativas</div><span className="intro-kicker">MOBILE 2.3.6 · INTEGRACIÓN</span><h1>Tu carrera.<br />A tu ritmo.</h1><p>Un lugar para ver lo que lograste y descubrir todo lo que viene.</p><div className="intro-points"><span><Check size={17} /> Tu progreso, a primera vista</span><span><Check size={17} /> Correlativas más claras</span><span><Check size={17} /> Mejor, con compañía</span></div><div className="intro-note"><span className="demo-dot" /> Contextos académicos · datos ficticios<p>Probá las pantallas, cambiá estados y explorá el mapa. Los datos ficticios se conservan sólo en este navegador.</p><small>Operaciones simuladas. Sin servicios externos.</small></div><span className="intro-footer">HECHO PARA TU PRÓXIMO PASO <ArrowRight size={15} /></span></aside>
@@ -117,7 +147,7 @@ function ContextExperience({ demo, social }) {
         {!addingCareer && navigation.canBack && <button className="text-btn navigation-back" onClick={navigation.back} aria-label="Volver a la pantalla anterior">← Volver</button>}
         {demo.storageWarning&&<p role="status" className="demo-storage-warning">{demo.storageWarning}</p>}
         {['inicio','materias'].includes(page) && <AcademicFeedback demo={demo} />}
-        {page==='onboarding'?<AcademicOnboarding demo={demo} navigate={navigate}/>:addingCareer ? <CareerWizard demo={demo} navigation={navigation} draft={social.careerDraft} setDraft={social.setCareerDraft} /> : page === 'carreras' ? <ContextPage demo={demo} reveal={social.careerDraft?.reveal} navigate={navigate} startAdd={() => { social.setCareerDraft({ university: '', career: '', catalogId: '', queries: ['', ''] }); navigate('alta-universidad') }} /> : page === 'cuenta' ? <><SecondaryPage page={page} navigate={navigate} /><ScenarioPicker demo={demo} /></> : page === 'inicio' && (!demo.context.usable || demo.presentation.dataError) ? <DashboardUnavailable demo={demo} navigate={navigate} /> : demo.presentation.dataError && page !== 'comunidad' ? <section className="context-empty"><h1>Progreso no disponible</h1><p>No se pudieron interpretar los datos ficticios. No se reemplazaron por materias pendientes. Elegí otro escenario desde Cuenta para continuar.</p></section> : !demo.context.usable && page !== 'comunidad' ? <ContextUnavailable demo={demo} navigate={navigate} /> : page === 'proyeccion' ? <SecondaryPage page={page} navigate={navigate} /> : <>
+        {page==='onboarding'?<AcademicOnboarding demo={demo} navigate={navigate} gestures={careerOnboarding}/>:addingCareer ? <CareerWizard onAdded={careerOnboarding ? (instanceId,catalogId) => {social.setCareerDraft({added:instanceId,reveal:catalogId});navigation.replace('carreras')} : undefined} demo={demo} navigation={navigation} draft={social.careerDraft} setDraft={social.setCareerDraft} /> : page === 'carreras' && addedInstance ? <CareerAdded demo={demo} instance={addedInstance} configure={() => requestConfigure(addedInstance.careerInstanceId)} later={() => social.setCareerDraft({reveal:addedInstance.catalogId})}/> : page === 'carreras' ? <ContextPage onConfigure={careerOnboarding ? requestConfigure : undefined} demo={demo} reveal={social.careerDraft?.reveal} navigate={navigate} startAdd={() => { social.setCareerDraft({ university: '', career: '', catalogId: '', queries: ['', ''] }); navigate('alta-universidad') }} /> : page === 'cuenta' ? <><SecondaryPage page={page} navigate={navigate} /><ScenarioPicker demo={demo} /></> : page === 'inicio' && (!demo.context.usable || demo.presentation.dataError) ? <DashboardUnavailable demo={demo} navigate={navigate} /> : demo.presentation.dataError && page !== 'comunidad' ? <section className="context-empty"><h1>Progreso no disponible</h1><p>No se pudieron interpretar los datos ficticios. No se reemplazaron por materias pendientes. Elegí otro escenario desde Cuenta para continuar.</p></section> : !demo.context.usable && page !== 'comunidad' ? <ContextUnavailable demo={demo} navigate={navigate} /> : page === 'proyeccion' ? <SecondaryPage page={page} navigate={navigate} /> : <>
         {page === 'inicio' ? <><Dashboard onboardingEntry={<OnboardingEntry demo={demo} start={startOnboarding}/>} demo={demo} navigate={navigate} onState={state => {setFilter(state);setSearch('');navigate('materias')}} onCourse={() => {setFilters({...EMPTY_FILTERS,criteria:['course']});setSearch('');navigate('materias')}} onFinals={showFinals} /></> : <><div className="page-heading"><span className="section-kicker">{page === 'comunidad' ? 'CONECTÁ Y COMPARTÍ' : `${career?.name ?? 'Sin selección'} · ${career?.university ?? ''}`}</span><h1>{page === 'planificador' ? 'Planificar' : pages.find(p => p.id === page)?.label}</h1><p>{titles[page]}</p></div>
           {page === 'materias' && <SubjectsList model={demo.presentation} filters={filters} setFilters={setFilters} query={search} setQuery={setSearch} plan={career?.plan} openSubject={openSubject} openFilters={() => setSheet({type:'subject-filters'})} />}
           {page === 'mapa' && <MobileMap subjects={catalog} statusMap={status} selectedCode={selectedCode} setSelectedCode={setSelectedCode} selection={selection} setSelection={setSelection} navigate={navigate} openSubject={openSubject} />}
@@ -130,10 +160,11 @@ function ContextExperience({ demo, social }) {
       <div className="demo-toast" role="status">{notice && !sheet && <span><Check size={17} />{notice}</span>}</div>
     </div>
     {sheet?.type === 'subject' && subject && <SubjectDetailPanel demo={demo} code={subject.code} close={() => setSheet(null)} onMap={() => {setSelectedCode(subject.code);navigate('mapa')}} />}
-    {sheet && sheet.type !== 'subject' && <Sheet title={subject ? 'Tu materia' : group ? 'Estudiar en equipo' : ({ 'subject-filters': 'Filtrar materias', notifications: 'Tu actividad', profile: 'Tu perfil', friend: 'Compañeros de camino', 'add-friend': 'Sumá a tu gente', reset: '¿Volvemos a empezar?' })[sheet.type]} close={() => setSheet(null)}>
+    {sheet && sheet.type !== 'subject' && <Sheet title={subject ? 'Tu materia' : group ? 'Estudiar en equipo' : ({ 'subject-filters': 'Filtrar materias', notifications: 'Tu actividad', profile: 'Tu perfil', friend: 'Compañeros de camino', 'add-friend': 'Sumá a tu gente', 'configure-context': 'Cambiar de carrera', reset: '¿Volvemos a empezar?' })[sheet.type]} close={() => setSheet(null)}>
       {sheet.type === 'subject-filters' && <SubjectFilters model={demo.presentation} filters={filters} query={search} onCancel={() => setSheet(null)} onApply={next => {setFilters(next);setSheet(null)}} />}
       {sheet.type === 'notifications' && <>{notice && <p role="status" className="context-notice">{notice}</p>}<div className="notification-tools"><span>{unread} sin leer</span><button className="text-btn" onClick={() => setRead(notifications.map(n => n.id))}>Marcar todas leídas</button></div>{notifications.map(n => <button data-notification-id={n.id} className={`notification-item ${read.includes(n.id) ? 'read' : ''}`} key={n.id} onClick={() => activateNotification(n)}><span className="notification-mark"><Bell size={18} /></span><span><strong>{n.title}</strong><p>{n.detail}</p><small>{n.time}</small></span><ChevronRight size={17} /></button>)}</>}
       {sheet.type === 'friend' && <><div className="profile-feature"><span className={`avatar ${sheet.friend.color}`}>{sheet.friend.initials}</span><h3>{sheet.friend.name}</h3><p>{sheet.friend.detail}</p></div><div className="friend-progress"><strong>{sheet.friend.progress}%</strong><span>de avance ficticio compartido</span><div style={{ '--width': `${sheet.friend.progress}%` }} /></div><button className="primary-btn full" onClick={() => { setCommunityTab('Grupos'); navigate('comunidad') }}>Ver grupos de estudio <Users size={17} /></button></>}
+      {sheet.type === 'configure-context' && <>{notice && <p role="alert">{notice}</p>}<p className="sheet-info career-context-explanation">{configureTarget ? `Para configurar ${demo.careers.find(c=>c.id===configureTarget.catalogId)?.name ?? 'esta carrera'} · Plan ${demo.careers.find(c=>c.id===configureTarget.catalogId)?.plan ?? ''}, necesitamos cambiar la carrera seleccionada. Tu progreso y la carga pausada de la carrera actual se conservan.` : 'Esta trayectoria ya no está disponible. No se cambió el contexto ni se inició una carga.'}</p><button className="primary-btn full" disabled={!configureTarget} onClick={confirmConfigure}>Cambiar y configurar</button><button className="secondary-btn full" onClick={()=>setSheet(null)}>Cancelar</button></>}
       {sheet.type === 'add-friend' && <><p className="sheet-info">Solicitud simulada a una persona ficticia. No se envía ningún mensaje.</p><div className="friend-card"><span className="avatar peach">SN</span><span><strong>Sofía Núñez</strong><small>Sistemas · UTN · Perfil de ejemplo</small></span></div><button className="primary-btn full" disabled={requested} onClick={() => { setRequested(true); setNotice('Solicitud ficticia registrada en la demo') }}>{requested ? 'Solicitud simulada enviada' : 'Simular solicitud de amistad'}{requested ? <Check size={18} /> : <Plus size={18} />}</button></>}
       {group && <><span className={`group-icon ${group.color}`}>{group.initials}</span><span className={`group-state ${joined.includes(group.id) ? 'member' : 'invitation'}`}>{joined.includes(group.id) ? <Check size={13} /> : <Clock3 size={13} />}{joined.includes(group.id) ? 'Mi grupo' : 'Invitación pendiente'}</span><h3 className="group-title">{group.title}</h3><p className="sheet-info">{group.detail}. Grupo y participantes ficticios, sin chat ni mensajes reales.</p><div className="group-members"><span className="avatar lavender">LF</span><span className="avatar peach">TR</span><span className="avatar mint">ML</span><span>{memberCount(group)} integrantes</span></div><button className="primary-btn full" disabled={joined.includes(group.id)} onClick={() => { setJoined(old => [...old, group.id]); setNotice('Te sumaste al grupo ficticio') }}>{joined.includes(group.id) ? 'Ya sos parte · demo' : 'Sumarme al grupo de ejemplo'}<Check size={18} /></button><button className="secondary-btn full" disabled={career?.id !== SYSTEMS || !catalog.some(s => s.code === subjectCode(group.subject))} onClick={() => openSubject(catalog.find(s => s.code === subjectCode(group.subject)))}>Ver la materia <BookOpen size={17} /></button></>}
       {sheet.type === 'reset' && <><p className="sheet-info">Se restauran los estados, selección, amistades simuladas y notificaciones de ejemplo. No se modifica ningún dato real.</p><button className="primary-btn full" onClick={reset}>Sí, reiniciar demo <RotateCcw size={17} /></button><button className="secondary-btn full" onClick={() => setSheet(null)}>Seguir explorando</button></>}

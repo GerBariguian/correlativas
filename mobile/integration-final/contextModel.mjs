@@ -17,7 +17,8 @@ export function fixtureState(scenario = 'instances', seed = { status: {} }) {
   const c = scenario.startsWith('legacy') ? null : scenario === 'invalid' ? { invalid: true } : control(scenario === 'frozen' ? 'frozen' : 'instances', scenario === 'frozen' ? 'copying' : scenario === 'blocked' ? 'blocked' : 'complete', uid)
   const profile = { activeCareerInstanceId: selected, activeCareerId: scenario === 'legacy' ? SYSTEMS : null }
   const key = `${uid}:${scenario.startsWith('legacy') ? 'legacy:'+SYSTEMS : 'instances:demo-sistemas'}`
-  const records = scenario === 'missing-progress' ? {} : { [key]: scenario === 'invalid-progress' ? { status: { 'UTN-ISI23-01': 'Estado inválido ficticio' } } : structuredClone(seed) }
+  // A no-career fixture cannot own an instance-scoped academic record.
+  const records = ['missing-progress','empty'].includes(scenario) ? {} : { [key]: scenario === 'invalid-progress' ? { status: { 'UTN-ISI23-01': 'Estado inválido ficticio' } } : structuredClone(seed) }
   return { scenario, uid, control: c, profile, instances, records, sharing: Object.fromEntries(instances.map(i => [i.careerInstanceId, { enabled: false, epoch: 0 }])), sequence: 0 }
 }
 export function describeContext(state, catalogs) {

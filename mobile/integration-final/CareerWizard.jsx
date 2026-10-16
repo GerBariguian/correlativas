@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Search, ChevronRight, Check } from 'lucide-react'
 import { universities, careerChoices, planChoices } from './catalogSearch.mjs'
 const routes=['alta-universidad','alta-carrera','alta-plan']
-export function CareerWizard({ demo, navigation, draft, setDraft }) {
+export function CareerWizard({ demo, navigation, draft, setDraft, onAdded }) {
   const step=routes.indexOf(navigation.route.page)
   const [error,setError]=useState(''), [working,setWorking]=useState(false)
   const lock=useRef(false)
@@ -31,7 +31,7 @@ export function CareerWizard({ demo, navigation, draft, setDraft }) {
   async function add() {
     if(lock.current || !chosen || owned) return
     lock.current=true;setWorking(true);setError('')
-    try { demo.act('add',chosen.id); close(chosen.id) }
+    try { const instanceId=demo.act('add',chosen.id); if(onAdded)onAdded(instanceId,chosen.id); else close(chosen.id) }
     catch { setError('No se pudo agregar. Tu selección anterior y los datos se conservan. Revisá el plan antes de reintentar.'); lock.current=false;setWorking(false) }
   }
   return <section className="career-wizard" aria-labelledby="wizard-title" aria-busy={working}>

@@ -17,7 +17,7 @@ export function ContextSelector({ demo, navigate }) {
     <span>{career ? `${career.university} · ${career.name}` : 'Contexto académico'}</span><strong>{career ? `Plan ${career.plan}` : demo.context.catalogId ? 'Catálogo no disponible' : 'Sin selección'}</strong><span className="context-selector-action">Mis carreras →</span>
   </button>
 }
-export function ContextPage({ demo, startAdd, reveal }) {
+export function ContextPage({ demo, startAdd, reveal, onConfigure }) {
   const { context, state, careers, act } = demo
   const [draft, setDraft] = useState(careers[0].id)
   const legacy = context.authority === 'legacy'
@@ -29,8 +29,9 @@ export function ContextPage({ demo, startAdd, reveal }) {
       <CareerSelector careers={careers} activeCareerId={context.career?.id ?? draft} setActiveCareerId={id => context.career ? act('legacy-select', id) : setDraft(id)} />
       {!context.career && <button className="primary-btn full" onClick={() => act('legacy-select', draft)}>Empezar</button>}
       <p className="sheet-info">La selección de universidad y carrera mantiene el primer catálogo correspondiente, como en la web. Los estados se conservan por carrera y plan; no se infieren equivalencias.</p>
+      {onConfigure && context.usable && <button className="secondary-btn full" disabled={demo.presentation.busy} onClick={()=>onConfigure(null)}>Configurar mis materias</button>}
     </> : <>
-      <CareerCards demo={demo} startAdd={startAdd} reveal={reveal} />
+      <CareerCards demo={demo} startAdd={startAdd} reveal={reveal} onConfigure={onConfigure} />
     </>}
   </section>
 }
