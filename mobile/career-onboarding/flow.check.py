@@ -2,7 +2,7 @@
 from pathlib import Path
 import subprocess,time,urllib.request,json
 from playwright.sync_api import sync_playwright
-ROOT=Path(__file__).resolve().parents[2];OUT=ROOT/'.tools/mobile-242-fullcard-colors-flow';OUT.mkdir(parents=True,exist_ok=True)
+ROOT=Path(__file__).resolve().parents[2];OUT=ROOT/'.tools/mobile-242-hold150-flow';OUT.mkdir(parents=True,exist_ok=True)
 URL='http://127.0.0.1:5216/';KEY='correlativas-demo-235-academic-v1';checks=[];errors=[];external=[];events=[]
 server=subprocess.Popen(['node','node_modules/vite/bin/vite.js','preview','--config','mobile/career-onboarding/vite.config.mjs','--port','5216','--strictPort'],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 def check(ok,label):
@@ -51,7 +51,7 @@ try:
      el.dispatch_event('pointerup',{'pointerId':501,'pointerType':'touch','button':0,'isPrimary':True,'clientX':160,'clientY':y});return
     d=c.new_cdp_session(pg)
     d.send('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':[{'x':x,'y':y}]})
-    if not outside:pg.wait_for_timeout(420);check(pg.locator('.onboarding-subject').get_attribute('data-gesture-armed')=='true',profile+': hold arms full card')
+    if not outside:pg.wait_for_timeout(230);check(pg.locator('.onboarding-subject').get_attribute('data-gesture-armed')=='true',profile+': hold arms full card')
     for i in range(1,11):
      d.send('Input.dispatchTouchEvent',{'type':'touchMove','touchPoints':[{'x':x+dx*i/10,'y':y+dy*i/10}]});pg.wait_for_timeout(20)
     if revert:d.send('Input.dispatchTouchEvent',{'type':'touchMove','touchPoints':[{'x':x,'y':y}]});pg.wait_for_timeout(30)
@@ -86,7 +86,7 @@ try:
    check(pg.locator('[data-gesture-status]').count()==0,profile+': preview cleared on cancel')
    zone=pg.locator('.onboarding-subject');zone.scroll_into_view_if_needed();bounds=zone.bounding_box();x=bounds['x']+bounds['width']/2;y=bounds['y']+bounds['height']/2
    d=c.new_cdp_session(pg);one={'id':31,'x':x,'y':y};two={'id':32,'x':x+30,'y':y+10}
-   d.send('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':[one]});pg.wait_for_timeout(420);d.send('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':[one,two]})
+   d.send('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':[one]});pg.wait_for_timeout(230);d.send('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':[one,two]})
    d.send('Input.dispatchTouchEvent',{'type':'touchMove','touchPoints':[{**one,'x':x-100},{**two,'x':x-70}]});d.send('Input.dispatchTouchEvent',{'type':'touchEnd','touchPoints':[]});d.detach();pg.wait_for_timeout(150)
    check(title()==first and snapshot()['state']['records']==initial,profile+': second pointer cancels academic decision')
    pg.get_by_role('button',name='Omitir',exact=True).click();check(title()!=first,profile+': independent omission button')

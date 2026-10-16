@@ -1,6 +1,6 @@
 import React,{useEffect,useRef,useState} from 'react'
 import {previewStatus,swipeStatus} from './gesture.mjs'
-export const HOLD_MS=360
+export const HOLD_MS=150
 const interactive='button,a,input,select,textarea,summary,[contenteditable=true]'
 export function SwipeCard({gestures=false,enabled,token,direction='next',onSwipe,children,...props}) {
  const card=useRef(null),active=useRef(null),timer=useRef(null),latest=useRef(null)
