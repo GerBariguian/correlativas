@@ -1,0 +1,25 @@
+/* Compatibility layer only. The approved 2.3.6 sources remain unchanged.
+   Coarse pointers keep the phone layout after rotation beyond the old 850px
+   breakpoint. Desktop presentation is otherwise retained. */
+@media (max-width:850px), (max-width:1100px) and (pointer:coarse) {
+  .responsive-parity { background:#f8f9fd; }
+  .responsive-parity .demo-stage { display:block; padding:0; }
+  .responsive-parity .demo-intro { display:none; }
+  .responsive-parity .demo-device { margin:auto; max-width:480px; min-height:100vh; min-height:100dvh; border-radius:0; border:0; box-shadow:none; overflow:clip; }
+  .responsive-parity .demo-ribbon { padding-top:max(10px,env(safe-area-inset-top)); }
+  .responsive-parity .bottom-nav { position:fixed; left:50%; transform:translateX(-50%); width:min(480px,100%); }
+  .responsive-parity .mobile-brand { padding-left:max(23px,env(safe-area-inset-left)); padding-right:max(23px,env(safe-area-inset-right)); }
+  .responsive-parity .demo-ribbon { padding-left:max(20px,env(safe-area-inset-left)); padding-right:max(20px,env(safe-area-inset-right)); }
+  .responsive-parity .demo-sheet-root .MuiDialog-container { align-items:flex-end; }
+  .responsive-parity .demo-sheet-root .MuiDialog-paper.demo-sheet { width:min(480px,100%); max-width:480px; margin:0; border-radius:25px 25px 0 0; padding-bottom:max(26px,env(safe-area-inset-bottom)); }
+  .responsive-parity .subject-detail-root .MuiDialog-paper.subject-detail-panel.is-full { width:100%; max-width:650px; border-radius:0; }
+}
+/* At enlarged text sizes the six labels wrap. Reserve the measured bar height
+   rather than assuming 105px, so the last control never sits behind it. */
+.responsive-parity .mobile-content { padding-bottom:max(calc(105px + env(safe-area-inset-bottom)),calc(var(--demo-bottom-nav-height,76px) + 24px)); }
+/* Avoid focus zoom on Safari; also keeps Android search/select controls legible.
+   No user scaling is disabled and no touch gestures are intercepted. */
+.responsive-parity :is(.wizard-search input,.search-field input) { font-size:max(16px,1rem); }
+.responsive-parity .demo-sheet-root .MuiDialog-paper.demo-sheet { scroll-padding-bottom:max(32px,env(safe-area-inset-bottom)); }
+
+@media (max-width:359px) { .responsive-parity .mobile-brand { padding-inline:max(16px,env(safe-area-inset-left)) max(16px,env(safe-area-inset-right)); } }
