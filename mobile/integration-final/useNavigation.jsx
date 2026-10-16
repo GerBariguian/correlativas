@@ -6,7 +6,7 @@ const KEY = 'correlativas-navigation-2.1'
 // subject panel or reads entity data from a URL/history owned by another session.
 export function useNavigation() {
   const [state, setState] = useState(() => ({ route: initialRoute(location.hash), depth: 0, scroll: 0 }))
-  const current = useRef(state), session = useRef(null), movingBack = useRef(false)
+  const current = useRef(state), session = useRef(null), movingBack = useRef(false), panelReturns = useRef(new Map())
   current.current = state
   useEffect(() => {
     const id = crypto.randomUUID()
@@ -35,7 +35,12 @@ export function useNavigation() {
     document.title = `${PAGE_TITLES[state.route.page]} · Correlativas · Demo 2.3.6`
     if (state.route.sheet || state.route.expanded) return
     const frame = requestAnimationFrame(() => {
-      document.querySelector('#navigation-content')?.focus({ preventScroll: true })
+      const content = document.querySelector('#navigation-content')
+      const onboardingHeading = content?.querySelector('.onboarding-mobile-page h2[tabindex]') ?? content?.querySelector('.onboarding-mobile-page h1')
+      if (onboardingHeading) onboardingHeading.setAttribute('tabindex', '-1')
+      const saved = panelReturns.current.get(state.depth)
+      const trigger = saved?.page === state.route.page && saved.element?.isConnected ? saved.element : null
+      ;(trigger ?? onboardingHeading ?? content)?.focus({ preventScroll: true })
       window.scrollTo({ top: state.scroll, behavior: 'instant' })
     })
     return () => cancelAnimationFrame(frame)
@@ -48,6 +53,7 @@ export function useNavigation() {
   }
   const push = route => {
     if (movingBack.current || JSON.stringify(route) === JSON.stringify(current.current.route)) return
+    if (route.sheet || route.expanded) panelReturns.current.set(current.current.depth, { page: current.current.route.page, element: document.activeElement })
     history.replaceState({ owner: KEY, session: session.current, ...current.current, scroll: window.scrollY }, '', location.href)
     const next = { route, depth: current.current.depth + 1, scroll: 0 }
     history.pushState({ owner: KEY, session: session.current, ...next }, '', `#${route.page}`)

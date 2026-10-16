@@ -11,17 +11,24 @@ export function OnboardingEntry({demo,start}){
  return <section className="onboarding-entry-mobile" aria-label="Carga académica por tarjetas"><BookOpen size={23} aria-hidden="true"/><div><h2>Cargá tu recorrido</h2><p>Una materia a la vez. Conservamos los estados que ya registraste.</p></div><button className="secondary-btn full" disabled={demo.presentation.busy} onClick={start}>Configurar mis materias <ArrowRight size={17} aria-hidden="true"/></button></section>
 }
 export function AcademicOnboarding({demo,navigate,gestures=false}){
- const s=demo.onboarding,heading=useRef(null)
+ const s=demo.onboarding,heading=useRef(null),pendingDecision=useRef(null)
  const [gestureNotice,setGestureNotice]=useState(''),[direction,setDirection]=useState('next')
  const codes=s?editableCodes(s):[],code=codes[s?.cursor],subject=demo.presentation.byCode[code]?.subject
  const p=s?sessionProgress(s):null
  const busy=demo.presentation.busy,live=s&&sessionMatches(s,demo.context),editable=demo.presentation.canEdit&&live
  useEffect(()=>{heading.current?.focus({preventScroll:true});heading.current?.scrollIntoView({block:'nearest',behavior:'instant'})},[s?.cursor,s?.complete])
  function move(n){setDirection(n<0?'previous':'next');demo.onboardingAction('move',n)}
- function swipe(status){
+ useEffect(()=>{
+  const pending=pendingDecision.current
+  if(!pending||demo.presentation.busy)return
+  if(demo.operation.phase==='success'&&pending.scope===demo.context.key){setGestureNotice(`${pending.name}: ${pending.status} confirmado.`)}
+  else setGestureNotice('')
+  pendingDecision.current=null
+ },[demo.operation.phase,demo.presentation.busy,demo.context.key])
+ function decide(status){
   if(!editable)return
   setDirection('next')
-  if(demo.decideOnboarding(code,status))setGestureNotice(`Estado solicitado: ${status}. La tarjeta avanza al confirmarse.`)
+  if(demo.decideOnboarding(code,status)){pendingDecision.current={scope:demo.context.key,name:subject.name,status};setGestureNotice('')}
  }
 
  function returnLater(){navigate('inicio')}
@@ -33,14 +40,14 @@ export function AcademicOnboarding({demo,navigate,gestures=false}){
   {!live&&<div role="alert" className="academic-feedback has-issue"><p>El progreso cambió fuera de estas tarjetas. Actualizá el recorrido para proteger esos estados; no se sobrescribirán.</p><button className="secondary-btn" disabled={busy} onClick={demo.beginOnboarding}>Actualizar recorrido</button></div>}
   <div className="onboarding-progress"><div><strong>{p.reviewed} de {p.editable} revisadas</strong><span>{p.remaining} sin revisar</span></div><progress aria-label="Progreso de la carga, no porcentaje aprobado" value={p.reviewed} max={p.editable||1}/><p>{p.protected} con estado previo protegido · {p.skipped} omitidas sin cambios</p></div>
   {s.complete?<div className="onboarding-summary"><span className="onboarding-mark"><Check size={28} aria-hidden="true"/></span><h2 ref={heading} tabIndex={-1}>Tu punto de partida está listo</h2><p>{p.reviewed} decisiones confirmadas en esta demo. {p.remaining} materias siguen sin revisar; no se les asignó ningún estado.</p><button className="primary-btn full" onClick={returnLater}>Ver mi Inicio</button><button className="secondary-btn full" disabled={!codes.length} onClick={()=>{demo.onboardingAction('complete',false);move(-codes.length)}}>Volver a las tarjetas</button></div>:subject?<>
-   <SwipeCard gestures={gestures} key={code} token={`${demo.context.key}:${code}`} enabled={gestures && editable} direction={direction} onSwipe={swipe} aria-labelledby="onboarding-subject-title"><span className="onboarding-card-position">Tarjeta {s.cursor+1} de {codes.length}</span><span className="onboarding-level">{subject.level||(typeof subject.year==='number'?getSubjectLevel(subject):subject.year)||'Nivel no informado'}{subject.term?` · ${subject.term}`:''}</span><h2 id="onboarding-subject-title" ref={heading} tabIndex={-1}>{subject.name}</h2><p className="onboarding-code">{subject.code}</p><span className={`demo-status ${colors[s.draft.decisions[code]]??'pending'}`}>{s.draft.decisions[code]??'Sin revisar'}</span></SwipeCard>
+   <SwipeCard gestures={gestures} key={code} token={`${demo.context.key}:${code}`} enabled={gestures && editable} direction={direction} onSwipe={decide} aria-labelledby="onboarding-subject-title"><span id="onboarding-card-position" className="onboarding-card-position">Tarjeta {s.cursor+1} de {codes.length}</span><span className="onboarding-level">{subject.level||(typeof subject.year==='number'?getSubjectLevel(subject):subject.year)||'Nivel no informado'}{subject.term?` · ${subject.term}`:''}</span><h2 id="onboarding-subject-title" aria-describedby="onboarding-card-position onboarding-code onboarding-current-status" ref={heading} tabIndex={-1}>{subject.name}</h2><p id="onboarding-code" className="onboarding-code">{subject.code}</p><span id="onboarding-current-status" className={`demo-status ${colors[s.draft.decisions[code]]??'pending'}`}>{s.draft.decisions[code]??'Sin revisar'}</span></SwipeCard>
    {gestures && <p className="swipe-instructions" id="academic-gesture-help">Mantené el dedo quieto un instante sobre la tarjeta y luego deslizá: ← Pendiente · → Aprobada · ↑ Cursando · ↓ Regularizada. Si movés el dedo de inmediato, desplazás la página sin elegir un estado. Anterior y Omitir son botones independientes.</p>}
-   <div className="onboarding-status" role="group" aria-labelledby="onboarding-status-title"><h2 id="onboarding-status-title">Tu estado académico</h2><div>{STATUS.map(status=><button key={status} className={`onboarding-choice ${colors[status]}`} aria-pressed={s.draft.decisions[code]===status} disabled={!editable} onClick={()=>{setDirection('next');demo.decideOnboarding(code,status)}}><span aria-hidden="true">{s.draft.decisions[code]===status?'✓':'○'}</span>{status}</button>)}</div></div>
+   <div className="onboarding-status" role="group" aria-labelledby="onboarding-status-title"><h2 id="onboarding-status-title">Tu estado académico</h2><div>{STATUS.map(status=><button key={status} className={`onboarding-choice ${colors[status]}`} aria-pressed={s.draft.decisions[code]===status} disabled={!editable} onClick={()=>decide(status)}><span aria-hidden="true">{s.draft.decisions[code]===status?'✓':'○'}</span>{status}</button>)}</div></div>
    <p className="onboarding-help">Cada elección se confirma en la demo antes de avanzar. Las correlativas no impiden registrar tu estado ni cambian otras materias.</p>
    <div className="onboarding-card-nav"><button className="secondary-btn" disabled={busy||!live||s.cursor===0} onClick={()=>move(-1)}><ChevronLeft size={17} aria-hidden="true"/>Anterior</button><button className="secondary-btn" disabled={busy||!live} onClick={()=>{setDirection('next');demo.onboardingAction('skip')}}>{Object.hasOwn(s.draft.decisions,code)?'Siguiente':'Omitir'}<ArrowRight size={17} aria-hidden="true"/></button></div>
   </>:<div className="onboarding-summary"><h2 ref={heading} tabIndex={-1}>{!codes.length?'Tus estados previos están protegidos':'Llegaste al final del recorrido'}</h2><p>{!codes.length?'Todas las materias ya tienen un estado registrado. Para corregirlo, usá el detalle de Materias.':`${p.reviewed} revisadas y ${p.remaining} sin revisar. Podés volver para corregir u omitir el resto sin asignar estados.`}</p><button className="secondary-btn full" disabled={busy||!live||!codes.length} onClick={()=>move(-1)}>Volver a la última tarjeta</button><button className="primary-btn full" disabled={busy||!live} onClick={()=>demo.onboardingAction('complete',true)}>Terminar por ahora</button></div>}
   {!s.complete&&<button className="text-btn onboarding-pause" onClick={returnLater}><Pause size={16} aria-hidden="true"/>Pausar y volver a Inicio</button>}
-  {gestures && <p className="swipe-announcement" role="status" aria-live="polite">{gestureNotice}</p>}
+  <p className="swipe-announcement academic-a11y-live" role="status" aria-live="polite" aria-atomic="true">{gestureNotice}</p>
   <p className="onboarding-storage-note">Sólo datos ficticios guardados en este navegador. No se envía información a servidores. Las decisiones confirmadas se ven en Inicio y Materias; una operación pendiente puede finalizar después de pausar, pero se descarta al cambiar de contexto.</p>
  </section>
 }
