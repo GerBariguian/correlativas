@@ -2,7 +2,7 @@
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor,as_completed
 import argparse,json,re,subprocess,sys
-ROOT=Path(__file__).resolve().parents[2];OUT=ROOT/'.tools/mobile-242-academic-gestures-regression'
+ROOT=Path(__file__).resolve().parents[2];OUT=ROOT/'.tools/mobile-242-fullcard-colors-regression'
 BROWSER={'contexts':'check.py','academic':'academic.check.py','dashboard':'dashboard.check.py','detail':'detail.check.py','filters':'filters.check.py','status':'status-layout.check.py','onboarding':'onboarding.check.py'}
 def models():
     files=sorted((ROOT/'mobile/integration-final').glob('*.test.mjs'))
@@ -15,8 +15,8 @@ def models():
 
 def browser(name,filename):
     path=ROOT/'mobile/integration-final'/filename
-    source=path.read_text().replace('.tools/mobile-integration-checks','.tools/mobile-242-academic-gestures-regression')
-    source=source.replace("'preview','--config'", "'preview','--outDir','../../.tools/mobile-242-academic-gestures/dist','--config'")
+    source=path.read_text().replace('.tools/mobile-integration-checks','.tools/mobile-242-fullcard-colors-regression')
+    source=source.replace("'preview','--config'", "'preview','--outDir','../../.tools/mobile-242-fullcard-colors/dist','--config'")
     source=source.replace("page.evaluate('(v)=>document.documentElement.style.fontSize=v',scale);audit()", "page.evaluate('(v)=>document.documentElement.style.fontSize=v',scale);page.wait_for_timeout(100);audit()")
     # Approved new post-add opt-out: keep legacy lifecycle assertions after
     # explicitly choosing Later. The new dedicated suite tests both choices.
@@ -31,13 +31,13 @@ def browser(name,filename):
 
 def legacy():
     config=OUT/'preview.config.mjs'
-    config.write_text("import {mergeConfig} from 'vite'\nimport base from '../../mobile/integration-final/vite.config.mjs'\nexport default mergeConfig(base,{build:{outDir:"+json.dumps(str(ROOT/'.tools/mobile-242-academic-gestures/dist'))+"}})\n")
+    config.write_text("import {mergeConfig} from 'vite'\nimport base from '../../mobile/integration-final/vite.config.mjs'\nexport default mergeConfig(base,{build:{outDir:"+json.dumps(str(ROOT/'.tools/mobile-242-fullcard-colors/dist'))+"}})\n")
     source=(ROOT/'mobile/integration-final/regression.mjs').read_text()
     source=source.replace("const root=fileURLToPath(new URL('../..',import.meta.url))",'const root='+json.dumps(str(ROOT)))
-    source=source.replace("DEMO_VITE_CONFIG:'mobile/integration-final/vite.config.mjs'", "DEMO_VITE_CONFIG:'.tools/mobile-242-academic-gestures-regression/preview.config.mjs'")
-    source=source.replace('.tools/mobile-integration-checks','.tools/mobile-242-academic-gestures-regression')
-    source=source.replace('.tools/mobile-demo-artifacts','.tools/mobile-242-academic-gestures-legacy-artifacts')
-    source=source.replace('const child=spawn',"suite=suite.replaceAll('.tools/mobile-demo-artifacts','.tools/mobile-242-academic-gestures-legacy-artifacts')\nconst child=spawn")
+    source=source.replace("DEMO_VITE_CONFIG:'mobile/integration-final/vite.config.mjs'", "DEMO_VITE_CONFIG:'.tools/mobile-242-fullcard-colors-regression/preview.config.mjs'")
+    source=source.replace('.tools/mobile-integration-checks','.tools/mobile-242-fullcard-colors-regression')
+    source=source.replace('.tools/mobile-demo-artifacts','.tools/mobile-242-fullcard-colors-legacy-artifacts')
+    source=source.replace('const child=spawn',"suite=suite.replaceAll('.tools/mobile-demo-artifacts','.tools/mobile-242-fullcard-colors-legacy-artifacts')\nconst child=spawn")
     result=subprocess.run(['node','--input-type=module','--eval',source],cwd=ROOT,text=True,capture_output=True)
     (OUT/'legacy.log').write_text(result.stdout+result.stderr)
     if result.returncode:raise RuntimeError('Legacy navigation regression failed; see legacy.log')

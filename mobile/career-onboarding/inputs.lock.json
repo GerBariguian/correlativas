@@ -1,31 +1,27 @@
 {
-  "baseCommit": "af3d6f148bb6cb01ad886b356074be41b3ac83ea",
-  "baseZIP": "mobile/career-onboarding/downloads/correlativas-mobile-242-career-onboarding.zip",
-  "baseSHA256": "e25ea6dd0afdc77eb4ac79052fcc3610d234d18714e1bbd123325e1d8d3a666f",
+  "baseCommit": "2c0bc65528e7f93a68ffce3048b63fd85546dc67",
+  "baseZIP": "mobile/career-onboarding/downloads/correlativas-mobile-242-academic-gestures.zip",
+  "baseSHA256": "ade1e2bb344cf78a9420608d018b7090cc9fee5ebaaf6176d1f5be2bddbe7285",
   "approvedUIChanges": {
     "mobile/integration-final/AcademicOnboarding.jsx": {
-      "before": "352ac932f855d309084002d6da0c4eab894b4aec1c3fcf9310eac8b8bfa1be8e",
-      "after": "33be283c9bd6e387bad295a8c6b4956c2ed321890b41df7e22fb2c0c274fc4a2"
+      "before": "33be283c9bd6e387bad295a8c6b4956c2ed321890b41df7e22fb2c0c274fc4a2",
+      "after": "c426b26ac938417124dc33bb6ba0e0f17f044bfe730d4c996d70ff6601a629af"
     },
     "mobile/career-onboarding/SwipeCard.jsx": {
-      "before": "15af5e695ec072c077d51d8d20c50e29592f3d8d41c65c222094082265e20acb",
-      "after": "1fc6b02ba5632073585e434f623da3e8890a42fcda026cb625876af11d4c3bea"
-    },
-    "mobile/career-onboarding/gesture.mjs": {
-      "before": "1f71dddd0edb306e03a3dfd051fa439272b9301942c86dbdb2b43bb3fc4deeb7",
-      "after": "a5059c760b33ed09c572d813f4863be25676d0e1ffda5bec71a0fad46551d062"
+      "before": "1fc6b02ba5632073585e434f623da3e8890a42fcda026cb625876af11d4c3bea",
+      "after": "fb2a96a5c2215cd5daaa0be52c2ecbe77a40f7dee9e3cc2a8d9f0fe6a99d7406"
     },
     "mobile/career-onboarding/onboarding.css": {
-      "before": "133d8fefdbc5e88ad10d5d5f5e0dddd8d01b602a276d26064eef7bc764b75b4c",
-      "after": "b8c661b7bd632f2448c173acb35a305a786685cda48c48c4b4882e7356caa1ea"
+      "before": "b8c661b7bd632f2448c173acb35a305a786685cda48c48c4b4882e7356caa1ea",
+      "after": "7a01394977a426137eb4ed3ae9f7fb446f314dee7d3bbf1c86646b299675b6e7"
     },
     "mobile/career-onboarding/vite.config.mjs": {
-      "before": "1911c2d2337280ac64aee8f5fe6fa7adfb1e37ea18450b6be657a90506315577",
-      "after": "548fd46ea85a886474f77e8272d4b7b6d84acc29c635143b40419bde177e1634"
+      "before": "548fd46ea85a886474f77e8272d4b7b6d84acc29c635143b40419bde177e1634",
+      "after": "4594222180899575141cf9038a4e27f0d611259f23c45c1caa338f6178f2070d"
     }
   },
   "inputs": {
-    "mobile/integration-final/AcademicOnboarding.jsx": "33be283c9bd6e387bad295a8c6b4956c2ed321890b41df7e22fb2c0c274fc4a2",
+    "mobile/integration-final/AcademicOnboarding.jsx": "c426b26ac938417124dc33bb6ba0e0f17f044bfe730d4c996d70ff6601a629af",
     "mobile/integration-final/AcademicSimulation.jsx": "c5af4db6eac76eb0b497ad271cc2575be1e10bf4c25a291332c81abcdfe16782",
     "mobile/integration-final/App.jsx": "fd900988e396823646b10b1cdf41c232e9a77f113c61ecd5c7a8ac673f92c297",
     "mobile/integration-final/CareerCards.jsx": "2ca480cf4b7298d4ef549c294b09ae3b8f91c99172d4b854b631e697c55ce119",
@@ -106,11 +102,11 @@
     "mobile/responsive-parity/viewport.js": "a6dbb5ac4549a8c5713dc3f32ec6031b45395537c50e0ca41e8e0a0bbc770b27",
     "mobile/responsive-parity/vite.config.mjs": "f35fdb5623b20f11eeeb9804c7263eebbd3b8c7862fbdf13443c99f5dd1c8a11",
     "mobile/career-onboarding/CareerAdded.jsx": "9c29aad5df02a40b549597c7988ad81ac4e9aac6ce78ae83990aea9b30f18942",
-    "mobile/career-onboarding/SwipeCard.jsx": "1fc6b02ba5632073585e434f623da3e8890a42fcda026cb625876af11d4c3bea",
+    "mobile/career-onboarding/SwipeCard.jsx": "fb2a96a5c2215cd5daaa0be52c2ecbe77a40f7dee9e3cc2a8d9f0fe6a99d7406",
     "mobile/career-onboarding/gesture.mjs": "a5059c760b33ed09c572d813f4863be25676d0e1ffda5bec71a0fad46551d062",
     "mobile/career-onboarding/index.html": "b083811c556195ece69c5ad7c18d9ec427ccf3af4583b11158478084f6f4aace",
     "mobile/career-onboarding/main.jsx": "209e6e3c9afa5a1468d8851f982e369197487b2dac4a58f00899292e945e1ba5",
-    "mobile/career-onboarding/onboarding.css": "b8c661b7bd632f2448c173acb35a305a786685cda48c48c4b4882e7356caa1ea",
-    "mobile/career-onboarding/vite.config.mjs": "548fd46ea85a886474f77e8272d4b7b6d84acc29c635143b40419bde177e1634"
+    "mobile/career-onboarding/onboarding.css": "7a01394977a426137eb4ed3ae9f7fb446f314dee7d3bbf1c86646b299675b6e7",
+    "mobile/career-onboarding/vite.config.mjs": "4594222180899575141cf9038a4e27f0d611259f23c45c1caa338f6178f2070d"
   }
 }

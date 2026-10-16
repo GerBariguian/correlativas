@@ -7,7 +7,7 @@
 .career-added button { min-height:48px; white-space:normal; }
 .career-added h1:focus-visible { outline:3px solid #4257c0; outline-offset:3px; }
 .career-configure { min-height:48px; white-space:normal; }
-.swipe-card { touch-action:pan-y pinch-zoom; position:relative; user-select:none; animation:card-enter 180ms ease-out; transition:transform 160ms ease-out; }
+.swipe-card { touch-action:auto; position:relative; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; animation:card-enter 180ms ease-out; transition:transform 160ms ease-out; }
 .swipe-card[data-direction=previous] { animation-name:card-enter-previous; }
 .swipe-card.is-dragging { animation:none; transition:none; transform:translate(var(--card-drag-x,0px),var(--card-drag-y,0px)) rotate(var(--card-drag-angle,0deg)); }
 .swipe-instructions,.swipe-announcement { font-size:.8125rem; line-height:1.6; color:#4f5d73; }
@@ -20,19 +20,31 @@
 
 .career-context-explanation { color:#4f5d73; font-size:.875rem; }
 
-/* Only this explicit surface reserves four-axis gestures. The rest of the card
-   and page retain native vertical scrolling and pinch zoom. */
-.academic-gesture-zone { touch-action:pinch-zoom; align-self:stretch; min-height:76px; display:grid; gap:5px; place-content:center; padding:12px; margin-top:8px; border:1px dashed #7785bc; border-radius:14px; background:#edf0ff; text-align:center; color:#34487e; }
-.academic-gesture-zone strong { font-size:.875rem; }
-.academic-gesture-zone span { font-size:.75rem; line-height:1.5; overflow-wrap:anywhere; }
+/* The whole card scrolls normally until a stationary hold explicitly arms it. */
+.academic-gesture-guide { align-self:stretch; display:grid; gap:5px; padding-top:12px; margin-top:8px; border-top:1px solid #d9deef; color:#4f5d73; }
+.academic-gesture-guide strong { font-size:.8125rem; }
+.academic-gesture-guide span { font-size:.75rem; line-height:1.5; }
+.swipe-card.is-armed { outline:2px solid #6472b4; outline-offset:2px; }
 .academic-gesture-preview { position:absolute; left:8px; right:8px; top:26%; display:grid; gap:5px; padding:12px; border:2px solid currentColor; border-radius:12px; background:#fff; text-align:center; pointer-events:none; box-shadow:0 3px 16px #253c7020; animation:gesture-stamp 120ms ease-out; }
 .academic-gesture-preview strong { font-size:1rem; overflow-wrap:anywhere; }
 .academic-gesture-preview small { font-size:.75rem; line-height:1.4; }
 .academic-gesture-preview[data-gesture-status=Pendiente] { color:#46516b; background:#edf0f5; }
 .academic-gesture-preview[data-gesture-status=Aprobada] { color:#17623f; background:#e3f5ec; }
-.academic-gesture-preview[data-gesture-status=Cursando] { color:#3043ab; background:#edf1ff; }
-.academic-gesture-preview[data-gesture-status=Regularizada] { color:#755000; background:#fff1d4; }
+.academic-gesture-preview[data-gesture-status=Cursando] { color:var(--academic-taking-ink); background:var(--academic-taking-fill); }
+.academic-gesture-preview[data-gesture-status=Regularizada] { color:var(--academic-regular-ink); background:var(--academic-regular-fill); }
 @keyframes gesture-stamp { from { opacity:0; } to { opacity:1; } }
 @media (prefers-reduced-motion:reduce) { .academic-gesture-preview { animation:none!important; } }
 
-.academic-gesture-zone[aria-disabled=true] { touch-action:pan-y pinch-zoom; opacity:.65; }
+/* Explicit requested colors, scoped to onboarding; Pending/Approved unchanged. */
+.career-onboarding-demo .onboarding-mobile-page { --academic-taking-fill:#fef3c7; --academic-taking-ink:#755000; --academic-regular-fill:#dbeafe; --academic-regular-ink:#3043ab; }
+.career-onboarding-demo .onboarding-choice.taking,
+.career-onboarding-demo .onboarding-subject .demo-status.taking { color:var(--academic-taking-ink); background:var(--academic-taking-fill); }
+.career-onboarding-demo .onboarding-choice.regularized,
+.career-onboarding-demo .onboarding-subject .demo-status.regularized { color:var(--academic-regular-ink); background:var(--academic-regular-fill); }
+
+/* Both labels retain their intrinsic height, avoiding scroll anchoring at 200%. */
+.gesture-intent-label { display:grid; }
+.gesture-intent-label>span { grid-area:1/1; font-size:inherit; }
+.gesture-ready-instruction { visibility:hidden; }
+.swipe-card.is-armed .gesture-hold-instruction { visibility:hidden; }
+.swipe-card.is-armed .gesture-ready-instruction { visibility:visible; }

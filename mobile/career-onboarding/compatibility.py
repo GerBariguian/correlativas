@@ -6,11 +6,11 @@ def run(name):
  path=ROOT/'mobile/responsive-parity'/f'{name}.check.py';source=path.read_text()
  if name=='visual':
   # Compare the approved, unchanged 2.4.2 artifact to the gesture correction.
-  source=source.replace('mobile-241/dist','mobile-242-academic-gestures/dist').replace('mobile-240-reproduction/dist','mobile-242/dist')
- source=source.replace("'mobile-241/dist'","'mobile-242-academic-gestures/dist'") if name!='visual' else source
+  source=source.replace('mobile-241/dist','mobile-242-fullcard-colors/dist').replace('mobile-240-reproduction/dist','mobile-242-academic-gestures/dist')
+ source=source.replace("'mobile-241/dist'","'mobile-242-fullcard-colors/dist'") if name!='visual' else source
  source=source.replace('mobile/responsive-parity/vite.config.mjs','mobile/career-onboarding/vite.config.mjs')
  for old in ['mobile-241-checks','mobile-241-interaction','mobile-241-visual']:
-  source=source.replace(old,old.replace('241','242-academic-gestures'))
+  source=source.replace(old,old.replace('241','242-fullcard-colors'))
  wrapper='exec(compile('+repr(source)+','+repr(str(path))+',"exec"),{"__file__":'+repr(str(path))+',"__name__":"__main__"})'
  subprocess.run([sys.executable,'-c',wrapper],cwd=ROOT,check=True)
 if __name__=='__main__':
