@@ -1,0 +1,64 @@
+.subject-detail-root .MuiDialog-paper.subject-detail-panel { color:#344363; padding-inline:max(20px,env(safe-area-inset-left)) max(20px,env(safe-area-inset-right)); scroll-padding-block:85px 90px; }
+.subject-detail-panel > header { gap:10px; }
+.subject-detail-panel > header h2 { font-size:1rem; min-width:0; }
+.detail-header-actions { display:flex; gap:6px; flex-shrink:0; }
+.subject-detail-panel .icon-btn { width:44px; height:44px; min-width:44px; min-height:44px; color:#455782; }
+.subject-detail-panel .detail-identity { padding-block:8px 18px; }
+.subject-detail-panel .detail-identity .section-kicker { font-size:.6875rem; line-height:1.7; color:#53627e; letter-spacing:.04em; overflow-wrap:anywhere; }
+.subject-detail-panel .detail-identity h3 { font-size:1.5rem; line-height:1.3; color:#26334f; margin:10px 0; overflow-wrap:anywhere; }
+.subject-detail-panel .detail-code { font-size:.75rem; color:#53627e; line-height:1.6; overflow-wrap:anywhere; }
+.subject-detail-panel .status { display:inline-flex; font-size:.75rem; padding:7px 10px; border-radius:9px; font-weight:750; }
+.subject-detail-panel .status.approved { color:#26634d; background:#e0f3e9; }
+.subject-detail-panel .status.taking { color:#7e4c1b; background:#fff0dc; }
+.subject-detail-panel .status.regularized { color:#394d96; background:#e9edff; }
+.subject-detail-panel .status.pending { color:#4e5971; background:#edf0f5; }
+.subject-detail-panel .detail-status-editor { padding:16px; border-radius:16px; border:1px solid #dce1ef; background:#f3f5fc; }
+.detail-status-section > h3 { font-size:.875rem; line-height:1.5; font-weight:750; margin:0 0 10px; color:#344363; }
+.subject-detail-panel .status-actions { margin:3px 0 0; }
+.subject-detail-panel .status-actions button { min-height:48px; font-size:.8125rem; color:#415274; background:#fff; border:1px solid #b5bfda; white-space:normal; }
+.subject-detail-panel .status-actions button[aria-pressed=true] { background:#485bc9; border-color:#485bc9; color:#fff; }
+.subject-detail-panel .status-actions button:disabled { opacity:.65; cursor:default; }
+.subject-detail-panel .detail-muted { font-size:.75rem; line-height:1.65; color:#53627e; }
+.subject-detail-panel .detail-section { border-top:1px solid #dfe4ef; margin-top:22px; padding-top:18px; }
+.subject-detail-panel .detail-section h3 { display:flex; align-items:center; gap:8px; font-size:1rem; color:#2d3d5a; margin:0 0 14px; line-height:1.5; }
+.subject-detail-panel .detail-section h4 { font-size:.8125rem; color:#3e5071; line-height:1.5; margin:14px 0 8px; }
+.subject-detail-panel .detail-section p { font-size:.8125rem; line-height:1.65; overflow-wrap:anywhere; }
+.detail-eligibility > div { padding:12px 14px; background:#f3f5fc; border-radius:13px; margin-top:10px; }
+.detail-eligibility > div h4 { margin-top:0!important; }
+.detail-eligibility > div strong { font-size:.875rem; line-height:1.5; }
+.detail-eligibility > div p { margin-bottom:0; }
+.detail-requirement-group ul,.detail-dependents { list-style:none; padding:0; margin:0; display:grid; gap:10px; }
+.detail-requirement-group li { display:flex; gap:9px; align-items:flex-start; padding:10px; border-radius:12px; background:#f6f7fb; }
+.requirement-symbol { display:grid; place-items:center; flex-shrink:0; width:24px; height:24px; color:#3d5f50; }
+.is-missing .requirement-symbol { color:#785b35; }
+.detail-requirement-group li > span:last-child { display:grid; gap:4px; min-width:0; }
+.detail-requirement-group li strong,.detail-dependents strong { font-size:.8125rem; line-height:1.5; overflow-wrap:anywhere; }
+.detail-requirement-group li small,.detail-dependents small { font-size:.6875rem; color:#53627e; line-height:1.5; overflow-wrap:anywhere; }
+.detail-requirement-group li > span:last-child > span { font-size:.6875rem; color:#53627e; }
+.detail-long-list summary { min-height:44px; padding-block:10px; cursor:pointer; font-size:.8125rem; font-weight:700; color:#455782; }
+.detail-dependents li { padding:10px 12px; border-radius:12px; border:1px solid #dfe4ef; display:grid; gap:4px; }
+.detail-topics { padding-left:20px; }
+.detail-topics li { font-size:.8125rem; line-height:1.65; margin-bottom:7px; overflow-wrap:anywhere; }
+.detail-hours { display:grid; gap:5px; }
+.detail-map-action { padding-block:20px max(16px,env(safe-area-inset-bottom)); }
+.detail-map-action button { min-height:48px; white-space:normal; }
+.subject-detail-panel :is(button,summary):focus-visible,.subject-detail-panel h3:focus-visible { outline:3px solid #6678be; outline-offset:3px; }
+.subject-detail-root .MuiDialog-paper.subject-detail-panel.is-full { width:min(650px,100%); max-width:650px; height:var(--sheet-viewport-height,100dvh); max-height:var(--sheet-viewport-height,100dvh); margin:0 auto; border-radius:0; padding-top:max(13px,env(safe-area-inset-top)); }
+@media (max-width:600px) { .subject-detail-root .MuiDialog-paper.subject-detail-panel.is-full { width:100%; max-width:100%; } }
+@media (prefers-reduced-motion:reduce) { .subject-detail-root * { scroll-behavior:auto!important; } }
+
+.subject-detail-root .MuiDialog-paper.subject-detail-panel.is-full { padding-top:0; }
+.subject-detail-panel.is-full > .sheet-handle { display:none; }
+.subject-detail-panel.is-full > header { top:0; padding-top:max(13px,env(safe-area-inset-top)); }
+
+.subject-detail-panel .status-actions button { overflow-wrap:anywhere; }
+
+/* Safari review: standalone title and explicit, balanced two-by-two choices. */
+.subject-detail-panel .detail-status-section { margin-top:18px; scroll-margin-top:90px; }
+.subject-detail-panel .detail-status-editor { padding:14px; margin:0; min-width:0; }
+.subject-detail-panel .detail-status-editor .status-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:repeat(2,minmax(52px,1fr)); gap:10px; align-items:stretch; margin:0; }
+.subject-detail-panel .detail-status-editor .status-actions button { display:flex; align-items:center; justify-content:center; width:100%; min-width:0; min-height:52px; height:100%; margin:0; padding:12px 8px; border-width:2px; border-radius:11px; line-height:1.35; text-align:center; font-weight:650; }
+.subject-detail-panel .detail-status-editor .status-actions button[aria-pressed=true] { border-color:#485bc9; background:#485bc9; color:#fff; font-weight:750; }
+.subject-detail-panel > header { position:sticky; top:0; z-index:3; min-height:60px; margin:0; padding:8px 0; background:#fff; }
+.subject-detail-panel.is-full > header { top:0; padding-top:max(13px,env(safe-area-inset-top)); }
+.subject-detail-root .MuiDialog-paper.subject-detail-panel { scroll-padding-block:calc(80px + env(safe-area-inset-top)) 32px; }

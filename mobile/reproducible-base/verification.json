@@ -1,0 +1,295 @@
+{
+  "stage": "Mobile 2.4.0 — Base reproducible",
+  "branch": "mobile/stage2-4-0-reproducible-base",
+  "baseCommit": "9c420fcfc5a5cd57196517b1a65e501c2c407f33",
+  "approvedZipSHA256": "c1cc05d626c911976dcdca0e4fdf4bff22c0c95339a1b2450ce36942781e587a",
+  "historicalSourceManifest": {
+    "entries": 66,
+    "matched": 66
+  },
+  "declaredInputs": 75,
+  "newFilesProposed": 55,
+  "existingTrackedInputs": 29,
+  "export": {
+    "files": 85,
+    "gitMetadataCopied": false,
+    "envFilesCopied": false,
+    "nodeModulesCopied": false,
+    "dependenciesBorrowedFromWorkspace": false
+  },
+  "installation": {
+    "command": "npm ci --offline --ignore-scripts --no-audit --no-fund",
+    "lockfileUnchanged": true,
+    "packagesInstalledInCleanCopy": 858,
+    "networkUsed": false,
+    "cacheRequiredForOfflineInstallOnly": true
+  },
+  "build": {
+    "inputsVerified": 75,
+    "toolchain": {
+      "node": "v24.19.0",
+      "npm": "11.9.0",
+      "python": "3.12.14",
+      "zlib": "1.3.2",
+      "system": "Linux",
+      "machine": "x86_64"
+    },
+    "files": {
+      "SHA256SUMS": "7bc579ee2927dfe2043a033861801dd5b8eeeeca1dc01bd2faeda26bcaf97777",
+      "_headers": "fe9629946edffcb51a0e5306e1ec174cd47a8a3ce28312ec92145d3797913ba0",
+      "assets/index-ZQu9AidP.css": "ef64c4d69859f26e8ceb452a7393e335a17daa43ad1cc0d911e5dacc5170a8d0",
+      "assets/index-kdWVd_9z.js": "b1b1eb09ff948a0a1fb173064c010a8fad7dc07d6506186029c39e2cf505c041",
+      "assets/logo-DbaGozUD.png": "e8a96ce70d0fde88f56925c3b85aae5c14d4f791581fb425a6eb7149b0d5053c",
+      "index.html": "7ec87d71bddebaba253fe14c643d9f844c60f543ef85da5541b0271629f68440"
+    },
+    "zipSHA256": "c1cc05d626c911976dcdca0e4fdf4bff22c0c95339a1b2450ce36942781e587a",
+    "zipBinaryIdentical": true,
+    "sourceModules": [
+      "mobile/integration-final/AcademicOnboarding.jsx",
+      "mobile/integration-final/AcademicSimulation.jsx",
+      "mobile/integration-final/App.jsx",
+      "mobile/integration-final/CareerCards.jsx",
+      "mobile/integration-final/CareerWizard.jsx",
+      "mobile/integration-final/ContextPages.jsx",
+      "mobile/integration-final/Dashboard.jsx",
+      "mobile/integration-final/SubjectDetailPanel.jsx",
+      "mobile/integration-final/SubjectsList.jsx",
+      "mobile/integration-final/academicPresentation.mjs",
+      "mobile/integration-final/careers.css",
+      "mobile/integration-final/catalogSearch.mjs",
+      "mobile/integration-final/contextModel.mjs",
+      "mobile/integration-final/contexts.css",
+      "mobile/integration-final/dashboard.css",
+      "mobile/integration-final/dashboardModel.mjs",
+      "mobile/integration-final/demoStorage.mjs",
+      "mobile/integration-final/detail.css",
+      "mobile/integration-final/index.html",
+      "mobile/integration-final/main.jsx",
+      "mobile/integration-final/navigation.mjs",
+      "mobile/integration-final/onboarding.css",
+      "mobile/integration-final/onboardingModel.mjs",
+      "mobile/integration-final/presentation.css",
+      "mobile/integration-final/simulatedAcademicOperations.mjs",
+      "mobile/integration-final/sixNavigation.css",
+      "mobile/integration-final/subjectDetailModel.mjs",
+      "mobile/integration-final/subjectFilters.mjs",
+      "mobile/integration-final/subjects.css",
+      "mobile/integration-final/useAcademicDemo.jsx",
+      "mobile/integration-final/useNavigation.jsx",
+      "mobile/stage2-navigation/NavigationPages.jsx",
+      "mobile/stage2-navigation/navigation.css",
+      "prototypes/mobile-app/MobileMap.jsx",
+      "prototypes/mobile-app/data.js",
+      "prototypes/mobile-app/mobile.css",
+      "public/logo.png",
+      "src/academicOnboardingLogic.js",
+      "src/careerInstanceLogic.js",
+      "src/components/CareerMap.jsx",
+      "src/components/CareerSelector.jsx",
+      "src/components/ProgressSummary.jsx",
+      "src/data/careers.js",
+      "src/data/uade/industrial.js",
+      "src/data/uade/informatica.js",
+      "src/data/uba/actuario.js",
+      "src/data/uba/odontologia.js",
+      "src/data/uca/teologiaSistematica.js",
+      "src/data/utn/industrial2007.js",
+      "src/data/utn/industrial2023.js",
+      "src/data/utn/sistemas2023.js",
+      "src/logic.js",
+      "src/styles.css",
+      "src/userDataAuthorityLogic.js"
+    ],
+    "packageFamilies": [
+      "@babel/runtime",
+      "@emotion/cache",
+      "@emotion/hash",
+      "@emotion/is-prop-valid",
+      "@emotion/memoize",
+      "@emotion/react",
+      "@emotion/serialize",
+      "@emotion/sheet",
+      "@emotion/styled",
+      "@emotion/unitless",
+      "@emotion/use-insertion-effect-with-fallbacks",
+      "@emotion/utils",
+      "@mui/material",
+      "@mui/styled-engine",
+      "@mui/system",
+      "@mui/utils",
+      "clsx",
+      "lucide-react",
+      "react",
+      "react-dom",
+      "react-is",
+      "react-transition-group",
+      "scheduler",
+      "stylis"
+    ],
+    "published": false
+  },
+  "models": {
+    "tests": 57,
+    "passed": 57,
+    "failed": 0,
+    "skipped": 0
+  },
+  "browser": {
+    "checks": 2887,
+    "suites": {
+      "result": {
+        "checks": 383,
+        "externalRequests": [],
+        "errors": [],
+        "sensitiveEvents": [],
+        "browser": "Chromium",
+        "physicalSafariTested": false
+      },
+      "academic": {
+        "checks": 55,
+        "errors": [],
+        "externalRequests": [],
+        "unexpectedEvents": [],
+        "physicalSafariTested": false
+      },
+      "dashboard": {
+        "checks": 279,
+        "errors": [],
+        "externalRequests": [],
+        "unexpectedEvents": [],
+        "accessibility": "Chromium AX names, keyboard, 44px targets, 200% root text, sampled text contrast; not axe/full WCAG audit",
+        "minimumTextContrast": 5.590819555227916,
+        "physicalSafariTested": false
+      },
+      "detail": {
+        "checks": 309,
+        "errors": [],
+        "externalRequests": [],
+        "unexpectedEvents": [],
+        "automatedAccessibility": "AX names, single dialog, keyboard focus containment, 44px controls, 200% root text, text contrast; not axe/full WCAG audit",
+        "minimumTextContrast": 5.808506945560716,
+        "physicalSafariTested": false
+      },
+      "filters": {
+        "checks": 1074,
+        "errors": [],
+        "externalRequests": [],
+        "unexpectedEvents": [],
+        "accessibility": "Chromium AX tree, names, keyboard/modal focus, 44px targets, 200% root text, new panel text contrast; not axe or a full WCAG certification",
+        "panelContrast": [
+          {
+            "text": "Los criterios se combinan: se mostrarán solo las materias qu",
+            "ratio": 6.7723894447723065
+          },
+          {
+            "text": "Estado académico",
+            "ratio": 9.37506325310353
+          },
+          {
+            "text": "Nivel",
+            "ratio": 9.37506325310353
+          },
+          {
+            "text": "Condiciones académicas",
+            "ratio": 9.37506325310353
+          },
+          {
+            "text": "Podés cursar",
+            "ratio": 9.37506325310353
+          },
+          {
+            "text": "Finales habilitados",
+            "ratio": 9.37506325310353
+          },
+          {
+            "text": "Bloqueadas",
+            "ratio": 9.37506325310353
+          },
+          {
+            "text": "Desbloqueos",
+            "ratio": 9.37506325310353
+          },
+          {
+            "text": "«Desbloqueos» indica dependencias directas, no una habilitac",
+            "ratio": 6.2038826823394855
+          },
+          {
+            "text": "63 resultados con esta selección",
+            "ratio": 7.380977126562514
+          },
+          {
+            "text": "Limpiar filtros",
+            "ratio": 7.000945837902117
+          },
+          {
+            "text": "Cancelar",
+            "ratio": 4.589797093537852
+          },
+          {
+            "text": "Ver 63 materias",
+            "ratio": 4.916789530556282
+          }
+        ],
+        "physicalSafariTested": false
+      },
+      "status-layout": {
+        "checks": 342,
+        "errors": [],
+        "viewports": 7,
+        "textScales": [
+          "100%",
+          "200%"
+        ],
+        "modes": [
+          "panel",
+          "expanded"
+        ],
+        "physicalSafariTested": false
+      },
+      "onboarding": {
+        "checks": 333,
+        "javascriptErrors": [],
+        "externalRequests": [],
+        "unexpectedEvents": [],
+        "accessibility": "Chromium AX names, keyboard, 44px targets, 2x2, 200% root text; physical Safari/VoiceOver pending",
+        "minimumSampledContrast": 5.766349020980172,
+        "offlineAfterLoad": true,
+        "physicalSafariTested": false
+      },
+      "regression": {
+        "passed": true,
+        "assertions": 112,
+        "widths": [
+          320,
+          390,
+          430,
+          1280
+        ],
+        "javascriptErrors": [],
+        "externalRequests": [],
+        "timestamp": "2026-10-16T00:22:07.134Z"
+      }
+    },
+    "physicalSafariTested": false,
+    "VoiceOverTested": false
+  },
+  "negativeVerification": [
+    {
+      "case": "changed source",
+      "rejected": true
+    },
+    {
+      "case": "missing source",
+      "rejected": true
+    }
+  ],
+  "limitations": [
+    "Same Linux x86_64 machine/toolchain, independent directory and fresh npm install; no claim of execution on another OS or remote machine",
+    "npm registry install without cache documented but not exercised; offline cache install succeeded",
+    "Historical npm deprecation warnings retained, no vulnerability audit or upgrades performed",
+    "Build helpers enforce exact documented toolchain; other versions are not certified"
+  ],
+  "committed": false,
+  "pushed": false,
+  "deployed": false
+}

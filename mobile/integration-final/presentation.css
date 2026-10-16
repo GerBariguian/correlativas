@@ -1,0 +1,10 @@
+.overview-grid.without-average { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.academic-simulation { margin-top:18px; padding-top:12px; border-top:1px solid #dce0ef; display:grid; gap:12px; }
+.academic-simulation h3 { font-size:16px; margin:0; }
+.academic-simulation button,.academic-feedback button { min-height:44px; padding:10px 12px; white-space:normal; }
+.academic-feedback { background:#eef2ff; border:1px solid #dce0ef; border-radius:14px; padding:12px; margin-block:12px; color:#394568; }
+.academic-feedback p { margin:0 0 8px; font-size:13px; line-height:1.6; }
+.academic-feedback small { display:block; font-size:12px; line-height:1.5; }
+.academic-feedback.has-issue { background:#fff7ea; border-color:#e7d7b9; color:#655139; }
+
+.academic-editor { border:0; padding:0; margin:0; min-width:0; }

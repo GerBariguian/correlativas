@@ -1,0 +1,26 @@
+/* Approved six-destination layout; no comparison selector or home shortcuts. */
+.final-navigation-stage .bottom-nav { grid-template-columns: repeat(6, minmax(0, 1fr)); padding-inline: max(4px, env(safe-area-inset-left)) max(4px, env(safe-area-inset-right)); gap: 0; }
+.final-navigation-stage .bottom-nav button { min-width: 44px; min-height: 56px; font-size: 9px; letter-spacing: -.1px; padding-inline: 0; }
+.final-navigation-stage .bottom-nav button > span { width: 40px; }
+.final-navigation-stage .mobile-content { padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right)); }
+.academic-snapshot { border: 1px solid var(--demo-border); background: white; border-radius: 20px; padding: 18px; margin: 20px 0; }
+.academic-snapshot h2 { font-size: 16px; margin: 0 0 15px; color: #28324e; }
+.academic-snapshot dl { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 0; }
+.academic-snapshot dl > div { display: flex; flex-direction: column-reverse; gap: 6px; min-width: 0; }
+.academic-snapshot dt { font-size: 12px; color: #626b83; overflow-wrap: anywhere; }
+.academic-snapshot dd { margin: 0; font-size: 26px; font-weight: 750; color: var(--primary); }
+.academic-snapshot p { font-size: 11px; line-height: 1.5; color: #71778b; margin: 15px 0 0; }
+@media (min-width: 361px) { .final-navigation-stage .mobile-content { padding-inline: max(23px, env(safe-area-inset-left)) max(23px, env(safe-area-inset-right)); } }
+/* 2.3.6: measured inactive labels were 2.65:1; use the approved muted ink. */
+.final-navigation-stage .bottom-nav { background:#fff; }
+.final-navigation-stage .bottom-nav button { color:#53627e; font-size:.5625rem; line-height:1.35; }
+.final-navigation-stage .bottom-nav button[aria-current] { color:#5260d4; }
+.final-navigation-stage .bottom-nav button > .bottom-nav-label { display:block; width:100%; height:auto; min-width:0; border-radius:0; background:transparent; overflow-wrap:anywhere; }
+.final-navigation-stage .bottom-nav button:focus-visible { outline:3px solid #4257c0; outline-offset:-3px; border-radius:10px; }
+/* 2.3.6 section spacing: four direct headings; Proyectar has a nested heading.
+   Inicio, Cuenta, Mis carreras and onboarding deliberately do not match. */
+.final-navigation-stage .demo-device:has(> .mobile-content > .page-heading, > .mobile-content > .navigation-page > .empty-state) > .context-selector { margin-bottom:4px; }
+.final-navigation-stage .mobile-content:has(> .page-heading, > .navigation-page > .empty-state) { padding-top:0; }
+.final-navigation-stage .mobile-content:has(> .page-heading, > .navigation-page > .empty-state) > .navigation-back { margin-bottom:0; }
+.final-navigation-stage .mobile-content > .page-heading,
+.final-navigation-stage .mobile-content > .navigation-page:has(> .empty-state) > .page-heading { margin-top:0; }

@@ -1,0 +1,2 @@
+# Existing browser-test dependency; not an application dependency.
+playwright==1.62.0

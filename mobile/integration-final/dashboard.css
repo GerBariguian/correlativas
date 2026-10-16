@@ -1,0 +1,78 @@
+.dashboard-mobile { display:grid; gap:22px; min-width:0; }
+.dashboard-heading h1 { font-size:1.875rem; line-height:1.2; color:#26334f; margin:10px 0; }
+.dashboard-heading > p { font-size:.875rem; line-height:1.6; color:#53627e; margin:0; }
+.dashboard-mobile .dashboard-progress { margin:0; border-radius:22px; padding:22px; background:#4b5dce; color:#fff; box-shadow:0 8px 20px #4b5dce20; }
+.dashboard-progress-top { display:flex; gap:14px; align-items:center; justify-content:space-between; }
+.dashboard-progress-top > div:first-child { min-width:0; }
+.dashboard-progress h2 { font-size:1.25rem; line-height:1.35; margin:8px 0; color:#fff; }
+.dashboard-progress-top p { margin:0; font-size:.75rem; line-height:1.6; color:#fff; }
+.dashboard-progress .white-kicker { color:#fff; font-size:.625rem; letter-spacing:.1em; }
+.dashboard-ring { width:104px; height:104px; flex:0 0 104px; padding:7px; border-radius:50%; background:conic-gradient(#fff var(--dashboard-angle),#ffffff40 0); }
+.dashboard-ring > div { display:flex; flex-direction:column; justify-content:center; align-items:center; width:100%; height:100%; background:#4b5dce; border-radius:50%; }
+.dashboard-ring strong { font-size:1.75rem; line-height:1.1; font-weight:800; }
+.dashboard-ring strong small { font-size:.875rem; }
+.dashboard-ring > div > span { font-size:.625rem; margin-top:5px; }
+.dashboard-progress-note { margin:16px 0 0; padding-top:13px; border-top:1px solid #ffffff55; font-size:.6875rem; line-height:1.6; color:#fff; }
+.dashboard-mobile .dashboard-states { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin:0; }
+.dashboard-mobile .dashboard-state { position:relative; display:flex; flex-direction:column; align-items:flex-start; padding:15px; min-height:94px; border-radius:16px; border:1px solid #dce3ef; box-shadow:none; text-align:left; background:#fff; color:#344363; }
+.dashboard-state-label { display:flex; align-items:center; gap:6px; font-size:.75rem; font-weight:650; }
+.dashboard-state.approved .dashboard-state-label { color:#26634d; }
+.dashboard-state.regularized .dashboard-state-label { color:#394d96; }
+.dashboard-state.taking .dashboard-state-label { color:#7e4c1b; }
+.dashboard-mobile .dashboard-state strong { font-size:1.5rem; line-height:1.2; margin-top:8px; color:#26334f; }
+.dashboard-state-arrow { position:absolute; right:12px; bottom:18px; color:#53627e; }
+.dashboard-empty-progress,.dashboard-complete { background:#eef2ff; border:1px solid #d5ddee; border-radius:16px; padding:16px; color:#3e5076; }
+.dashboard-empty-progress h2,.dashboard-complete h2 { font-size:.9375rem; margin:0 0 8px; }
+.dashboard-empty-progress p,.dashboard-complete p { font-size:.8125rem; line-height:1.6; margin:0; }
+.dashboard-eligibility h2,.dashboard-guidance h2 { font-size:1rem; color:#2d3d5a; margin:0 0 12px; }
+.dashboard-eligibility > div { display:grid; gap:9px; }
+.dashboard-option { display:flex; align-items:center; gap:12px; width:100%; min-height:80px; padding:14px; border:1px solid #dce3ef; border-radius:16px; background:#fff; text-align:left; color:#344363; }
+.dashboard-option-icon { width:40px; height:40px; border-radius:12px; display:grid; place-items:center; flex:0 0 40px; background:#e7f4ec; color:#26634d; }
+.dashboard-option-icon.finals { background:#edf0ff; color:#394d96; }
+.dashboard-option > span:nth-child(2) { flex:1; min-width:0; }
+.dashboard-option > span:nth-child(2) strong { font-size:1.25rem; display:block; }
+.dashboard-option > span:nth-child(2) > span { font-size:.8125rem; line-height:1.5; }
+.dashboard-option > svg { flex-shrink:0; }
+.dashboard-eligibility > p { font-size:.75rem; line-height:1.6; color:#53627e; margin:10px 0 0; }
+.dashboard-shortcuts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.dashboard-shortcuts button { display:flex; flex-direction:column; justify-content:center; align-items:center; gap:7px; min-height:76px; min-width:0; border:1px solid #c6cfe4; background:#f0f3ff; color:#3e507e; border-radius:14px; padding:10px 5px; font-size:.75rem; font-weight:650; overflow-wrap:anywhere; }
+.dashboard-guidance { padding-top:4px; }
+.dashboard-guidance h2 { display:flex; align-items:center; gap:7px; }
+.dashboard-guidance-note { font-size:.75rem; line-height:1.6; color:#53627e; margin:0 0 14px; }
+.dashboard-guidance-item { border-top:1px solid #dce3ef; padding:14px 0; }
+.dashboard-guidance-type { display:block; font-size:.6875rem; font-weight:750; color:#445986; }
+.dashboard-guidance-item h3 { font-size:.875rem; line-height:1.5; margin:5px 0; color:#2d3d5a; overflow-wrap:anywhere; }
+.dashboard-guidance-item p { font-size:.75rem; line-height:1.6; color:#53627e; margin:0; }
+.dashboard-guidance summary { min-height:44px; padding:12px 0; color:#445986; font-size:.8125rem; cursor:pointer; font-weight:650; }
+.dashboard-mobile .dashboard-explore { display:inline-flex; align-items:center; justify-content:flex-start; gap:7px; min-height:44px; padding:10px 0; color:#445986; font-size:.8125rem; white-space:normal; text-align:left; }
+.dashboard-guidance-empty { font-size:.8125rem; line-height:1.6; color:#53627e; }
+.dashboard-empty { padding:22px 18px; border:1px solid #dce3ef; border-radius:20px; background:#fff; color:#344363; }
+.dashboard-empty-icon { display:inline-grid; place-items:center; width:52px; height:52px; border-radius:16px; color:#445986; background:#edf0ff; }
+.dashboard-empty h1 { font-size:1.5rem; line-height:1.35; margin:14px 0; overflow-wrap:anywhere; }
+.dashboard-empty p { font-size:.875rem; line-height:1.7; color:#53627e; }
+.dashboard-empty button { min-height:48px; white-space:normal; }
+.dashboard-mobile :is(button,summary):focus-visible,.dashboard-empty button:focus-visible { outline:3px solid #6678be; outline-offset:3px; }
+@media(max-width:360px) { .dashboard-mobile .dashboard-progress { padding:18px; } .dashboard-ring { width:88px; height:88px; flex-basis:88px; } .dashboard-state-label { gap:4px; font-size:.6875rem; } }
+@media(prefers-reduced-motion:reduce) { .dashboard-mobile * { scroll-behavior:auto!important; } }
+/* Reflow the summary rather than squeeze labels when text is enlarged. */
+.dashboard-progress-top { flex-wrap:wrap; }
+.dashboard-progress-top > div:first-child { flex:1 1 8rem; }
+.dashboard-progress h2 { overflow-wrap:anywhere; }
+.dashboard-ring { width:clamp(104px,6.5rem,176px); height:clamp(104px,6.5rem,176px); flex-basis:clamp(104px,6.5rem,176px); }
+.dashboard-state-label { flex-wrap:wrap; overflow-wrap:anywhere; max-width:100%; }
+.dashboard-mobile .dashboard-state strong { max-width:100%; padding-right:15px; overflow-wrap:anywhere; }
+.dashboard-shortcuts button > span { max-width:100%; overflow-wrap:anywhere; }
+@media(max-width:360px) { .dashboard-ring { width:clamp(88px,5.5rem,160px); height:clamp(88px,5.5rem,160px); flex-basis:clamp(88px,5.5rem,160px); } }
+/* 2.3.6: progress precedes the card-loading entry and a compact greeting. */
+.mobile-content .dashboard-heading h1 { font-size:1.5rem; margin:5px 0 0; line-height:1.25; letter-spacing:-.035em; }
+.dashboard-mobile { gap:16px; }
+.dashboard-mobile .dashboard-progress { padding:18px; }
+.dashboard-mobile .onboarding-entry-mobile { margin:0; }
+/* Native disclosure is the single source of its visible and accessible label. */
+.dashboard-guidance .guidance-open { display:none; }
+.dashboard-guidance details[open] .guidance-open { display:inline; }
+.dashboard-guidance details[open] .guidance-closed { display:none; }
+/* 2.3.6 spacing correction: only Inicio, leaving other pages unchanged. */
+.final-navigation-stage .demo-device:has(> .mobile-content > .dashboard-mobile) > .context-selector { margin-bottom:4px; }
+.final-navigation-stage .mobile-content:has(> .dashboard-mobile) { padding-top:0; }
+.final-navigation-stage .mobile-content:has(> .dashboard-mobile) > .navigation-back { margin-bottom:0; }
