@@ -1,0 +1,18 @@
+rules_version = '2';
+service cloud.firestore {
+ match /databases/{database}/documents {
+  // Lab fixtures are read-only to application clients. No product writer here.
+  match /users/{uid}/{rest=**} { allow read: if request.auth != null && request.auth.uid == uid; allow write: if false; }
+  match /migrationUsers/{uid} { allow read: if request.auth != null && request.auth.uid == uid; allow write: if false; }
+  match /labInfrastructure/{uid}/probes/{id} {
+   allow read: if request.auth != null && request.auth.uid == uid;
+   allow create, update: if request.auth != null && request.auth.uid == uid
+     && request.resource.data.keys().hasOnly(['revision','cursor','marker'])
+     && request.resource.data.revision is int && request.resource.data.revision > 0
+     && request.resource.data.cursor is int && request.resource.data.cursor >= 0
+     && request.resource.data.marker == 'fixture-only'
+     && (resource == null ? request.resource.data.revision == 1 : request.resource.data.revision == resource.data.revision + 1);
+   allow delete: if false;
+  }
+ }
+}

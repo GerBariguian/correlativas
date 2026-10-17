@@ -1,0 +1,106 @@
+{
+  "stage": "Mobile 2.4.4 B",
+  "branch": "mobile/stage2-4-4-b-emulator-infrastructure",
+  "baseCommit": "b6e17b3f69d5139c06c16b3d30542d8e8bc85f92",
+  "status": "PARTIAL_FIRESTORE_BLOCKED",
+  "project": "demo-correlativas-244b",
+  "newFiles": [
+    "mobile/emulator-lab/README.md",
+    "mobile/emulator-lab/auth.test.cjs",
+    "mobile/emulator-lab/client.cjs",
+    "mobile/emulator-lab/faults.cjs",
+    "mobile/emulator-lab/firebase.json",
+    "mobile/emulator-lab/fixtures.cjs",
+    "mobile/emulator-lab/functions/index.cjs",
+    "mobile/emulator-lab/functions/package-lock.json",
+    "mobile/emulator-lab/functions/package.json",
+    "mobile/emulator-lab/integration.test.cjs",
+    "mobile/emulator-lab/lab.rules",
+    "mobile/emulator-lab/net-guard.cjs",
+    "mobile/emulator-lab/policy.cjs",
+    "mobile/emulator-lab/prepare.py",
+    "mobile/emulator-lab/run.cjs",
+    "mobile/emulator-lab/seed.cjs",
+    "mobile/emulator-lab/unit.test.cjs",
+    "mobile/emulator-lab/verification.json"
+  ],
+  "modifiedExistingFiles": [],
+  "sourceSHA256": {
+    "mobile/emulator-lab/README.md": "6388822ba99c2fbaece150121006cbe5a84a5d4b4d7cab4188649ac1f9782041",
+    "mobile/emulator-lab/auth.test.cjs": "ded16baf4be0d5a9447127a4c6bbe75af18f0cb6e35a7bb222925e81e8e8dadc",
+    "mobile/emulator-lab/client.cjs": "efe9ad91f68cf8d7a2072ce57ea710aaf4f17ec88275a644afca6b322afbc956",
+    "mobile/emulator-lab/faults.cjs": "af0f8dccfb8ca063a7797e72dc83eb78d5053e97ca54f903ea25f1b25124b72b",
+    "mobile/emulator-lab/firebase.json": "171563b56207d10d39e8890fea54a4c615ee092554bd6754f0503fb2c4cf01fc",
+    "mobile/emulator-lab/fixtures.cjs": "e8747bd6c1e47f3d901267e6523b18f0c45cc4eabad6c294bb5f1504c7d5c6a6",
+    "mobile/emulator-lab/functions/index.cjs": "99e57e1c757d26a8fbaac50ee668e6f9ffc9ca1ec5d5906afb323cb0dc61a32e",
+    "mobile/emulator-lab/functions/package-lock.json": "8d0b1224accdafbb38d005fdc87b6bc0265fd26eee908f84217c4c7f60fba82c",
+    "mobile/emulator-lab/functions/package.json": "662d11d274e3a524c0e57c28362caa07afa7603a14e2ef2583955f77b9e0773b",
+    "mobile/emulator-lab/integration.test.cjs": "547175474370787c7ad50c4a20131a3f9a30f4efba825341ec9a4c22a17d48eb",
+    "mobile/emulator-lab/lab.rules": "76bfdae504ac3d17589f87e09c548c6ddf5a8d838572fecab57715bdf8f1520b",
+    "mobile/emulator-lab/net-guard.cjs": "d945075e1b0b9e213a2992b1739b6f9e936ebae70827cdc4cf101aa9e119e119",
+    "mobile/emulator-lab/policy.cjs": "cf82dc87c63bc6ee8cbd2fa08b7e8498b93ccfb0c37c0ba4927df2aad3e61364",
+    "mobile/emulator-lab/prepare.py": "29489df5f6787de0bb7f974e43159acf40e28aa3b51a352b87db9dccea62385b",
+    "mobile/emulator-lab/run.cjs": "7222c4736f5883a6fda4187936e800bcec4862ed373babe49386061aef826b66",
+    "mobile/emulator-lab/seed.cjs": "ccf2526824453f9e96ad42f1687d678a202514355de29d7f94f82378924da9bb",
+    "mobile/emulator-lab/unit.test.cjs": "2756f61fe3bc9f4b12a44cfabe061854bf2a218e2288195afee6a8bedc19ff44"
+  },
+  "tests": {
+    "isolationUnitPassed": 7,
+    "authFunctionsIntegrationPassed": 1,
+    "authFunctionsRun": {
+      "project": "demo-correlativas-244b",
+      "mode": "auth-test",
+      "passed": true,
+      "firestoreTested": false,
+      "time": "2026-10-17T22:22:06.971Z"
+    },
+    "firestoreIntegrationExecuted": false,
+    "firestoreRuleTestsExecuted": false,
+    "firestoreConcurrencyExecuted": false,
+    "firestoreDisconnectExecuted": false,
+    "firestoreContinuityExecuted": false,
+    "missingArtifactFailureObserved": true,
+    "cleanupCommandPassed": true,
+    "functionsFrozenInstallPassed": true
+  },
+  "dependencies": {
+    "firebaseFunctions": "7.4.0",
+    "firebaseAdmin": "14.5.0",
+    "isolatedPackageAudit": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "auditScope": "functions harness package only",
+    "rootLockfileUnchanged": true,
+    "installScriptsDisabled": true,
+    "deprecatedWarnings": [
+      "node-domexception@1.0.0",
+      "glob@10.5.0"
+    ]
+  },
+  "blocker": {
+    "artifact": "cloud-firestore-emulator-v1.22.0.jar",
+    "url": "https://storage.googleapis.com/firebase-preview-drop/emulator/cloud-firestore-emulator-v1.22.0.jar",
+    "httpProxyStatus": 403,
+    "authorizedEscalatedRetryStatus": 403,
+    "expectedSHA256": "9b6498b7f62714d67f48f59b3818883cd682dbcd46b9f59511de81c97bb5166c",
+    "checksumBypass": false
+  },
+  "limits": [
+    "Node transport guards are not an OS firewall or hostile-code sandbox",
+    "Firestore fixture load, Rules and full tests remain unexecuted",
+    "Google Sign-In and physical devices not tested",
+    "No new academic write contract, career creation or product onboarding session implemented",
+    "No real Firebase connections or credentials used"
+  ],
+  "priorFilesAndZIPsUnchanged": true,
+  "committed": false,
+  "pushed": false,
+  "deployed": false,
+  "environmentConfigDraftSaved": true,
+  "environmentConfigPublished": false
+}
