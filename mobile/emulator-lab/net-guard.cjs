@@ -1,8 +1,9 @@
 'use strict'
 // Process-local safety belt for Node transports. Not an OS sandbox for hostile code.
+require('./policy.cjs').assertEnvironment()
 const net=require('node:net'),tls=require('node:tls')
 const allowed=new Set(['127.0.0.1','localhost','::1','[::1]'])
-const localSocket=p=>/^\/tmp\/fire_emu_[0-9a-f]+\.sock$/.test(p)
+const {localSocket}=require('./ipc.cjs')
 const deny=()=>{throw Object.assign(Error('LAB_BLOCKED_NON_LOOPBACK_NETWORK'),{code:'LAB_NETWORK_BLOCKED'})}
 function validate(args){
  let a=args[0]

@@ -1,0 +1,106 @@
+{
+  "stage": "Mobile 2.4.4 B - Windows native compatibility",
+  "branch": "mobile/stage2-4-4-b-emulator-infrastructure",
+  "baseCommit": "e58a56d05087653fc09238c764ba0b2ba381f454",
+  "recordedAtUTC": "2026-10-17T23:02:44.326250+00:00",
+  "status": "IMPLEMENTED_WINDOWS_UNVERIFIED_FIRESTORE_BLOCKED",
+  "project": "demo-correlativas-244b",
+  "modifiedFiles": [
+    "mobile/emulator-lab/README.md",
+    "mobile/emulator-lab/net-guard.cjs",
+    "mobile/emulator-lab/policy.cjs",
+    "mobile/emulator-lab/prepare.py",
+    "mobile/emulator-lab/run.cjs"
+  ],
+  "newFiles": [
+    "mobile/emulator-lab/WINDOWS.md",
+    "mobile/emulator-lab/artifact.cjs",
+    "mobile/emulator-lab/artifact.test.cjs",
+    "mobile/emulator-lab/ipc.cjs",
+    "mobile/emulator-lab/portable.test.cjs",
+    "mobile/emulator-lab/prepare.cjs",
+    "mobile/emulator-lab/process-tree.cjs",
+    "mobile/emulator-lab/process.fixture.cjs",
+    "mobile/emulator-lab/process.test.cjs",
+    "mobile/emulator-lab/windows-job.ps1",
+    "mobile/emulator-lab/windows-verification.json"
+  ],
+  "sourceSHA256": {
+    "mobile/emulator-lab/README.md": "c8028ccff470c157808a114b59ffe6230dfb71b138c7dd8f5918ae7b48b650a3",
+    "mobile/emulator-lab/WINDOWS.md": "1e3b77bb4355ed8c5ca9d07e9cda852b2d6bd5df9b9abf78b6ef685080db78f2",
+    "mobile/emulator-lab/artifact.cjs": "32b664a221e0af024b7a87c3a77fb0ecfacf6f21906fcb15be022311c8e3fdb5",
+    "mobile/emulator-lab/artifact.test.cjs": "5e5ef50451c9699bb6d92c0aecdec22e5f9ed1bb55013fdd60ef89947ba1af40",
+    "mobile/emulator-lab/ipc.cjs": "0d04936b2346e6368d4c56a68bcf787883ae12430150b9b6fd8ddd6a4d19d568",
+    "mobile/emulator-lab/net-guard.cjs": "b2feb6a78b8562ccd15be9d59369462e98da0577b9c40769828837d12d40a89b",
+    "mobile/emulator-lab/policy.cjs": "267a691a75f1bd4e963ed7b22182d18467d8894ca5bb402ca3472276ec99742a",
+    "mobile/emulator-lab/portable.test.cjs": "a20a51ece1819fe36c87ea9e2f7fe86d6e20b2b288ce5a0973bd16fc3282488e",
+    "mobile/emulator-lab/prepare.cjs": "89c691625a1d61215f019f38722963f2f368de626a6be147852951b1739dfe35",
+    "mobile/emulator-lab/prepare.py": "1e12ed63d3e98dbc78f086055994ea3be001d3ae997625749ad08217f9aa1017",
+    "mobile/emulator-lab/process-tree.cjs": "d1584ea8bceefe2bb7fe1e085cd41f2c2d9501ebf03efea031156338fb447ff6",
+    "mobile/emulator-lab/process.fixture.cjs": "b0f1be1cdd3657f9bf74ed57dae6df15e229e67a345e0f75b83cd48c4068d676",
+    "mobile/emulator-lab/process.test.cjs": "eb98e131a7e47446dd69a01d6515d8d9fcaa976acc3e9059dc6b429515fab1ad",
+    "mobile/emulator-lab/run.cjs": "38df55456fa8b5cadb874f8b36e2174bc12893f94f61f287683142176796a781",
+    "mobile/emulator-lab/windows-job.ps1": "ebdf9f23c323774706b1711bb0a669cc4e6c8d60f9232c7556d0025c7f807085"
+  },
+  "linux": {
+    "node": "24.19.0",
+    "java": "21.0.12.1",
+    "unit": {
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0
+    },
+    "process": {
+      "passed": 3,
+      "failed": 0,
+      "skippedWindowsOnly": 3
+    },
+    "authFunctions": {
+      "passed": 1,
+      "failed": 0,
+      "firestoreTested": false
+    },
+    "cleanupPassed": true,
+    "missingArtifactRefusalObserved": true,
+    "portsFreeAfterShutdown": true
+  },
+  "download": {
+    "source": "https://storage.googleapis.com/firebase-preview-drop/emulator/cloud-firestore-emulator-v1.22.0.jar",
+    "version": "1.22.0",
+    "expectedBytes": 136707194,
+    "expectedSHA256": "9b6498b7f62714d67f48f59b3818883cd682dbcd46b9f59511de81c97bb5166c",
+    "normalAttempt": "proxy CONNECT HTTP 403",
+    "singleAuthorizedEscalatedRetry": "proxy CONNECT HTTP 403",
+    "installed": false,
+    "tlsSizeHashBypassed": false
+  },
+  "windows": {
+    "executed": false,
+    "powerShellOrCSharpAvailableInCloud": false,
+    "pending": [
+      "Native PowerShell/C# compilation and PInvoke Job Object behavior",
+      "All 16 unit tests on Windows",
+      "All 6 process tests with zero skips",
+      "Auth/Functions and actual Windows named-pipe transport",
+      "Full Firestore integration after verified official download",
+      "Full checkout path with spaces/Unicode",
+      "Ctrl+C, VS Code terminal close and VS Code close; no owned orphans"
+    ]
+  },
+  "safety": {
+    "allChangedFilesInsideEmulatorLab": true,
+    "mainUnmodified": true,
+    "dependencyManifestsAndLocksUnmodified": true,
+    "firebaseConfigAndLabRulesUnmodified": true,
+    "originalTestsUnmodified": true,
+    "credentialPatternsFound": [],
+    "realFirebaseUsed": false,
+    "newAcademicFunctionsImplemented": false,
+    "nodeGuardIsNotOSFirewall": true,
+    "jarAndTemporaryFilesNotVersioned": true
+  },
+  "committed": false,
+  "pushed": false,
+  "deployed": false,
+  "stageBClosed": false
+}

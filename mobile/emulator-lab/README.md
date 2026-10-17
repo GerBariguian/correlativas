@@ -2,17 +2,19 @@
 
 Rama independiente: `mobile/stage2-4-4-b-emulator-infrastructure`, base `b6e17b3f69d5139c06c16b3d30542d8e8bc85f92`.
 
-**Estado: parcial. Auth y Functions comprobados; Firestore pendiente por descarga oficial bloqueada (403 del proxy, también en el reintento único autorizado). No aprobar B como entorno completo todavía.**
+**Estado: adaptación Windows implementada, todavía no validada en Windows. Regresión Linux y Auth/Functions comprobadas; Firestore sigue pendiente por descarga oficial bloqueada (403 del proxy, incluido el reintento único autorizado). No aprobar B como entorno completo todavía.**
+
+La compatibilidad Windows y su plan de aceptación están en [WINDOWS.md](WINDOWS.md); resultados actuales en [windows-verification.json](windows-verification.json). `verification.json` conserva el informe histórico anterior a esta adaptación, no sus resultados actuales.
 
 ## Alcance y aislamiento
 
 Proyecto fijo `demo-correlativas-244b`. No acepta proyecto, host o URL mediante argumentos ni variables configurables. Puertos locales exclusivos: Auth 9199, Firestore 8188, Functions 5101, Hub 4501, Logging 4601 y websocket Firestore 8255. UI desactivada. No se expone una vista previa remota.
 
-El launcher usa un entorno construido por lista permitida, sin VITE_*, credenciales, proxies, NODE_OPTIONS heredado o configuración Firebase productiva. XDG_CONFIG_HOME es un directorio local nuevo. Se desactiva detección de metadatos de Google (`METADATA_SERVER_DETECTION=none`) y la consulta npm de versiones durante el runtime queda offline.
+El launcher usa un entorno construido por lista permitida, sin VITE_*, credenciales, proxies, NODE_OPTIONS heredado o configuración Firebase productiva. HOME, USERPROFILE, APPDATA, LOCALAPPDATA, CLOUDSDK_CONFIG y XDG_CONFIG_HOME apuntan a un perfil temporal nuevo por ejecución, eliminado al terminar normalmente. No se reutilizan perfiles personales ni credenciales guardadas. Las variables se normalizan por nombre sin distinguir mayúsculas, rechazando duplicados ambiguos relevantes. Se desactiva detección de metadatos de Google (`METADATA_SERVER_DETECTION=none`) y la consulta npm de versiones durante el runtime queda offline.
 
 Antes de iniciar clientes se exigen variables exactas del proyecto y ambos emuladores; faltantes/valores diferentes/configuración Firebase incompatible abortan. El SDK usa sólo una configuración ficticia y se enlaza a emuladores antes de cualquier operación. Conectar Auth no permite continuar si Firestore falta. La fábrica cierra la app si falla su inicialización.
 
-`net-guard.cjs` se precarga en procesos Node del lab, CLI y workers heredados: bloquea conexiones no loopback por fetch, sockets/TLS y transportes Node; permite únicamente el patrón de sockets Unix temporales que usa Functions. Los servidores temporales del SDK, que omiten host o solicitan wildcard, se fuerzan a 127.0.0.1. Los puertos ocupados provocan aborto, nunca cambio automático de puerto ni terminación de procesos ajenos.
+`net-guard.cjs` se precarga en procesos Node del lab, CLI y workers heredados: bloquea conexiones no loopback por fetch, sockets/TLS y transportes Node; permite únicamente el patrón de sockets Unix temporales o tuberías locales Windows de la versión fijada de Functions. También valida el entorno antes de ejecutar cada proceso Node precargado. Se rechazan archivos `.env*` y `.secret.local` dentro del lab y su paquete Functions antes de iniciar emuladores. Los servidores temporales del SDK, que omiten host o solicitan wildcard, se fuerzan a 127.0.0.1. Los puertos ocupados provocan aborto, nunca cambio automático de puerto ni terminación de procesos ajenos.
 
 Estos controles protegen los comandos del lab; **no constituyen un firewall del sistema ni un sandbox contra código hostil**. No cambian el comportamiento de `npm run dev` o del código web real, que no se debe ejecutar para esta etapa. Tampoco autorizan instalar paquetes arbitrarios o ejecutar scripts ajenos. La descarga de dependencias y del artefacto oficial ocurre separadamente del runtime local.
 
@@ -20,15 +22,15 @@ Estos controles protegen los comandos del lab; **no constituyen un firewall del 
 
 Requisitos comprobados: Node 24.19.0, Java 21.0.12.1; firebase-tools 15.30.2 del lockfile raíz. SDKs exclusivos del paquete local: firebase-functions 7.4.0 y firebase-admin 14.5.0, fijados por lockfile separado. No cambian package.json/package-lock.json raíz.
 
-Desde `/workspace/correlativas`:
+Desde la raíz del repositorio, en Linux (PowerShell en WINDOWS.md):
 
 ```sh
 # Sólo si faltan las dependencias raíz: usar su lockfile, sin actualizaciones.
-npm ci --cache /workspace/.npm-cache --ignore-scripts --no-audit --no-fund
+npm ci --cache .tools/emulator-lab/install-cache --ignore-scripts --no-audit --no-fund
 # Instalación del harness, comprobada usando su lockfile y sin scripts de instalación.
-npm ci --prefix mobile/emulator-lab/functions --cache /workspace/.npm-cache --ignore-scripts --no-audit --no-fund
+npm ci --prefix mobile/emulator-lab/functions --cache .tools/emulator-lab/install-cache --ignore-scripts --no-audit --no-fund
 # Artefacto oficial; actualmente este paso está bloqueado por el proxy.
-python3 mobile/emulator-lab/prepare.py
+node mobile/emulator-lab/prepare.cjs
 ```
 
 El instalador sólo descarga el JAR Firestore 1.22.0 de la URL oficial:
@@ -47,16 +49,18 @@ Para desbloquear: corregir la ruta/permiso efectivo del proxy hacia ese artefact
 
 ```sh
 node mobile/emulator-lab/run.cjs unit
+node mobile/emulator-lab/run.cjs process-test
 node mobile/emulator-lab/run.cjs auth-test
-# Requieren JAR: ejecutar sólo cuando prepare.py termine correctamente.
+# Requieren JAR: ejecutar sólo cuando prepare.cjs termine correctamente.
 node mobile/emulator-lab/run.cjs test
 node mobile/emulator-lab/run.cjs start
 ```
 
 - `unit`: controles sin iniciar servidores; presupone puertos de lab sin servicios.
+- `process-test`: pruebas de árboles de procesos y cierre, con procesos sintéticos sin Firebase. Los tres casos exclusivos de Job Objects se omiten explícitamente en Linux y deben ejecutarse en Windows.
 - `auth-test`: **modo parcial explícito**, arranca sólo Auth/Functions, prueba dos clientes e invoca el backend de prueba; no afirma readiness Firestore. Cierra los procesos propios al terminar.
 - `test`: suite completa con Auth/Firestore/Functions, fixtures y pruebas de infraestructura. Pendiente de ejecución real por el JAR.
-- `start`: modo interactivo completo, carga fixtures y permanece activo. Ctrl+C cierra sólo el grupo de procesos creado. No inicia React, pantallas ni datos reales.
+- `start`: modo interactivo completo, carga fixtures y permanece activo. Ctrl+C cierra sólo el árbol propio: grupo POSIX en Linux, Job Object en Windows. El supervisor Windows también elimina descendientes al perder el launcher o al terminar el proceso raíz. No inicia React, pantallas ni datos reales.
 
 Los datos son efímeros: no hay importación/exportación ni migración. Parar y reiniciar elimina el estado del emulador y vuelve a cargar fixtures. Para limpiar reportes/logs generados con todos los puertos libres:
 
@@ -88,7 +92,7 @@ Functions expone sólo salud y una prueba autenticada sin escrituras. Verifica t
 
 ## Resultados y limitaciones
 
-Resultados finales y archivos: `verification.json`.
+Informe histórico original: `verification.json`. Resultados de la adaptación actual: `windows-verification.json` y WINDOWS.md. Las cifras siguientes describen la infraestructura anterior y no sustituyen la aceptación Windows.
 
 - Tests unitarios de aislamiento: 7 aprobados, sin skips.
 - Prueba funcional Auth/Functions: 1 aprobada, con dos clientes independientes, logout aislado, rechazo de tokens ausentes/inválidos, probe autenticado y rutas funcionales no implementadas.
@@ -113,3 +117,10 @@ Todos nuevos, bajo esta carpeta:
 - `README.md`, `verification.json`: documentación y resultados.
 
 node_modules, artefactos, credenciales y logs no se incluyen en Git. No hay commit, push, merge, despliegue o publicación de esta entrega.
+
+## Archivos de la adaptación Windows
+
+- Modificados: `run.cjs`, `policy.cjs`, `net-guard.cjs`, `prepare.py` (entrada opcional que delega en Node), `README.md`.
+- Nuevos: `artifact.cjs`, `prepare.cjs`, `ipc.cjs`, `process-tree.cjs`, `windows-job.ps1`, `artifact.test.cjs`, `portable.test.cjs`, `process.test.cjs`, `process.fixture.cjs`, `WINDOWS.md`, `windows-verification.json`.
+
+No cambia ningún manifiesto de dependencias, lockfile, configuración Firebase o Rules del lab. No se modifica la aplicación. No se requiere Python para Windows ni para los comandos recomendados Linux.
