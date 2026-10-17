@@ -1,17 +1,12 @@
 {
   "stage": "Mobile 2.4.3 — Pulido, accesibilidad y estabilidad",
   "branch": "mobile/stage2-4-3-polish-stability",
-  "baseCommit": "652b2d56b67d05ba6aee9620834f8359bea72c3b",
+  "baseCommit": "9975a6e77e1b0d940d9c3ca7ad8ed4f1d8c3f219",
   "modifiedFiles": [
-    "mobile/integration-final/AcademicOnboarding.jsx",
-    "mobile/integration-final/useNavigation.jsx"
-  ],
-  "newFiles": [
     "mobile/polish-stability/README.md",
     "mobile/polish-stability/accessibility.check.py",
     "mobile/polish-stability/compatibility.py",
     "mobile/polish-stability/flow.check.py",
-    "mobile/polish-stability/index.html",
     "mobile/polish-stability/inputs.lock.json",
     "mobile/polish-stability/intent.check.py",
     "mobile/polish-stability/main.jsx",
@@ -21,33 +16,29 @@
     "mobile/polish-stability/verification.json",
     "mobile/polish-stability/vite.config.mjs"
   ],
+  "newFiles": [
+    "mobile/polish-stability/inputModality.js",
+    "mobile/polish-stability/focus.check.py"
+  ],
   "build": {
-    "baseCommit": "652b2d56b67d05ba6aee9620834f8359bea72c3b",
-    "approvedBaseSHA256": "9615cac19e7a5e3dc98eb30752bab085c3c184f2377fc27958554aa76659418b",
+    "baseCommit": "9975a6e77e1b0d940d9c3ca7ad8ed4f1d8c3f219",
+    "approvedBaseSHA256": "6b94c078476d593f4e1dc1183513be8026b0e09f4dd2422bec493ff09550d11b",
     "approvedUIChanges": {
-      "mobile/integration-final/AcademicOnboarding.jsx": {
-        "before": "c426b26ac938417124dc33bb6ba0e0f17f044bfe730d4c996d70ff6601a629af",
-        "after": "5d466e872fa31a31e82c78ab154ef5d2425feafcefc1d6b0503ade9c5b412102"
-      },
-      "mobile/integration-final/useNavigation.jsx": {
-        "before": "e697efea1af2e48d02b5ac86f431fc055506934d15b24f2cb78262a9eab55c5f",
-        "after": "5e81256027112f715596812433676c9e8f624be3dbe6b2df395c1a70d3fe50a4"
-      },
       "mobile/polish-stability/main.jsx": {
-        "before": null,
-        "after": "e876046471cdbdbe16ec8bc11217f4a3e1af784cd72b31b86b767e58483916f5"
-      },
-      "mobile/polish-stability/index.html": {
-        "before": null,
-        "after": "ecbc7088272aad769ac622a0246c2afff9c40525c91a717c27ecb84b07e45610"
+        "before": "e876046471cdbdbe16ec8bc11217f4a3e1af784cd72b31b86b767e58483916f5",
+        "after": "9e4423278aa1c8f2b4814f20a3d5f56070f78004561648d7108830dc2f3d6c05"
       },
       "mobile/polish-stability/vite.config.mjs": {
-        "before": null,
-        "after": "abea2b798f0679612d18c3dc66039fcb4052822632b4e557a6cd1ad2bf7468c2"
+        "before": "abea2b798f0679612d18c3dc66039fcb4052822632b4e557a6cd1ad2bf7468c2",
+        "after": "bd65923fdf6c520f6931489216d00d8819b42c81f4271b7e817d528d9ff8ec36"
       },
       "mobile/polish-stability/polish.css": {
+        "before": "02dfb32a6ae46c7a067d33a62ba5cfe1e067950b5dd15977281252c89ef7cd61",
+        "after": "ff9177d192626e8fc69e7e78aaa0e25b6cdfc0c09bfa0696b66a74397e6ca344"
+      },
+      "mobile/polish-stability/inputModality.js": {
         "before": null,
-        "after": "02dfb32a6ae46c7a067d33a62ba5cfe1e067950b5dd15977281252c89ef7cd61"
+        "after": "68a3132e573f75d271b9b813a611e656eb6f47eef56590d5deea970d2738e5d4"
       }
     },
     "inputs": {
@@ -138,20 +129,21 @@
       "mobile/career-onboarding/main.jsx": "209e6e3c9afa5a1468d8851f982e369197487b2dac4a58f00899292e945e1ba5",
       "mobile/career-onboarding/onboarding.css": "7a01394977a426137eb4ed3ae9f7fb446f314dee7d3bbf1c86646b299675b6e7",
       "mobile/career-onboarding/vite.config.mjs": "03ffe2878f331daa4ba42beec3862d6642aac7411e32d79c0c34f91a7f4a8b0d",
-      "mobile/polish-stability/main.jsx": "e876046471cdbdbe16ec8bc11217f4a3e1af784cd72b31b86b767e58483916f5",
+      "mobile/polish-stability/main.jsx": "9e4423278aa1c8f2b4814f20a3d5f56070f78004561648d7108830dc2f3d6c05",
       "mobile/polish-stability/index.html": "ecbc7088272aad769ac622a0246c2afff9c40525c91a717c27ecb84b07e45610",
-      "mobile/polish-stability/vite.config.mjs": "abea2b798f0679612d18c3dc66039fcb4052822632b4e557a6cd1ad2bf7468c2",
-      "mobile/polish-stability/polish.css": "02dfb32a6ae46c7a067d33a62ba5cfe1e067950b5dd15977281252c89ef7cd61"
+      "mobile/polish-stability/vite.config.mjs": "bd65923fdf6c520f6931489216d00d8819b42c81f4271b7e817d528d9ff8ec36",
+      "mobile/polish-stability/polish.css": "ff9177d192626e8fc69e7e78aaa0e25b6cdfc0c09bfa0696b66a74397e6ca344",
+      "mobile/polish-stability/inputModality.js": "68a3132e573f75d271b9b813a611e656eb6f47eef56590d5deea970d2738e5d4"
     },
     "files": {
       "_headers": "fe9629946edffcb51a0e5306e1ec174cd47a8a3ce28312ec92145d3797913ba0",
-      "assets/index-DGUVwR1F.js": "de064915c56de03deb9a6ddbb82d2a9769a25a3bce63142b65f2957b961cba48",
-      "assets/index-DuO3U5kM.css": "0df9ac10d9671623cd15280a398bc6a677fe92281c59eb6910c66323cc6e0051",
+      "assets/index-CeilMjwA.css": "8b6c13501e8156cee5584061c2c47554bcce99d0795eabd5e0b00e667e74b7f1",
+      "assets/index-diFT5vdQ.js": "cc634f7341f1b160997c54b870a22ae852041ff0ed3b636ddba9f8262d07a079",
       "assets/logo-DbaGozUD.png": "e8a96ce70d0fde88f56925c3b85aae5c14d4f791581fb425a6eb7149b0d5053c",
-      "index.html": "7dbc8b2324e5a3950a12e75736f21451fb80dae3f0534449ad65458563c84f2c",
-      "SHA256SUMS": "cc6e640039776561f7f7173d148a2a470df492992ce772a08adc00cd675752b1"
+      "index.html": "0df69d726ee877394b18cacf22c49453c92189c65afe179f8a182143f84305bb",
+      "SHA256SUMS": "76761641cbcf3d3a158b4795fab7c9b383bf80efc78b67049bb6c8a7557583f1"
     },
-    "zipSHA256": "6b94c078476d593f4e1dc1183513be8026b0e09f4dd2422bec493ff09550d11b",
+    "zipSHA256": "cd970a7fdc338438a7995fc022f39b126dbb200c31cf6162511ee85c7ebada0f",
     "packageFamilies": [
       "@babel/runtime",
       "@emotion/cache",
@@ -192,7 +184,8 @@
     "identicalMainSectionScreenshots": 18,
     "runtimeErrorsObserved": 0,
     "unexpectedExternalRequestsObserved": 0,
-    "repeatBuildIdentical": true
+    "repeatBuildIdentical": true,
+    "focusModalityAssertions": 73
   },
   "limitations": {
     "physicalSafariTested": false,
@@ -204,9 +197,7 @@
     "fullSecurityAudit": false
   },
   "initialFailures": [
-    "Initial focus selector chose the general h1 before the card h2; corrected and retested.",
-    "New dialog test demonstrated focus going to main rather than trigger; corrected and retested.",
-    "One visual run overlapped a deterministic build and recorded an unloaded logo at 390px; repeated visual suite with stable files: all 18 identical."
+    "New focus test initially tried Omitir after returning to an already-reviewed card (which correctly has Siguiente); corrected the test order to omit an unreviewed card before returning. No product behavior altered for this test."
   ],
   "invariants": {
     "holdMs": 150,
@@ -224,5 +215,13 @@
   },
   "committed": false,
   "pushed": false,
-  "deployed": false
+  "deployed": false,
+  "inputPolicy": {
+    "pointer": "Suppress only focus outlines of scoped demo navigation controls/headings; preserve DOM focus and ARIA.",
+    "keyboard": "Tab, Shift+Tab and non-modifier keys restore visible focus, including programmatically focused card headings.",
+    "unclassified": "No input-mode inference from focus/click; card headings have no ring until keyboard activity. Native editing controls retain browser focus behavior.",
+    "storage": false,
+    "preventDefault": false,
+    "realWebModified": false
+  }
 }

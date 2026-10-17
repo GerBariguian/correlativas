@@ -1,35 +1,33 @@
-# Mobile 2.4.3 — Pulido, accesibilidad y estabilidad
+# Mobile 2.4.3 — Foco según modalidad de entrada
 
-Base aprobada: `652b2d56b67d05ba6aee9620834f8359bea72c3b`.
-Rama independiente: `mobile/stage2-4-3-polish-stability`.
-Estado: preparado localmente, sin commit, push o despliegue.
+Rama exclusiva: `mobile/stage2-4-3-polish-stability`.
+Base de esta corrección: `9975a6e77e1b0d940d9c3ca7ad8ed4f1d8c3f219`.
+Estado: local, sin commit, push ni despliegue.
 
-## Diagnóstico y correcciones justificadas
+## Diagnóstico
 
-1. **Confirmado en navegador antes de modificar:** al entrar o retomar las tarjetas, un requestAnimationFrame de navegación enfocaba `main` después del efecto de la tarjeta. Se prioriza el título de la materia o del resumen del onboarding. El título describe posición, código y estado con referencias ARIA; no depende del color.
-2. **Confirmado por código y ejecución:** el anuncio específico sólo cambiaba con gestos y decía «Estado solicitado». Los botones no actualizaban ese anuncio y podía quedar desactualizado tras confirmar. Se usa el mismo manejador para gestos y botones; una región persistente `status`, atómica y polite, anuncia nombre y estado únicamente tras éxito. En error o conflicto no anuncia confirmación; se conservan los alerts del motor compartido. La región no ocupa espacio visual ni está display:none cuando está vacía.
-3. **Confirmado por la nueva prueba de teclado:** al cerrar notificaciones con Escape el foco terminaba en main, no en su disparador. Se recuerda en memoria el elemento que abre cada nivel de panel; al regresar se restaura si sigue conectado y corresponde a la página. No se persisten elementos DOM ni se cambia el historial o la protección de contextos.
-4. **Cobertura desigual en estilos existentes:** se completa el foco visible de controles de la demo y la preferencia de movimiento reducido en contenido y paneles. Se mantienen estilos normales, jerarquía, áreas táctiles y seis secciones.
+La regla compartida `.onboarding-subject h2:focus,.onboarding-summary h2:focus` dibuja outline ante cualquier foco, incluido el foco programático que identifica la siguiente materia. No distingue teclado de tacto. Además, `:focus-visible` no representa un detector literal de teclado: el navegador aplica heurísticas y puede conservar su decisión cuando un script mueve el foco desde un elemento previamente enfocado por teclado.
 
-El selector inicial de foco de esta corrección eligió primero el h1 general: lo detectó la nueva prueba, se corrigió la prioridad y se repitió la validación. La prueba de retorno de foco del panel también detectó el problema antes de aplicar su corrección.
+Reemplazar a ciegas todos los :focus por :focus-visible no garantiza la transición teclado → tacto. Quitar el foco programático impediría orientar a lectores de pantalla; quitar outline globalmente perjudicaría el teclado. No se aplica ninguna de esas soluciones.
 
-## Invariantes y alcance
+## Corrección limitada
 
-Sin cambios en SwipeCard, gesture.mjs, colores, activación de 150 ms o umbrales. Izquierda = Pendiente; derecha = Aprobada; arriba = Cursando amarillo; abajo = Regularizada azul. Toda la tarjeta conserva el reconocimiento deliberado y el movimiento anterior a la activación cancela el contacto para permitir scroll. Los botones siguen disponibles sin gestos; Omitir no asigna Pendiente.
+- `inputModality.js` observa pointerdown/touchstart en captura, de forma pasiva, y keydown. No previene eventos, no cambia foco, no guarda modalidad, no identifica supuestamente lectores de pantalla y no altera navegación ni gestos. Tab/Shift+Tab y teclas sin modificadores marcan teclado; las teclas modificadoras solas y atajos Ctrl/Alt/Meta no cambian la modalidad.
+- `main.jsx` instala la observación antes de renderizar la demo. El observador devuelve una función de limpieza y conserva el atributo anterior si se desmonta.
+- `polish.css` limita la supresión al foco de controles de navegación, títulos y paneles de la demo cuando hubo puntero. Los títulos de tarjetas y resúmenes no muestran recuadro antes de una interacción de teclado, incluida la recarga. Teclado restaura un outline visible, también si la siguiente tarjeta recibió foco por script y la heurística nativa no lo seleccionaría.
+- Los campos de edición conservan su comportamiento de foco nativo. Se mantiene la semántica :focus-visible de los controles, junto con reglas explícitas para resolver las transiciones entre modalidades. No se borra outline globalmente.
+- Se conservan DOM focus, tabindex, aria-describedby y la región viva de confirmación; no se cambian AcademicOnboarding ni useNavigation en esta corrección.
 
-No cambian modelos académicos, correlativas, persistencia, separación legacy/trayectorias o contextos, protección de estados previos, simulaciones, filtros, Dashboard, Mis carreras, Mapa, Planificar, Proyectar ni Comunidad. Los cambios se limitan a accesibilidad/presentación y foco. La región específica de confirmación sustituye el viejo mensaje de solicitud gestual, sin nuevas funciones.
+No cambian selección académica, bordes/checks del estado seleccionado ni la señal de gesto armado: esta última es feedback gestual existente, no un indicador de foco. No se incorpora ningún sistema de novedades/tutoriales. El criterio de modalidad queda documentado como política para futuras versiones; no se modifica ahora la web real.
 
 ## Archivos
 
-Dos archivos existentes modificados y trece archivos nuevos:
+Doce existentes modificados y dos nuevos:
 
-- `mobile/integration-final/AcademicOnboarding.jsx`
-- `mobile/integration-final/useNavigation.jsx`
 - `mobile/polish-stability/README.md`
 - `mobile/polish-stability/accessibility.check.py`
 - `mobile/polish-stability/compatibility.py`
 - `mobile/polish-stability/flow.check.py`
-- `mobile/polish-stability/index.html`
 - `mobile/polish-stability/inputs.lock.json`
 - `mobile/polish-stability/intent.check.py`
 - `mobile/polish-stability/main.jsx`
@@ -38,12 +36,14 @@ Dos archivos existentes modificados y trece archivos nuevos:
 - `mobile/polish-stability/regression.py`
 - `mobile/polish-stability/verification.json`
 - `mobile/polish-stability/vite.config.mjs`
+- `mobile/polish-stability/inputModality.js`
+- `mobile/polish-stability/focus.check.py`
 
-Los runners de esta carpeta reutilizan las suites aprobadas con rutas de salida independientes. No se modifican los scripts, ZIP o ramas anteriores.
+Los cambios de runners/configuración sólo separan la salida nueva; manifiestos e informe fijan fuentes y resultados. No se altera ningún archivo de src, las fuentes del motor académico, SwipeCard, gesture.mjs ni la persistencia.
 
-## Construcción reproducible y ejecución
+## Pruebas y reproducción
 
-Desde la raíz del repositorio, con las dependencias existentes fijadas por el lockfile (no se instalaron ni actualizaron paquetes):
+Desde la raíz con las dependencias existentes (sin instalaciones ni actualizaciones):
 
 ```sh
 python3 mobile/polish-stability/prepare.py
@@ -52,60 +52,56 @@ python3 mobile/polish-stability/regression.py
 python3 mobile/polish-stability/flow.check.py
 python3 mobile/polish-stability/intent.check.py
 python3 mobile/polish-stability/accessibility.check.py
+python3 mobile/polish-stability/focus.check.py
 python3 mobile/polish-stability/compatibility.py
 ```
 
-`inputs.lock.json` verifica las entradas reales, el ZIP base y los cambios permitidos. El empaquetado valida módulos incluidos, ausencia de backend nativo/Firebase, secretos por patrones y cabeceras. Se verificaron las mismas familias de dependencias que en 2.4.2, sin incorporar paquetes. `prepare.py` genera seis archivos y un ZIP determinista; no ejecutar el build mientras una comparación visual esté leyendo esa misma carpeta.
+No ejecutar build mientras las capturas comparativas leen esa carpeta. `inputs.lock.json` verifica todas las entradas y el ZIP anterior, cuyo SHA-256 es `6b94c078476d593f4e1dc1183513be8026b0e09f4dd2422bec493ff09550d11b`.
 
-## Resultados finales
+Resultados de la revisión:
 
-- 57 pruebas de modelo y 9 de gestos/persistencia: aprobadas, sin fallos ni omisiones.
-- 2901 comprobaciones de regresión de Dashboard (279), contextos (397), detalle (309), modelo académico (55), estados (342), filtros (1074), navegación anterior (112) y onboarding (333).
-- 433 comprobaciones del flujo: alta, cambio explícito, cuatro gestos y colores, estados previos, pausas, conflictos, errores y respuestas demoradas entre contextos.
-- 43 de intención: activación de 150 ms, scroll nativo medido por scrollY, cancelación antes de activarse, sin reactivación tras pausa del dedo, multitouch, blur, movimiento reducido y texto ampliado.
-- 140 nuevas de accesibilidad/navegación: botones con Enter/Espacio, Anterior/Omitir/Pausar, anuncio confirmado por materia, ausencia de confirmación en errores/conflictos, AX names, foco en entrada/retorno/recarga, Escape, Atrás y Adelante en paneles y recuperación del disparador.
-- 2375 responsive, tamaños 320 a 1024 px, retrato/horizontal, texto al 100/200%; 54 interacciones adicionales, scroll del mapa, viewport corto/inputs y funcionamiento local sin solicitudes.
-- 18 capturas de las seis secciones principales idénticas al ZIP aprobado 2.4.2, en 360/390/430 px. Una ejecución visual inicial coincidió con el build, capturó el logo sin cargar a 390 px y falló. Se investigó la diferencia (sólo área del logo) y se repitió con archivos estables: 18/18 idénticas. No se relajaron aserciones.
-- Sin errores JS, conexiones externas o eventos sensibles inesperados en los recorridos observados. Pruebas automatizadas de seguridad limitadas, no auditoría completa ni certificación WCAG.
-- Build repetido: mismo SHA-256, CRC, seis miembros y SHA256SUMS verificados. Cabeceras CSP idénticas. Archivos previos fuera de los dos cambios permitidos y todos los ZIP versionados conservan sus hashes.
+- 73 comprobaciones nuevas de modalidad con eventos táctiles CDP reales en Chromium, teclado y tamaños 390×844/412×915: entrada táctil, recarga, cuatro botones después de teclado, cuatro gestos, ausencia de outline con foco real conservado, confirmaciones accesibles, Tab/Shift+Tab, Anterior/Omitir por teclado y ausencia de cambios en datos al enfocar por script. Capturas táctil/teclado inspeccionadas visualmente.
+- 140 de regresión de accesibilidad: árbol AX y nombres, anuncios de éxito/error/conflicto, navegación, pausas, recarga, paneles, foco y retorno con Atrás/Adelante.
+- 43 de intención/scroll; 433 del flujo académico; 2901 de regresión; 57 de modelos y 9 de gestos/persistencia.
+- 2375 responsive con retrato/horizontal y texto 100/200%, más 54 de interacción. 18 capturas de las seis secciones principales idénticas a la referencia aprobada.
+- Sin errores JavaScript o solicitudes externas inesperadas en recorridos observados. Esto no constituye una auditoría completa de seguridad o certificación WCAG.
 
-Evidencias locales: `.tools/mobile-243-polish-stability/build-report.json` y directorios `.tools/mobile-243-polish-stability-{regression,flow,intent,accessibility,checks,interaction,visual}`. `verification.json` resume resultados y límites.
+La nueva prueba inicialmente buscó Omitir después de volver a una tarjeta ya registrada; allí la acción correcta es Siguiente. Se corrigió el orden del recorrido de prueba (omitir una tarjeta sin revisar y después volver), sin modificar el producto para satisfacerla.
 
-## Paquete aislado
+Evidencias: `.tools/mobile-243-focus-modality-{focus,accessibility,intent,flow,regression,checks,interaction,visual}` y `.tools/mobile-243-focus-modality/build-report.json`. `verification.json` resume fuentes, archivos y resultados.
 
-Carpeta estática: `/workspace/correlativas/.tools/mobile-243-polish-stability/dist`.
-ZIP: `/workspace/correlativas/.tools/mobile-243-polish-stability/correlativas-mobile-243-polish-stability.zip`.
-Checksum: mismo nombre con sufijo `.sha256`.
+## Nuevo paquete
+
+Carpeta: `/workspace/correlativas/.tools/mobile-243-focus-modality/dist`.
+ZIP: `/workspace/correlativas/.tools/mobile-243-focus-modality/correlativas-mobile-243-focus-modality.zip`.
+Checksum: mismo nombre con `.sha256` añadido.
 
 SHA-256:
 
 ```text
-6b94c078476d593f4e1dc1183513be8026b0e09f4dd2422bec493ff09550d11b
+cd970a7fdc338438a7995fc022f39b126dbb200c31cf6162511ee85c7ebada0f
 ```
 
-Contenido, directamente en la raíz:
+Seis miembros, sin carpeta envolvente:
 
 ```text
 _headers
 index.html
 SHA256SUMS
-assets/index-DGUVwR1F.js
-assets/index-DuO3U5kM.css
+assets/index-diFT5vdQ.js
+assets/index-CeilMjwA.css
 assets/logo-DbaGozUD.png
 ```
 
-Sin fuentes, informes, credenciales o dependencias instaladas. No conectarse al proyecto web real ni enlazar GitHub a un hosting. Cuando se autorice, extraer el ZIP, ejecutar `sha256sum -c SHA256SUMS` en la raíz extraída y subir exclusivamente estos seis archivos por Direct Upload a un proyecto de Cloudflare Pages independiente; preservar `_headers` y revisar remotamente HTTPS, cabeceras y hashes. Nada publicado ahora.
+La CSP y las cabeceras permanecen idénticas. Sin Firebase, servicios reales, credenciales, fuentes o informes internos dentro del ZIP. Los ZIP anteriores se conservan. La subida manual futura debe usar un proyecto aislado, preservar _headers y verificar SHA256SUMS, HTTPS y cabeceras; no se publica nada ahora.
 
-## Limitaciones y revisión física
+## Límites y prueba física pendiente
 
-Las pruebas usan Chromium Linux con perfiles de viewport/touch y su árbol AX. No se ejecutaron Safari/WebKit, VoiceOver, TalkBack, teclado real del sistema, ni el botón físico/gesto del sistema Android. La emulación no demuestra compatibilidad definitiva.
+Se usó Chromium Linux con entrada táctil emulada, no Safari/WebKit ni dispositivos físicos. No se afirma compatibilidad definitiva con VoiceOver/TalkBack. Verificar en Safari iPhone y Chrome Android:
 
-En iPhone Safari con VoiceOver y Android Chrome con TalkBack:
+1. Avanzar con los cuatro botones y cuatro gestos sin recuadros de foco; confirmar colores, señal gestual, 150 ms y scroll inmediato.
+2. Con teclado externo, Tab/Shift+Tab, Enter/Espacio y cambio posterior a tacto: foco visible sólo en navegación por teclado y transición táctil limpia.
+3. Con VoiceOver/TalkBack, comprobar que título, posición y confirmación siguen anunciándose; operar todo mediante botones. No se intenta detectar lectores ni deducir modalidad a partir de un click sintético.
+4. Pausar, retomar, recargar, cambiar contexto, cerrar paneles y volver; revisar foco y progreso. La modalidad es por documento, no persistida; el progreso sigue en el almacenamiento local de demo.
 
-1. Recorrer las seis secciones por lectura y foco, revisar orden y nombres; abrir/cerrar paneles con atrás, Escape/teclado externo si corresponde y confirmar retorno al disparador.
-2. Completar, omitir, retroceder y pausar usando sólo botones. Confirmar que se escucha materia, posición, estado y confirmación sin anuncios duplicados/ininteligibles. Los gestos del lector pueden reservarse a su navegación; no son necesarios para operar.
-3. Retomar desde Inicio y Mis carreras; recargar/cerrar/reabrir el navegador y verificar contexto/cursor/estados. La persistencia depende de localStorage y puede perderse al borrar datos o en modos privados; no es una sincronización remota ni un respaldo.
-4. Sin lector, probar las cuatro direcciones desde toda la tarjeta, 150 ms, scroll inmediato y scroll tras pausa, cancelación y cambios de contexto con operación pendiente.
-5. Teclado real, barras del sistema, safe areas, zoom/texto grande, horizontal y movimiento reducido. Confirmar visibilidad del foco y acciones sin recortes.
-
-El funcionamiento local de la demo no implica disponibilidad garantizada tras cerrar el navegador sin caché: no se agrega service worker ni mecanismo de instalación. No se conectó Firebase/autenticación ni se modificaron main, web real, Vercel, Cloudflare o producción. No se avanzó a 2.4.4. Publicar o versionar esta entrega requiere autorización posterior.
+Sin commit, push, merge, despliegue, conexión productiva ni avance a 2.4.4. Se espera autorización específica antes de publicar.

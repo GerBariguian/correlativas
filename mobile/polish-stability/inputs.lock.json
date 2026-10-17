@@ -1,31 +1,23 @@
 {
-  "baseCommit": "652b2d56b67d05ba6aee9620834f8359bea72c3b",
-  "baseZIP": "mobile/career-onboarding/downloads/correlativas-mobile-242-hold150.zip",
-  "baseSHA256": "9615cac19e7a5e3dc98eb30752bab085c3c184f2377fc27958554aa76659418b",
+  "baseCommit": "9975a6e77e1b0d940d9c3ca7ad8ed4f1d8c3f219",
+  "baseZIP": "mobile/polish-stability/downloads/correlativas-mobile-243-polish-stability.zip",
+  "baseSHA256": "6b94c078476d593f4e1dc1183513be8026b0e09f4dd2422bec493ff09550d11b",
   "approvedUIChanges": {
-    "mobile/integration-final/AcademicOnboarding.jsx": {
-      "before": "c426b26ac938417124dc33bb6ba0e0f17f044bfe730d4c996d70ff6601a629af",
-      "after": "5d466e872fa31a31e82c78ab154ef5d2425feafcefc1d6b0503ade9c5b412102"
-    },
-    "mobile/integration-final/useNavigation.jsx": {
-      "before": "e697efea1af2e48d02b5ac86f431fc055506934d15b24f2cb78262a9eab55c5f",
-      "after": "5e81256027112f715596812433676c9e8f624be3dbe6b2df395c1a70d3fe50a4"
-    },
     "mobile/polish-stability/main.jsx": {
-      "before": null,
-      "after": "e876046471cdbdbe16ec8bc11217f4a3e1af784cd72b31b86b767e58483916f5"
-    },
-    "mobile/polish-stability/index.html": {
-      "before": null,
-      "after": "ecbc7088272aad769ac622a0246c2afff9c40525c91a717c27ecb84b07e45610"
+      "before": "e876046471cdbdbe16ec8bc11217f4a3e1af784cd72b31b86b767e58483916f5",
+      "after": "9e4423278aa1c8f2b4814f20a3d5f56070f78004561648d7108830dc2f3d6c05"
     },
     "mobile/polish-stability/vite.config.mjs": {
-      "before": null,
-      "after": "abea2b798f0679612d18c3dc66039fcb4052822632b4e557a6cd1ad2bf7468c2"
+      "before": "abea2b798f0679612d18c3dc66039fcb4052822632b4e557a6cd1ad2bf7468c2",
+      "after": "bd65923fdf6c520f6931489216d00d8819b42c81f4271b7e817d528d9ff8ec36"
     },
     "mobile/polish-stability/polish.css": {
+      "before": "02dfb32a6ae46c7a067d33a62ba5cfe1e067950b5dd15977281252c89ef7cd61",
+      "after": "ff9177d192626e8fc69e7e78aaa0e25b6cdfc0c09bfa0696b66a74397e6ca344"
+    },
+    "mobile/polish-stability/inputModality.js": {
       "before": null,
-      "after": "02dfb32a6ae46c7a067d33a62ba5cfe1e067950b5dd15977281252c89ef7cd61"
+      "after": "68a3132e573f75d271b9b813a611e656eb6f47eef56590d5deea970d2738e5d4"
     }
   },
   "inputs": {
@@ -116,9 +108,10 @@
     "mobile/career-onboarding/main.jsx": "209e6e3c9afa5a1468d8851f982e369197487b2dac4a58f00899292e945e1ba5",
     "mobile/career-onboarding/onboarding.css": "7a01394977a426137eb4ed3ae9f7fb446f314dee7d3bbf1c86646b299675b6e7",
     "mobile/career-onboarding/vite.config.mjs": "03ffe2878f331daa4ba42beec3862d6642aac7411e32d79c0c34f91a7f4a8b0d",
-    "mobile/polish-stability/main.jsx": "e876046471cdbdbe16ec8bc11217f4a3e1af784cd72b31b86b767e58483916f5",
+    "mobile/polish-stability/main.jsx": "9e4423278aa1c8f2b4814f20a3d5f56070f78004561648d7108830dc2f3d6c05",
     "mobile/polish-stability/index.html": "ecbc7088272aad769ac622a0246c2afff9c40525c91a717c27ecb84b07e45610",
-    "mobile/polish-stability/vite.config.mjs": "abea2b798f0679612d18c3dc66039fcb4052822632b4e557a6cd1ad2bf7468c2",
-    "mobile/polish-stability/polish.css": "02dfb32a6ae46c7a067d33a62ba5cfe1e067950b5dd15977281252c89ef7cd61"
+    "mobile/polish-stability/vite.config.mjs": "bd65923fdf6c520f6931489216d00d8819b42c81f4271b7e817d528d9ff8ec36",
+    "mobile/polish-stability/polish.css": "ff9177d192626e8fc69e7e78aaa0e25b6cdfc0c09bfa0696b66a74397e6ca344",
+    "mobile/polish-stability/inputModality.js": "68a3132e573f75d271b9b813a611e656eb6f47eef56590d5deea970d2738e5d4"
   }
 }

@@ -6,3 +6,11 @@
 @media (prefers-reduced-motion:reduce) {
  .demo-device *, .demo-device *::before, .demo-device *::after, .demo-sheet-root *, .subject-detail-root * { animation:none!important; transition:none!important; scroll-behavior:auto!important; }
 }
+
+/* Only presentation changes with input modality; DOM focus and ARIA stay intact. */
+html:not([data-demo-input=keyboard]) .demo-device :is(.onboarding-subject,.onboarding-summary) h2:focus { outline:none; }
+html[data-demo-input=pointer] .demo-device :is(button,summary,h1[tabindex],h2[tabindex],main[tabindex]):focus,
+html[data-demo-input=pointer] :is(.demo-sheet-root,.subject-detail-root) :is(button,summary,h2[tabindex],h3[tabindex]):focus { outline:none; }
+html[data-demo-input=keyboard] .demo-device :is(button,summary,h1[tabindex],h2[tabindex]):focus,
+html[data-demo-input=keyboard] :is(.demo-sheet-root,.subject-detail-root) :is(button,summary,h2[tabindex],h3[tabindex]):focus { outline:3px solid #293fcb; outline-offset:3px; }
+html[data-demo-input=keyboard] .demo-device .bottom-nav button:focus { outline-offset:-3px; }

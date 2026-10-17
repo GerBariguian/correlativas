@@ -2,7 +2,7 @@
 from pathlib import Path
 import subprocess,time,urllib.request,json
 from playwright.sync_api import sync_playwright
-ROOT=Path(__file__).resolve().parents[2];OUT=ROOT/'.tools/mobile-243-polish-stability-flow';OUT.mkdir(parents=True,exist_ok=True)
+ROOT=Path(__file__).resolve().parents[2];OUT=ROOT/'.tools/mobile-243-focus-modality-flow';OUT.mkdir(parents=True,exist_ok=True)
 URL='http://127.0.0.1:5216/';KEY='correlativas-demo-235-academic-v1';checks=[];errors=[];external=[];events=[]
 server=subprocess.Popen(['node','node_modules/vite/bin/vite.js','preview','--config','mobile/polish-stability/vite.config.mjs','--port','5216','--strictPort'],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 def check(ok,label):

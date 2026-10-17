@@ -2,7 +2,7 @@
 from pathlib import Path
 import subprocess,time,urllib.request,json
 from playwright.sync_api import sync_playwright
-ROOT=Path(__file__).resolve().parents[2];OUT=ROOT/'.tools/mobile-243-polish-stability-accessibility';OUT.mkdir(parents=True,exist_ok=True)
+ROOT=Path(__file__).resolve().parents[2];OUT=ROOT/'.tools/mobile-243-focus-modality-accessibility';OUT.mkdir(parents=True,exist_ok=True)
 URL='http://127.0.0.1:5222/';KEY='correlativas-demo-235-academic-v1';checks=[];errors=[];external=[]
 def check(ok,label):
  assert ok,label
