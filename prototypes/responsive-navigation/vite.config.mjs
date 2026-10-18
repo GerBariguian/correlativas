@@ -1,0 +1,10 @@
+import {defineConfig} from 'vite'
+import {fileURLToPath} from 'node:url'
+const root=fileURLToPath(new URL('.',import.meta.url))
+const forbidden=/(?:^|\/)(?:firebase|@firebase|@capacitor)(?:\/|$)|\/src\/(?:App\.jsx|firebase[^/]*|services\/|hooks\/)/
+export default defineConfig({root,base:'./',publicDir:false,envDir:root,envPrefix:'PROTOTYPE_UNUSED_',define:{__ANDROID_DEMO__:false},server:{host:'127.0.0.1',port:5186,strictPort:true,hmr:false,fs:{allow:[fileURLToPath(new URL('../..',import.meta.url))]}},build:{outDir:'dist',emptyOutDir:true},plugins:[{name:'isolated-memory-demo',enforce:'pre',resolveId(source){if(forbidden.test(source.replaceAll('\\','/')))throw Error('Forbidden production import: '+source)},transform(code,id){id=id.replaceAll('\\','/');if(forbidden.test(id))throw Error('Forbidden module: '+id)
+if(id.endsWith('/src/styles.css'))code=code.replace(/@import\s+url\([^)]*\)\s*;/g,'')
+if(id.endsWith('/mobile/integration-final/useAcademicDemo.jsx')){const lines=code.split('\n');if(lines.filter(l=>l.includes('window.localStorage')).length!==2)throw Error('Demo storage contract changed');code=lines.filter(l=>!l.includes("from './demoStorage.mjs'")&&!l.includes('useEffect(()=>{if(!storageWritable.current)')).map(l=>l.includes('const [restored]=')?"  const [restored]=useState(()=>({value:null,invalid:false,warning:''}))":l).join('\n')}
+if(id.endsWith('/mobile/integration-final/App.jsx')){const old="page === 'proyeccion' ? <SecondaryPage page={page} navigate={navigate} />";if(!code.includes(old))throw Error('Projection entry changed');code="import PrototypeProjection from '/Projection.jsx'\n"+code.replace(old,"page === 'proyeccion' ? <PrototypeProjection demo={demo} navigate={navigate} />")}
+if(!id.includes('/node_modules/')&&/\b(localStorage|sessionStorage|indexedDB)\b/.test(code))throw Error('Persistent storage forbidden: '+id)
+return code},generateBundle(){for(const id of this.getModuleIds())if(forbidden.test(id.replaceAll('\\','/')))throw Error('Forbidden bundle module '+id)}}]})

@@ -1,0 +1,6 @@
+import React,{useState} from 'react'
+export default function Projection({demo,navigate}){
+const [capacity,setCapacity]=useState(3)
+const subjects=(demo.context.career?.subjects??[]).filter(s=>demo.presentation.status[s.code]!=='Aprobada').slice(0,capacity*3)
+return <section className="prototype-projection"><div className="page-heading"><span className="section-kicker">EXPLORÁ TU RECORRIDO</span><h1>Proyectar carrera</h1><p>Vista ilustrativa, no una recomendación académica.</p></div><div className="academic-snapshot"><label htmlFor="capacity">Materias por período de ejemplo</label><select id="capacity" value={capacity} onChange={e=>setCapacity(Number(e.target.value))}>{[2,3,4].map(n=><option key={n}>{n}</option>)}</select><p>Distribución ficticia: no evalúa correlativas, fechas ni oferta académica. Nada se guarda.</p></div><div className="prototype-periods">{[0,1,2].map(i=><article className="academic-snapshot" key={i}><h2>Período de ejemplo {i+1}</h2>{subjects.slice(i*capacity,(i+1)*capacity).map(s=><p key={s.code}>{s.name}</p>)}{!subjects.slice(i*capacity,(i+1)*capacity).length&&<p>Sin materias en esta muestra.</p>}</article>)}</div><button className="primary-btn" onClick={()=>navigate('planificador')}>Volver a Planificar</button></section>
+}
