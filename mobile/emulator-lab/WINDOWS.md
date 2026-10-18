@@ -51,7 +51,7 @@ node mobile/emulator-lab/run.cjs test
 if ($LASTEXITCODE -ne 0) { throw 'Falló la suite completa; B sigue abierta' }
 ```
 
-Resultado esperado de la versión actual: unit 16 aprobadas sin skips; process-test 6 aprobadas **sin skips en Windows**; auth-test 1 aprobada. La suite completa debe ejecutar realmente todas sus pruebas Firestore, no basta con arrancar servidores. Los reportes actuales de Cloud no acreditan esos resultados Windows.
+Resultado esperado con la corrección de descubrimiento: unit 24 aprobadas y 1 omitida exclusivamente Linux (25 casos); process-test 6 aprobadas **sin skips en Windows**; auth-test 1 aprobada. Las 16 pruebas anteriores siguen incluidas; los nueve casos nuevos cubren el bootstrap y el selector. La suite completa debe ejecutar realmente todas sus pruebas Firestore, no basta con arrancar servidores. Los reportes actuales de Cloud no acreditan esos resultados Windows.
 
 - `unit`: casos originales más tuberías locales/remotas, rutas con espacios y Unicode, preload, variables con diferentes mayúsculas, TLS obligatorio, tamaño/hash incorrectos, redirecciones rechazadas, destinos externos bloqueados y puerto ocupado sin terminar su propietario.
 - `process-test`: cierre normal/idempotente, proceso ajeno preservado, salida de error, timeout y los tres casos Windows: raíz que termina inesperadamente, muerte del launcher propietario y muerte forzada del supervisor. Cada caso comprueba desaparición de los procesos sintéticos conocidos.
@@ -101,6 +101,33 @@ node mobile/emulator-lab/run.cjs clean
 
 ## Estado de aceptación
 
-Cloud Linux: unit 16 aprobadas; process-test 3 aprobadas y 3 omitidas explícitamente por ser Windows; Auth/Functions 1 aprobada. JAR rechazado por proxy 403; suite completa aborta con ARTIFACT_MISSING. No se ejecutaron pruebas Firestore ni C# ni PowerShell Windows. Falta confirmar layout P/Invoke, permisos de handles, jobs anidados, tuberías y cierre real en Windows 11, además de la suite completa y las comprobaciones manuales anteriores.
+Resultado histórico previo a esta corrección, Cloud Linux: unit 16 aprobadas; process-test 3 aprobadas y 3 omitidas explícitamente por ser Windows; Auth/Functions 1 aprobada. JAR rechazado por proxy 403; suite completa aborta con ARTIFACT_MISSING. No se ejecutaron pruebas Firestore ni C# ni PowerShell Windows. Falta confirmar layout P/Invoke, permisos de handles, jobs anidados, tuberías y cierre real en Windows 11, además de la suite completa y las comprobaciones manuales anteriores.
 
 No cerrar B ni iniciar otra subetapa hasta revisar esa evidencia. No hay cambios de dependencias, Rules, Firebase real, web ni pantallas móviles.
+
+## Corrección del descubrimiento de Functions (sin publicar)
+
+Base publicada: `5532a8bc19c6d23ab49b2d2f1b0d66d602bad620`. El usuario informó 16/16 unitarias y 6/6 procesos en Windows con una corrección local del supervisor. **Esa corrección no está en GitHub ni en este workspace**. `windows-job.ps1` no se modifica en esta entrega; no sustituirlo por la copia publicada al preparar la prueba local.
+
+El CLI construye una ruta sin extensión para `firebase-functions`. Cross-spawn puede resolver `.cmd`, pero también interpreta shebangs: si selecciona el wrapper Unix puede intentar `sh`. La simulación reproduce ese mecanismo; no demuestra todavía por qué la instalación Windows concreta eligió ese archivo.
+
+### Adaptación acotada
+
+- `run.cjs` conserva la entrada normal de Firebase CLI en Linux. Sólo Windows usa el nuevo bootstrap, dentro del Job Object existente y con el mismo preload de red.
+- El bootstrap acepta exclusivamente los argumentos fijos del launcher para Auth/Functions o Auth/Firestore/Functions, proyecto `demo-correlativas-244b`, configuración del lab y modo no interactivo. No sirve para deploy ni otros comandos.
+- Antes de arrancar valida CLI 15.30.2, SDK 7.4.0, ruta del bin declarada, SHA-256 del módulo Delegate y del bin del SDK, y estructura del método revisado. Los hashes fijados corresponden a los paquetes instalados del lockfile. No se recalculan para aceptar paquetes distintos.
+- Exige el wrapper `.cmd` estándar npm que apunta a `..\firebase-functions\lib\bin\firebase-functions.js`, archivo regular y dentro del lab. También debe existir el wrapper sin extensión que espera el selector original. Sólo acepta la plantilla revisada, con LF o CRLF; no comandos añadidos, otro destino, enlaces o `node.exe` alternativo en `.bin`. Una variante legítima de npm no reconocida debe revisarse, no aceptarse automáticamente.
+- Únicamente reemplaza el selector `Delegate.findFunctionsBinary` en memoria; comprueba proyecto, runtime, directorio del proyecto y Functions antes de devolver `.cmd`. Rutas de fallback fuera del lab se rechazan. No parchea child_process, cross-spawn o archivos instalados.
+- El `.cmd` se ejecuta mediante el manejo Windows ya existente de cross-spawn/cmd.exe, no mediante Git Bash, WSL o `shell:true` global. No cambia PATH ni afloja el guard de red, el supervisor o las verificaciones del JAR.
+- Mensaje de aceptación: `[lab] Windows Functions discovery: verified .cmd wrapper, Firebase CLI 15.30.2`. Un error de validación impide cargar el CLI.
+
+### Integración posterior sin perder el parche local
+
+1. Mantener una copia externa de `windows-job.ps1` corregido, por ejemplo mediante VS Code, y revisar su diff contra la base publicada. No descartarlo, no hacer reset ni reemplazar la carpeta completa.
+2. Cuando se autorice publicar esta entrega, incorporar sólo sus archivos en la misma rama. Como esta entrega no cambia el supervisor, su modificación local debe conservarse. Si Git reporta cualquier conflicto, detenerse y revisarlo antes de resolver.
+3. Comprobar nuevamente el diff del supervisor: debe ser exactamente la corrección local ya probada. No afirmar correspondencia con una versión remota hasta que ese parche también se revise y publique con autorización separada.
+4. Ejecutar secuencialmente `unit`, `process-test` y `auth-test` con los comandos anteriores. En `unit`, la prueba nativa valida y selecciona el `.cmd` real instalado; no simula su existencia. Guardar el error exacto si falla, sin editar el wrapper instalado para hacerlo pasar.
+5. Conservar los logs locales y verificar que `auth-test` llegue a descubrir `backendHarness`, ejecute la prueba y libere los puertos. Probar también checkout con espacios/Unicode y cierre con Ctrl+C. No basta el mensaje del bootstrap.
+6. Sólo con JAR oficial verificado ejecutar `test`. Esta corrección no resuelve el bloqueo de descarga Cloud ni valida Firestore.
+
+Evidencia actual de Cloud: unit 24 aprobadas / 1 nativa Windows omitida; process-test 3 aprobadas / 3 Windows omitidas; auth-test 1 aprobada. No se ejecutaron cmd.exe, el bootstrap nativo, PowerShell o Job Objects Windows. Informe de esta corrección: `functions-discovery-verification.json`; los informes anteriores son históricos.

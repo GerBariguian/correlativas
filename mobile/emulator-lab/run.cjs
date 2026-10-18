@@ -30,12 +30,12 @@ async function main(){
  if(mode==='clean'){
   await portsFree();for(const name of ['test-result.json','auth-test-result.json','firebase-debug.log','firestore-debug.log','logs'])rmSync(join(OUT,name),{recursive:true,force:true});console.log('Only generated lab reports/logs cleaned; artifact cache preserved');return
  }
- if(mode==='unit'){await runNode(['--test',...['unit.test.cjs','portable.test.cjs','artifact.test.cjs'].map(f=>join(__dirname,f))]);return}
+ if(mode==='unit'){await runNode(['--test',...['unit.test.cjs','portable.test.cjs','artifact.test.cjs','functions-discovery.test.cjs'].map(f=>join(__dirname,f))]);return}
  if(mode==='process-test'){await runNode(['--test',join(__dirname,'process.test.cjs')]);return}
  validateConfig();
  for(const directory of [__dirname,join(__dirname,'functions')])if(readdirSync(directory).some(f=>/^\.env(?:\.|$)|^\.secret\.local$/i.test(f)))throw Error('LAB_REFUSES_LOCAL_ENV_FILES')
  if(mode!=='auth-test')artifact(env.FIREBASE_EMULATORS_PATH);await portsFree()
- const cli=resolve(ROOT,'node_modules/firebase-tools/lib/bin/firebase.js')
+ const cli=process.platform==='win32'?join(__dirname,'functions-cli-bootstrap.cjs'):resolve(ROOT,'node_modules/firebase-tools/lib/bin/firebase.js')
  const owned=spawnOwned(process.execPath,[cli,'emulators:start','--only',mode==='auth-test'?'auth,functions':'auth,firestore,functions','--project',PROJECT,'--config',join(__dirname,'firebase.json'),'--non-interactive'],{cwd:__dirname,env})
  let interrupted=false
  const signal=()=>{interrupted=true;owned.stop().catch(e=>console.error(e.message))}

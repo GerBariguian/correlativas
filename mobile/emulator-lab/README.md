@@ -4,7 +4,7 @@ Rama independiente: `mobile/stage2-4-4-b-emulator-infrastructure`, base `b6e17b3
 
 **Estado: adaptación Windows implementada, todavía no validada en Windows. Regresión Linux y Auth/Functions comprobadas; Firestore sigue pendiente por descarga oficial bloqueada (403 del proxy, incluido el reintento único autorizado). No aprobar B como entorno completo todavía.**
 
-La compatibilidad Windows y su plan de aceptación están en [WINDOWS.md](WINDOWS.md); resultados actuales en [windows-verification.json](windows-verification.json). `verification.json` conserva el informe histórico anterior a esta adaptación, no sus resultados actuales.
+La compatibilidad Windows y su plan de aceptación están en [WINDOWS.md](WINDOWS.md). La corrección de descubrimiento se documenta en su sección final y en [functions-discovery-verification.json](functions-discovery-verification.json). [windows-verification.json](windows-verification.json) conserva los resultados anteriores a esta corrección. `verification.json` conserva el informe histórico anterior a esta adaptación, no sus resultados actuales.
 
 ## Alcance y aislamiento
 
@@ -124,3 +124,11 @@ node_modules, artefactos, credenciales y logs no se incluyen en Git. No hay comm
 - Nuevos: `artifact.cjs`, `prepare.cjs`, `ipc.cjs`, `process-tree.cjs`, `windows-job.ps1`, `artifact.test.cjs`, `portable.test.cjs`, `process.test.cjs`, `process.fixture.cjs`, `WINDOWS.md`, `windows-verification.json`.
 
 No cambia ningún manifiesto de dependencias, lockfile, configuración Firebase o Rules del lab. No se modifica la aplicación. No se requiere Python para Windows ni para los comandos recomendados Linux.
+
+## Descubrimiento Functions Windows — corrección pendiente de validación nativa
+
+El launcher usa `functions-cli-bootstrap.cjs` exclusivamente en Windows. La adaptación verifica Firebase CLI 15.30.2, SDK 7.4.0, sus estructuras revisadas y el wrapper npm `.cmd`. Modifica sólo `Delegate.findFunctionsBinary` dentro de ese proceso para elegir explícitamente el wrapper nativo del lab. No cambia `cross-spawn`, `node_modules`, PATH, dependencias, aislamiento ni el comportamiento Linux. Falta el wrapper o difiere su estructura: aborto, sin fallback a `sh`.
+
+`functions-discovery.test.cjs` agrega pruebas focalizadas a `unit`: resultado actual Linux 24 aprobadas / 1 omitida Windows, total 25. La plantilla se contrastó con el generador cmd-shim del npm instalado en Cloud, sin instalar paquetes. La simulación Windows de cross-spawn no ejecuta cmd.exe ni acredita funcionamiento nativo. En Windows se esperan 24 aprobadas / 1 omitida exclusivamente Linux; después debe aprobar `auth-test`.
+
+`windows-job.ps1` permanece idéntico al commit publicado. La corrección local del usuario no está disponible aquí y debe conservarse al incorporar posteriormente estos cambios. No dar B por cerrada ni actualizar los resultados Windows como verificados en Cloud.

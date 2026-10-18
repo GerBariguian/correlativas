@@ -1,0 +1,101 @@
+{
+  "stage": "Mobile 2.4.4 B - Windows Functions discovery",
+  "branch": "mobile/stage2-4-4-b-emulator-infrastructure",
+  "baseCommit": "5532a8bc19c6d23ab49b2d2f1b0d66d602bad620",
+  "recordedAtUTC": "2026-10-18T05:31:47.622513+00:00",
+  "status": "IMPLEMENTED_NATIVE_WINDOWS_VALIDATION_PENDING_FIRESTORE_BLOCKED",
+  "modifiedFiles": [
+    "mobile/emulator-lab/README.md",
+    "mobile/emulator-lab/WINDOWS.md",
+    "mobile/emulator-lab/run.cjs"
+  ],
+  "newFiles": [
+    "mobile/emulator-lab/functions-cli-bootstrap.cjs",
+    "mobile/emulator-lab/functions-discovery-verification.json",
+    "mobile/emulator-lab/functions-discovery.test.cjs"
+  ],
+  "sourceSHA256": {
+    "mobile/emulator-lab/README.md": "4f4cbd27c8fef765255b8f39955bd1794ba96568f5a9c6915e80441182d0ff92",
+    "mobile/emulator-lab/WINDOWS.md": "fdfb050e01b2a0f7821b3722f4312c2a66b4f12dac9e55c2fc7a0cfe4be23ead",
+    "mobile/emulator-lab/functions-cli-bootstrap.cjs": "315dd79c4aad51da09906b69cc050ee522f9c95e98dd711c392bdc6a872af051",
+    "mobile/emulator-lab/functions-discovery.test.cjs": "8b764505309c0df65f6090db1f6170c5f7996e723f924aa85d04fded8dc73fa4",
+    "mobile/emulator-lab/run.cjs": "56cac976850586d8934ac5e5bc528cc6ebbabd7b20b2527a9b86dbc450a7c60d"
+  },
+  "scope": {
+    "platform": "Windows only; Linux retains original CLI entrypoint",
+    "cli": "15.30.2",
+    "sdk": "7.4.0",
+    "project": "demo-correlativas-244b",
+    "adaptedMethod": "Delegate.findFunctionsBinary (owned CLI process memory only)",
+    "wrapper": "functions/node_modules/.bin/firebase-functions.cmd",
+    "dependencyFilesEdited": false,
+    "globalSpawnOrShellPatch": false,
+    "systemPathModified": false
+  },
+  "linuxResults": {
+    "unit": {
+      "total": 25,
+      "passed": 24,
+      "failed": 0,
+      "skippedNativeWindows": 1
+    },
+    "newDiscoveryTests": {
+      "total": 9,
+      "passed": 8,
+      "skippedNativeWindows": 1
+    },
+    "process": {
+      "passed": 3,
+      "failed": 0,
+      "skippedWindows": 3
+    },
+    "authFunctions": {
+      "passed": 1,
+      "failed": 0,
+      "firestoreTested": false
+    },
+    "officialInstalledNpmCmdShimTemplateComparison": true,
+    "crossSpawnWindowsParser": "Simulated in VM using reviewed installed parser; no cmd.exe execution",
+    "firestore": "Not executed: launcher refuses missing official JAR"
+  },
+  "windowsResults": {
+    "executedHere": false,
+    "priorUserReportedUnitPassed": 16,
+    "priorUserReportedProcessPassed": 6,
+    "reportedTestsUsedUnpublishedSupervisorPatch": true,
+    "localSupervisorPatchAvailableHere": false,
+    "expectedUnitAfterChange": {
+      "total": 25,
+      "passed": 24,
+      "skippedLinuxOnly": 1
+    },
+    "pending": [
+      "Actual npm .cmd template acceptance and bootstrap activation",
+      "Auth/Functions discovery and full auth-test",
+      "6 process tests with the preserved local supervisor correction",
+      "Ctrl+C and owned-process cleanup; checkout paths with spaces/Unicode",
+      "Full Firestore suite only after official JAR verification"
+    ]
+  },
+  "unchangedSafety": {
+    "supervisorFileUnmodified": true,
+    "supervisorSHA256": "ebdf9f23c323774706b1711bb0a669cc4e6c8d60f9232c7556d0025c7f807085",
+    "networkGuardPolicyProcessTreeAndArtifactPreparersUnmodified": true,
+    "dependenciesAndLocksUnmodified": true,
+    "firebaseConfigurationAndRulesUnmodified": true,
+    "realFirebaseUsed": false,
+    "academicFunctionalityChanged": false,
+    "tlsSizeAndSHA256VerificationUnmodified": true
+  },
+  "limits": [
+    "Original Windows resolution failure remains a hypothesis pending native logs; explicit .cmd selection removes that ambiguity",
+    "Strict wrapper template may reject a legitimate unreviewed npm variant; review required, never silently loosen checks",
+    "Internal CLI API is pinned; different versions or reviewed source hashes abort",
+    "Node guards are not an OS firewall or hostile-code sandbox",
+    "No native Windows or Firestore readiness claim"
+  ],
+  "committed": false,
+  "pushed": false,
+  "deployed": false,
+  "stageBClosed": false
+}
