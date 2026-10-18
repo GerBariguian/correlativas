@@ -52,7 +52,7 @@ public static class LabOwnedJob {
     // Suspended until assigned: no unowned child can start spawning descendants.
     Check(AssignProcessToJobObject(job,info.process),"LAB_JOB_ASSIGN_FAILED");assigned=true;
     Check(ResumeThread(info.thread)!=0xffffffff,"LAB_PROCESS_RESUME_FAILED");
-    Task<string> input=Console.In.ReadLineAsync();
+    Task<string> input=Task.Run(() => Console.In.ReadLine());
     while(WaitForSingleObject(info.process,50)==258) {
      if(parent.HasExited||input.IsCompleted) { Check(TerminateJobObject(job,130),"LAB_JOB_STOP_FAILED");WaitForSingleObject(info.process,5000);return 130; }
     }

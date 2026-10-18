@@ -2,7 +2,7 @@
 
 Rama independiente: `mobile/stage2-4-4-b-emulator-infrastructure`, base `b6e17b3f69d5139c06c16b3d30542d8e8bc85f92`.
 
-**Estado: adaptación Windows implementada, todavía no validada en Windows. Regresión Linux y Auth/Functions comprobadas; Firestore sigue pendiente por descarga oficial bloqueada (403 del proxy, incluido el reintento único autorizado). No aprobar B como entorno completo todavía.**
+**Estado: infraestructura aislada validada en Windows 11 Pro. Las cuatro suites finalizaron con código 0; ver resultados y límites abajo. Cierre Git pendiente de autorización.**
 
 La compatibilidad Windows y su plan de aceptación están en [WINDOWS.md](WINDOWS.md). La corrección de descubrimiento se documenta en su sección final y en [functions-discovery-verification.json](functions-discovery-verification.json). [windows-verification.json](windows-verification.json) conserva los resultados anteriores a esta corrección. `verification.json` conserva el informe histórico anterior a esta adaptación, no sus resultados actuales.
 
@@ -29,7 +29,7 @@ Desde la raíz del repositorio, en Linux (PowerShell en WINDOWS.md):
 npm ci --cache .tools/emulator-lab/install-cache --ignore-scripts --no-audit --no-fund
 # Instalación del harness, comprobada usando su lockfile y sin scripts de instalación.
 npm ci --prefix mobile/emulator-lab/functions --cache .tools/emulator-lab/install-cache --ignore-scripts --no-audit --no-fund
-# Artefacto oficial; actualmente este paso está bloqueado por el proxy.
+# Artefacto oficial; Cloud tuvo un bloqueo histórico de proxy, no la validación Windows.
 node mobile/emulator-lab/prepare.cjs
 ```
 
@@ -43,7 +43,7 @@ Tamaño esperado: 136707194 bytes. SHA-256 oficial fijado:
 
 Valida TLS, tamaño y SHA-256 antes de instalarlo en `.tools/emulator-lab/cache/`. Nunca usa otro artefacto ni reduce la verificación. El launcher no descarga automáticamente: sin JAR válido falla antes de iniciar la suite completa.
 
-Para desbloquear: corregir la ruta/permiso efectivo del proxy hacia ese artefacto (el dominio ya figura en la configuración guardada), o incorporar una copia oficial del mismo JAR en la ruta indicada y verificar hash/tamaño. No se necesitan cuentas Firebase reales, secretos, facturación ni otro hosting. No se reintentará indefinidamente ni se buscarán espejos alternativos.
+Si otra instalación encuentra el bloqueo histórico del proxy: corregir la ruta/permiso efectivo del proxy hacia ese artefacto (el dominio ya figura en la configuración guardada), o incorporar una copia oficial del mismo JAR en la ruta indicada y verificar hash/tamaño. No se necesitan cuentas Firebase reales, secretos, facturación ni otro hosting. No se reintentará indefinidamente ni se buscarán espejos alternativos.
 
 ## Comandos
 
@@ -59,7 +59,7 @@ node mobile/emulator-lab/run.cjs start
 - `unit`: controles sin iniciar servidores; presupone puertos de lab sin servicios.
 - `process-test`: pruebas de árboles de procesos y cierre, con procesos sintéticos sin Firebase. Los tres casos exclusivos de Job Objects se omiten explícitamente en Linux y deben ejecutarse en Windows.
 - `auth-test`: **modo parcial explícito**, arranca sólo Auth/Functions, prueba dos clientes e invoca el backend de prueba; no afirma readiness Firestore. Cierra los procesos propios al terminar.
-- `test`: suite completa con Auth/Firestore/Functions, fixtures y pruebas de infraestructura. Pendiente de ejecución real por el JAR.
+- `test`: suite completa con Auth/Firestore/Functions, fixtures y pruebas de infraestructura. Validada en Windows con JAR oficial verificado.
 - `start`: modo interactivo completo, carga fixtures y permanece activo. Ctrl+C cierra sólo el árbol propio: grupo POSIX en Linux, Job Object en Windows. El supervisor Windows también elimina descendientes al perder el launcher o al terminar el proceso raíz. No inicia React, pantallas ni datos reales.
 
 Los datos son efímeros: no hay importación/exportación ni migración. Parar y reiniciar elimina el estado del emulador y vuelve a cargar fixtures. Para limpiar reportes/logs generados con todos los puertos libres:
@@ -80,7 +80,7 @@ Incluyen progreso legacy con writeRevision=3; instancias de Sistemas, Industrial
 
 El fixture de conflictos usa exclusivamente `labInfrastructure/{uid}/probes/concurrency`: dos transacciones CAS sobre revision/cursor, una ganadora y otra obsoleta. La lectura desde el segundo cliente prueba el transporte de un cursor ficticio entre clientes, **no implementa ni certifica la sesión de onboarding diseñada en A**.
 
-`faults.cjs` permite disableNetwork/enableNetwork explícitos y descartar una respuesta después de que termine una operación. No implementa cola, sincronización automática, comprobantes ni reintentos de producto. En la suite completa se verifica que perder una respuesta no impide leer el resultado desde el otro cliente. Ese escenario sigue pendiente de Firestore.
+`faults.cjs` permite disableNetwork/enableNetwork explícitos y descartar una respuesta después de que termine una operación. No implementa cola, sincronización automática, comprobantes ni reintentos de producto. En la suite completa se verifica que perder una respuesta no impide leer el resultado desde el otro cliente. Ese escenario pasó en Windows.
 
 ## Rules y backend de infraestructura
 
@@ -90,19 +90,26 @@ El seeder puede escribir fixtures saltando Rules **únicamente** mediante la API
 
 Functions expone sólo salud y una prueba autenticada sin escrituras. Verifica token mediante Auth Emulator y proyecto emulado. Las rutas de alta y guardado responden 501; no hay creación funcional de carreras, transacciones académicas nuevas, migraciones ni conexión a pantallas. Admin SDK está instalado por requisito del runtime y para futura infraestructura; el código del harness no inicializa un acceso administrativo remoto.
 
-## Resultados y limitaciones
+## Validación final Windows 11 Pro — 18 de octubre de 2026
 
-Informe histórico original: `verification.json`. Resultados de la adaptación actual: `windows-verification.json` y WINDOWS.md. Las cifras siguientes describen la infraestructura anterior y no sustituyen la aceptación Windows.
+| Comando run.cjs | Aprobadas | Fallidas | Omitidas | Salida |
+|---|---:|---:|---:|---:|
+| unit | 24 | 0 | 1 (exclusiva de Linux) | 0 |
+| process-test | 6 | 0 | 0 | 0 |
+| auth-test | 1 | 0 | 0 | 0 |
+| test | 1 integrada | 0 | 0 | 0 |
 
-- Tests unitarios de aislamiento: 7 aprobados, sin skips.
-- Prueba funcional Auth/Functions: 1 aprobada, con dos clientes independientes, logout aislado, rechazo de tokens ausentes/inválidos, probe autenticado y rutas funcionales no implementadas.
-- Instalación congelada del paquete Functions ejecutada correctamente. npm audit de ese paquete aislado: cero vulnerabilidades reportadas; no es una auditoría del repositorio completo ni del código.
-- `run.cjs test`: aborto esperado con `LAB_FIRESTORE_ARTIFACT_MISSING`; **la prueba Firestore no se ejecutó y no cuenta como aprobada**.
-- Fixtures Firestore revisados estáticamente; carga, Rules, CAS concurrente, desconexión real y continuidad documental quedan pendientes.
+La prueba integrada registró firestoreTested: true. Firestore Emulator 1.22.0 arrancó con el JAR oficial validado: 136707194 bytes y SHA256 9b6498b7f62714d67f48f59b3818883cd682dbcd46b9f59511de81c97bb5166c. Auth y Functions iniciaron mediante el wrapper nativo .cmd. Sin errores de sh, LAB_CHILD_TIMEOUT ni LAB_STARTUP_FAILED.
 
-Durante la preparación se corrigieron: detección automática de metadatos, bloqueo inicial de IPC local de Functions, diferencia entre error vacío y error real en importación de fixtures Auth, y binding temporal wildcard del SDK. Se repitieron los checks afectados después de corregirlos.
+Los procesos propios cerraron correctamente y los seis puertos del laboratorio quedaron libres, así como los temporales comprobados (8293 en auth-test y 8369 en test). Las pruebas de procesos verificaron descendientes y preservación del proceso ajeno sintético; los puertos libres por sí solos no acreditan ausencia exhaustiva de procesos.
 
-No se ejecutan suites web ni builds móviles: no hay cambios en esos componentes. No se asegura equivalencia con dispositivos físicos o SDK nativos. No se inicia C-H. B permanece abierta hasta probar el arranque completo y la suite Firestore.
+La integración comprobó aislamiento entre usuarios, rechazo de escritura académica, CAS con un ganador, lectura confirmada desde otro cliente, desconexión y pérdida de respuesta con resultado incierto y escritura posteriormente confirmada. El PERMISSION_DENIED del log fue un negativo esperado.
+
+**Alcance:** infraestructura aislada con datos ficticios y Rules del laboratorio (lab.rules), NO integración académica productiva. Se cargaron fixtures legacy, trayectorias activas/archivadas y estados académicos, pero no se probaron individualmente todas sus operaciones. El guard de red Node no sustituye un firewall del sistema. La compatibilidad de Functions debe revisarse al actualizar CLI/SDK; la adaptación fijada aborta ante incompatibilidades.
+
+No hubo despliegues ni conexiones autorizadas a Firebase real. La infraestructura B cuenta con validación automatizada Windows satisfactoria; quedan pendientes el cierre Git autorizado y la futura integración de C. Esta evidencia no acredita dispositivos físicos, Google Sign-In ni operaciones académicas productivas. Tampoco se ejecutaron aquí las comprobaciones manuales de cierre de VS Code/terminal o el arranque completo desde otro checkout con espacios/Unicode.
+
+Los JSON existentes conservan los resultados y hashes históricos de Cloud; sus estados pendientes no describen esta validación Windows posterior. El supervisor mantiene el parche local Task.Run(() => Console.In.ReadLine()), todavía sin publicar.
 
 ## Archivos propuestos
 
@@ -125,10 +132,10 @@ node_modules, artefactos, credenciales y logs no se incluyen en Git. No hay comm
 
 No cambia ningún manifiesto de dependencias, lockfile, configuración Firebase o Rules del lab. No se modifica la aplicación. No se requiere Python para Windows ni para los comandos recomendados Linux.
 
-## Descubrimiento Functions Windows — corrección pendiente de validación nativa
+## Descubrimiento Functions Windows — validación nativa completada
 
 El launcher usa `functions-cli-bootstrap.cjs` exclusivamente en Windows. La adaptación verifica Firebase CLI 15.30.2, SDK 7.4.0, sus estructuras revisadas y el wrapper npm `.cmd`. Modifica sólo `Delegate.findFunctionsBinary` dentro de ese proceso para elegir explícitamente el wrapper nativo del lab. No cambia `cross-spawn`, `node_modules`, PATH, dependencias, aislamiento ni el comportamiento Linux. Falta el wrapper o difiere su estructura: aborto, sin fallback a `sh`.
 
-`functions-discovery.test.cjs` agrega pruebas focalizadas a `unit`: resultado actual Linux 24 aprobadas / 1 omitida Windows, total 25. La plantilla se contrastó con el generador cmd-shim del npm instalado en Cloud, sin instalar paquetes. La simulación Windows de cross-spawn no ejecuta cmd.exe ni acredita funcionamiento nativo. En Windows se esperan 24 aprobadas / 1 omitida exclusivamente Linux; después debe aprobar `auth-test`.
+`functions-discovery.test.cjs` agrega pruebas focalizadas a `unit`: resultado actual Linux 24 aprobadas / 1 omitida Windows, total 25. La plantilla se contrastó con el generador cmd-shim del npm instalado en Cloud, sin instalar paquetes. La simulación Windows de cross-spawn no ejecuta cmd.exe ni acredita funcionamiento nativo. En Windows se obtuvieron 24 aprobadas / 1 omitida exclusivamente Linux; auth-test y test también aprobaron.
 
-`windows-job.ps1` permanece idéntico al commit publicado. La corrección local del usuario no está disponible aquí y debe conservarse al incorporar posteriormente estos cambios. No dar B por cerrada ni actualizar los resultados Windows como verificados en Cloud.
+`windows-job.ps1` conserva el parche local validado de lectura stdin en segundo plano. La adaptación Functions corresponde a be0df38c; el parche del supervisor sigue sin publicar. Los resultados Windows son locales, no resultados de Cloud.
