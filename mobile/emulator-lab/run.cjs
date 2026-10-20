@@ -37,21 +37,43 @@ async function main(){
  if(mode!=='auth-test')artifact(env.FIREBASE_EMULATORS_PATH);await portsFree()
  const cli=process.platform==='win32'?join(__dirname,'functions-cli-bootstrap.cjs'):resolve(ROOT,'node_modules/firebase-tools/lib/bin/firebase.js')
  const owned=spawnOwned(process.execPath,[cli,'emulators:start','--only',mode==='auth-test'?'auth,functions':'auth,firestore,functions','--project',PROJECT,'--config',join(__dirname,'firebase.json'),'--non-interactive'],{cwd:__dirname,env})
+ let childResult=null
+ // Only fixed classifications/codes are logged, never error messages or bodies.
+ const probeError=error=>{
+  const code=error?.cause?.code??error?.code
+  return {error:error?.name==='TimeoutError'?'timeout':error?.name==='AbortError'?'aborted':'request-failed',
+   code:['ECONNREFUSED','ECONNRESET','ETIMEDOUT','ENOTFOUND','EACCES','EPERM','UND_ERR_CONNECT_TIMEOUT','UND_ERR_SOCKET','ABORT_ERR'].includes(code)?code:'UNCLASSIFIED'}
+ }
+ owned.exited.then(result=>{childResult={code:result.code,signal:result.signal??null}},error=>{childResult={supervisorError:probeError(error)}})
  let interrupted=false
  const signal=()=>{interrupted=true;owned.stop().catch(e=>console.error(e.message))}
  process.once('SIGINT',signal);process.once('SIGTERM',signal)
  try{
-  const until=Date.now()+60000;let ready=false
+  const started=Date.now(),until=started+180000;let ready=false
+  let lastFunctions={state:'not-probed'},lastAuth={state:'not-probed'}
   while(Date.now()<until&&!owned.closed&&!interrupted){
+   let functionsReady=false,authReady=false
    try{
-    const r=await fetch(localURL('functions',`/${PROJECT}/us-central1/backendHarness/health`),{signal:AbortSignal.timeout(700)}),d=await r.json()
+    const r=await fetch(localURL('functions',`/${PROJECT}/us-central1/backendHarness/health`),{signal:AbortSignal.timeout(700)})
+    lastFunctions={status:r.status,json:'invalid'}
+    let d
+    try{d=await r.json();lastFunctions={status:r.status,json:'valid',projectMatches:d?.project===PROJECT,emulatorOnly:d?.emulatorOnly===true}}catch(error){lastFunctions={status:r.status,json:'invalid',...probeError(error)}}
+    functionsReady=r.ok&&d?.project===PROJECT&&d?.emulatorOnly===true
+   }catch(error){lastFunctions=probeError(error)}
+   // Probe independently so Functions failure does not hide Auth's last result.
+   try{
     const a=await fetch(localURL('auth','/'),{signal:AbortSignal.timeout(700)})
-    if(r.ok&&d.project===PROJECT&&d.emulatorOnly===true&&a.status<500){ready=true;break}
-   }catch{}
+    lastAuth={status:a.status};authReady=a.status<500
+   }catch(error){lastAuth=probeError(error)}
+   if(functionsReady&&authReady&&!owned.closed&&!interrupted){ready=true;break}
    await new Promise(r=>setTimeout(r,150))
   }
   if(interrupted)throw Error('LAB_INTERRUPTED')
-  if(!ready)throw Error('LAB_STARTUP_FAILED: no UI or remote fallback')
+  if(!ready){
+   const reason=owned.closed?'supervised-process-ended':'readiness-timeout'
+   console.error('LAB_STARTUP_DIAGNOSTIC '+JSON.stringify({reason,elapsedMs:Date.now()-started,readinessBudgetMs:180000,process:childResult,functions:lastFunctions,auth:lastAuth}))
+   throw Error('LAB_STARTUP_FAILED: '+reason+'; no UI or remote fallback')
+  }
   if(mode==='start'){
    await runNode([join(__dirname,'seed.cjs')])
    console.log('LAB READY: only fixture data; Ctrl+C stops only this owned process tree. No product integration.')
