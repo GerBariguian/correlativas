@@ -1,7 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {CONFIG,validateConfig,validateLocation,readiness,openClient} from './policy.mjs'
-import {assertModule,CSP} from './vite.config.mjs'
+import {assertModule,CSP} from './importPolicy.mjs'
 const location={protocol:'http:',hostname:'127.0.0.1',port:'5187'}
 function fake(){const calls=[];const sdk={inMemoryPersistence:{},memoryLocalCache:()=>({}),initializeApp:(...a)=>{calls.push(['app',...a]);return {}},initializeAuth:()=>{calls.push(['auth']);return {}},connectAuthEmulator:(...a)=>calls.push(['auth-emulator',...a]),initializeFirestore:()=>{calls.push(['firestore']);return {}},connectFirestoreEmulator:(...a)=>calls.push(['firestore-emulator',...a]),deleteApp:async()=>calls.push(['delete'])};return {sdk,calls}}
 test('exact config rejects wrong project/host/ports/extra fields',()=>{validateConfig(CONFIG);for(const c of [{...CONFIG,projectId:'production'},{...CONFIG,host:'localhost'},{...CONFIG,authPort:9099},{...CONFIG,firestorePort:8088},{...CONFIG,token:'x'}])assert.throws(()=>validateConfig(c),/UNSAFE/);assert.ok(Object.isFrozen(CONFIG))})

@@ -6,7 +6,7 @@ Abrir http://127.0.0.1:5187. Conectar sólo comprueba disponibilidad HTTP y conf
 Con B iniciado por su procedimiento autorizado, conectar/desconectar. No se inicia B automáticamente. La CSP permite únicamente los dos endpoints Emulator; no hay fallback ni configuración de entorno productiva. No se autoriza persistencia académica ni de sesión; existe la excepción técnica de heartbeat documentada abajo. El control de módulos rechaza fuentes externas a C1; permite dependencias instaladas. No es un firewall del sistema.
 Tests: node --test mobile/read-only-integration/isolation.test.mjs
 Build: node node_modules/vite/bin/vite.js build --config mobile/read-only-integration/vite.config.mjs
-C2-C5 no implementados. No importar esta entrada desde la Web productiva. No desplegar.
+C2 implementada como capacidad separada, pendiente de validación SDK/Emulator. C3-C5 no implementados. No importar esta entrada desde la Web productiva. No desplegar.
 
 ## Validación manual sin cliente de desarrollo Vite
 Ejecutar el build indicado arriba. Detener únicamente el servidor C1 propio antes de ejecutar:
@@ -38,4 +38,32 @@ La presencia de esta base impide afirmar «cero persistencia en el navegador». 
 
 Se acreditan disponibilidad HTTP de ambos emuladores, configuración del cliente, estados de interfaz y detección de pérdida del laboratorio. NO se acreditaron autenticación, lecturas académicas mediante SDK ni una auditoría completa de ausencia de tráfico remoto. La configuración y la CSP restringen los destinos, pero no sustituyen esa auditoría ni un firewall del sistema.
 
-C1 está lista para cierre dentro de este alcance limitado y con la excepción de heartbeat aprobada. C2 y la integración académica siguen sin implementar ni autorizar. No hubo publicación, migración ni modificación de Firebase productivo durante esta validación.
+C1 está lista para cierre dentro de este alcance limitado y con la excepción de heartbeat aprobada. Esta validación histórica no acredita C2; ver el alcance y las limitaciones de C2 al final de este documento. No hubo publicación, migración ni modificación de Firebase productivo durante esta validación.
+
+## C2: repositorio académico de lectura aislado
+
+Implementación local con validación SDK/Emulator real automatizada. Ver [VALIDATION-C2.md](VALIDATION-C2.md) para casos acreditados, reproducción y límites.
+No incorpora C3–C5 ni cambia la interfaz C1. No publicar.
+
+- `academicClient.mjs`: `connectAcademicLab(uid)` admite exclusivamente usuarios ficticios de B: lab-legacy, lab-instances, lab-empty y lab-blocked. Autentica con la credencial ficticia de B; expone únicamente `readProgress(scope)` y `close()`. Cerrar elimina la app y revoca sus lecturas.
+- Scope obligatorio completo: `{ uid, model: 'legacy' | 'instances', id, catalogId }`. Se copia y congela; no se deriva desde una selección global ni se comparte caché entre contextos.
+- Resultados explícitos: loaded, absent, error, archived y blocked. Un error nunca equivale a ausencia. Autoridad, catálogo, sesión y lifecycle se comprueban antes de entregar progreso. No se sustituye un modelo o contexto por otro.
+- Legacy usa `users/{uid}/careers/{id}`; instances usa metadata en `users/{uid}/careerInstances/{id}` y progreso en `academic/progress`. El control de autoridad se lee de `migrationUsers/{uid}`. Los catálogos se conservan como identidad, sin descargar catálogos ni implementar proyecciones o planificación.
+- Se reutilizan `academicBridgeRepository.loadProgress` y `legacyOnboardingRepository.load`, con db/auth inyectados. Los factories existentes contienen escritores; la fachada nunca los invoca ni los expone. No se implementa ninguna escritura académica nueva.
+- `contractImports.mjs` contiene la lista cerrada de diez módulos reutilizados de src. Su grafo no inicializa Firebase productivo. El control Vite admite solamente esos módulos, esta carpeta y dependencias instaladas. La CSP C1 permanece igual.
+- Proyecto demo y destinos loopback fijos, sin fallback remoto. Auth en memoria y Firestore memoryLocalCache. Se mantiene exclusivamente la excepción técnica de heartbeat documentada en C1. No se guardan datos académicos ni sesiones en almacenamiento del navegador.
+- No se inicia, limpia ni siembra B. Las fixtures existentes deben estar preparadas por su procedimiento autorizado.
+
+Validación sin instalar dependencias:
+
+`node --test mobile/read-only-integration/isolation.test.mjs mobile/read-only-integration/academicRead.test.mjs mobile/read-only-integration/academicDecoders.test.mjs`
+
+Incluye control del grafo de imports, aislamiento y decoders existentes ejecutados con snapshots ficticios. El doble Firestore rechaza transacciones/escrituras; no constituye una prueba de integración con el SDK real.
+
+Builds cuando estén disponibles las dependencias del proyecto:
+
+`node node_modules/vite/bin/vite.js build --config mobile/read-only-integration/vite.config.mjs`
+
+`node node_modules/vite/bin/vite.js build --config mobile/read-only-integration/vite.c2.config.mjs`
+
+El segundo build incorpora la capacidad C2 sin conectarla a la UI de C1. Ambos builds pasaron con las dependencias instaladas por el usuario. La validación real contra B y el control de destinos del proceso de tests se documentan en VALIDATION-C2.md; no constituyen una auditoría del navegador. Las comprobaciones previas/posteriores no son una transacción: no garantizan snapshot atómico ante cambios concurrentes transitorios.
