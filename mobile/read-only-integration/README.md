@@ -67,3 +67,7 @@ Builds cuando estén disponibles las dependencias del proyecto:
 `node node_modules/vite/bin/vite.js build --config mobile/read-only-integration/vite.c2.config.mjs`
 
 El segundo build incorpora la capacidad C2 sin conectarla a la UI de C1. Ambos builds pasaron con las dependencias instaladas por el usuario. La validación real contra B y el control de destinos del proceso de tests se documentan en VALIDATION-C2.md; no constituyen una auditoría del navegador. Las comprobaciones previas/posteriores no son una transacción: no garantizan snapshot atómico ante cambios concurrentes transitorios.
+
+## C3: consumo seguro y sesión local
+
+Los controladores, el hook React y su contrato se describen en [C3-DESIGN.md](C3-DESIGN.md). La evidencia y los límites están en [VALIDATION-C3.md](VALIDATION-C3.md). C3 mantiene lecturas puntuales, identidad académica completa y actualización manual; no incorpora listeners Firestore, polling ni cambios al contrato C2. La UI de C1 no se conecta automáticamente a C3. C4 y C5 siguen fuera de alcance.
